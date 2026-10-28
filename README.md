@@ -1,8 +1,26 @@
-# beaTTer // Yenilmez Biyomekanik & Yapay Zeka Taş-Kağıt-Makas Arenası 🦾⚡
+# beaTTer // Yenilmez Biyomekanik & Nöral Oyun Arenası 🦾⚡
 
-> **"İnsan beyni rastgele seçim yapamaz; gözün kırpılma süresi 250ms, yapay zekanın tendon hareketini okuyup hamleyi çözmesi 20ms'dir."**
+> **"İnsan beyni rastgele seçim yapamaz; gözün kırpılma süresi 250ms, yapay zekanın tendon ivmesini okuyup dijital ikizde geleceği simüle etmesi 20ms'dir."**
 
-**beaTTer**, Tokyo Üniversitesi'nin *Janken Robot* konsepti, Zhejiang Üniversitesi RPS oyun teorisi araştırmaları ve insan biyomekaniğinden (Wang et al., Nature Scientific Reports) ilham alan, **insanlara karşı asla kaybetmeyecek şekilde tasarlanmış büyük usta (Grandmaster) bir yapay zeka sistemidir**.
+**beaTTer**, Tokyo Üniversitesi'nin *Janken Robot* konsepti, Zhejiang Üniversitesi bilişsel oyun teorisi deneyleri ve insan el biyomekaniğinden ilham alan; **insanlara karşı asla kaybetmeyecek şekilde tasarlanmış çift modlu yapay zeka ve dijital ikiz arenasıdır**.
+
+---
+
+## 🎮 İki Oyun Modu
+
+### 1. ✊✌️🖐️ TAŞ - KAĞIT - MAKAS (Janken AI)
+- **360° Koordinatsız 3D Kinematik:** Eksen izdüşümü kullanmadığı için eliniz kameraya doğru bükük, yana yatık, baş aşağı (180°), ters veya 360 derece hangi açıda durursa dursun Taş, Kağıt ve Makas sıfır hata ile algılanır.
+- **-50ms Erken Tendon Sezgisi:** 3. sallamadan 4. vuruşa inerken parmakların açılma ivmesi vuruş tamamlanmadan 50-80 ms önce okunur.
+- **Bilişsel Markov Analitiği (Win-Stay, Lose-Shift):** İnsan psikolojisinin bilişsel zaafiyetlerini Bayesyen füzyonla birleştirir.
+
+### 2. 🧠🤖 MINDTWIN (Biyomekanik Zihin Okuyucu / Tek mi Çift mi Düellosu)
+- **Çift Pencereli Nöral Arayüz (Split-Screen HUD):**
+  - **Pencere 1 (Sol):** Canlı kamera, 3D eklem iskeleti, parmak fleksör/ekstansör açıları ve mikrosaniye hız türevleri.
+  - **Pencere 2 (Sağ):** Siber-Mekanik Dijital İkiz (Pre-Cognitive Cyber Hand). Kullanıcı henüz hareketini bitirmeden (+15ms), eklem ivmesinden gelecekteki el pozisyonunu hesaplar ve **kullanıcıdan 180ms önce** o pozisyona geçer!
+- **Zihin Okuyan Parite Düellosu (Tek mi Çift mi?):**
+  - Kullanıcı bahsini seçer (`TEK` veya `ÇİFT`).
+  - 1.. 2.. 3.. sayımıyla 1-5 arası parmak açarken, dijital ikiz kullanıcının açacağı parmakları saniyesinde simüle eder.
+  - AI, toplam pariteyi kendi lehine çevirecek parmak sayısını kilitler ve insan zihnini alt eder.
 
 ---
 
@@ -18,23 +36,11 @@
 
 1. **360° Koordinatsız 3D Kinematik Motoru:**
    - 3D Öklid Kiriş Oranları ($R_{chord}$), Bilek Göreceli Mesafesi ve 3D Eklem Açı Kosinüsleri ile çalışır.
-   - Eksen izdüşümü kullanmadığı için eliniz kameraya doğru bükük, yana yatık, baş aşağı (180°), ters veya 360 derece hangi açıda durursa dursun Taş, Kağıt ve Makas sıfır hata ile algılanır.
-
-2. **Parmaklar Arası V-Açısı (V-Spread) & Tendon Hızı Takibi:**
-   - İşaret ve orta parmak arasındaki açısal ayrılma ($\theta_V$) anlık hesaplanır.
-   - Parmakların açılma ivmesi ($\omega_{ext}$ rad/s) 60 FPS hızında sürekli türetilir.
-
-3. **3'ten 4'e Geçerken Erken Tendon Tahmini (Early Anticipation):**
-   - Eliniz 3. vuruştan 4. vuruşa doğru inerken, parmaklarınızın yumruktan ayrılma ivmesi vuruş tamamlanmadan 40-90 ms önce okunur.
-
-4. **Bilişsel Markov Olasılık Matrisi (Win-Stay, Lose-Shift):**
-   - İnsanların yenilgi veya zafer sonrası hamle değiştirme eğilimlerini modelleyen Markov zincirleri, anlık biyomekanik verilerle Bayesyen füzyona girer.
-
-5. **5 Turluk Seri Formatı (Best of 5 Series):**
-   - Her maç 5 turdan oluşur (`Tur 1/5 ... Tur 5/5`).
-   - Tur geçmişi pip göstergelerinde tutulur ve 5. turun sonunda kapsamlı analiz dökümü sunulur.
-
-6. **Donanımsal Robot Kol Entegrasyonu (Arduino):**
+2. **Pre-Cognitive Cybernetic Digital Twin (MINDTWIN):**
+   - 5 parmak için bağımsız servo motor açıları, hidrolik pistonlar ve neon enerji hatlarıyla kullanıcının niyetini anında canlandıran 60 FPS Canvas motoru.
+3. **5 Turluk Seri Formatı (Best of 5 Series):**
+   - Her iki oyunda da turn-by-turn geçmişi ve seri şampiyonluk dökümü.
+4. **Donanımsal Robot Kol Entegrasyonu (Arduino):**
    - İsteğe bağlı olarak 5 servolu fiziksel bir robotik ele (`arduino/beatter_arm.ino`) anlık hamle sinyali gönderebilir.
 
 ---

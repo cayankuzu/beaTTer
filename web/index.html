@@ -13,6 +13,37 @@
 
   <div class="app-container">
     
+    <!-- APPLICATION & GAME MODE SELECTOR -->
+    <nav class="game-mode-bar">
+      <div class="brand-tag">
+        <span class="brand-logo">beaTTer</span>
+        <span class="brand-ver">v2.1 // ARENA</span>
+      </div>
+
+      <div class="mode-tabs">
+        <button id="tab-mode-rps" class="mode-tab active" data-mode="rps">
+          <span class="tab-badge-icon">✊✌️🖐️</span>
+          <div class="tab-title-wrap">
+            <span class="tab-name">TAŞ - KAĞIT - MAKAS</span>
+            <span class="tab-sub">Janken AI & Biyomekanik</span>
+          </div>
+        </button>
+
+        <button id="tab-mode-mindtwin" class="mode-tab" data-mode="mindtwin">
+          <span class="tab-badge-icon">🧠🤖</span>
+          <div class="tab-title-wrap">
+            <span class="tab-name">MINDTWIN</span>
+            <span class="tab-new-pill">YENİ OYUN</span>
+            <span class="tab-sub">Zihin Okuyucu Dijital İkiz (Tek-Çift)</span>
+          </div>
+        </button>
+      </div>
+
+      <div class="mode-quick-info">
+        <span id="header-mode-desc" class="info-badge">360° KİNEMATİK + ERKEN SEZGİ (-180ms)</span>
+      </div>
+    </nav>
+
     <!-- TOP STATUS & SCORE BAR -->
     <header class="app-topbar">
       <div class="score-card p1">
@@ -33,26 +64,44 @@
         <span id="turn-indicator" class="turn-label">TUR 1/5</span>
       </div>
 
-      <!-- Center 4-Step Rhythm Beats -->
-      <div class="beats-wrapper">
-        <div class="beat-item" id="beat-1">
-          <span class="beat-idx">1</span>
-          <span class="beat-name">TAŞ</span>
+      <!-- Center Beats & MindTwin Bet Selector Container -->
+      <div class="center-controls-wrapper">
+        <!-- Center 4-Step Rhythm Beats (RPS & MindTwin) -->
+        <div class="beats-wrapper" id="beats-wrapper">
+          <div class="beat-item" id="beat-1">
+            <span class="beat-idx">1</span>
+            <span class="beat-name" id="beat-name-1">TAŞ</span>
+          </div>
+          <div class="beat-sep">›</div>
+          <div class="beat-item" id="beat-2">
+            <span class="beat-idx">2</span>
+            <span class="beat-name" id="beat-name-2">KAĞIT</span>
+          </div>
+          <div class="beat-sep">›</div>
+          <div class="beat-item" id="beat-3">
+            <span class="beat-idx">3</span>
+            <span class="beat-name" id="beat-name-3">MAKAS</span>
+          </div>
+          <div class="beat-sep">›</div>
+          <div class="beat-item clash" id="beat-4">
+            <span class="beat-idx">4</span>
+            <span class="beat-name" id="beat-name-4">VUR!</span>
+          </div>
         </div>
-        <div class="beat-sep">›</div>
-        <div class="beat-item" id="beat-2">
-          <span class="beat-idx">2</span>
-          <span class="beat-name">KAĞIT</span>
-        </div>
-        <div class="beat-sep">›</div>
-        <div class="beat-item" id="beat-3">
-          <span class="beat-idx">3</span>
-          <span class="beat-name">MAKAS</span>
-        </div>
-        <div class="beat-sep">›</div>
-        <div class="beat-item clash" id="beat-4">
-          <span class="beat-idx">4</span>
-          <span class="beat-name">VUR!</span>
+
+        <!-- MINDTWIN Parity Bet Switcher (Hidden in RPS mode) -->
+        <div class="mindtwin-bet-box hidden" id="mindtwin-bet-box">
+          <span class="bet-label">BAHİS:</span>
+          <div class="bet-toggle-group">
+            <button id="btn-bet-even" class="bet-btn active" data-bet="EVEN">
+              <span class="bet-ico">🛡️</span>
+              <span class="bet-txt">ÇİFT</span>
+            </button>
+            <button id="btn-bet-odd" class="bet-btn" data-bet="ODD">
+              <span class="bet-ico">⚡</span>
+              <span class="bet-txt">TEK</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -122,18 +171,18 @@
         </div>
       </section>
 
-      <!-- RIGHT: LIFE-SIZED SYNCHRONIZED OPPONENT HAND -->
+      <!-- RIGHT: LIFE-SIZED SYNCHRONIZED OPPONENT HAND & DIGITAL TWIN -->
       <section class="arena-box rival-box">
         <div class="box-top">
-          <span>YAPAY ZEKA RAKİP // ANLIK SENKRONİZASYON</span>
+          <span id="rival-box-title">YAPAY ZEKA RAKİP // ANLIK SENKRONİZASYON</span>
           <span id="rival-state-tag" class="mono-badge gold">HAZIR</span>
         </div>
 
         <div class="rival-stage">
           <canvas id="rival-canvas"></canvas>
 
-          <!-- Live AI Grandmaster Probability & Markov Matrix -->
-          <div class="analyst-dock">
+          <!-- 1. Live RPS Grandmaster Probability & Markov Matrix -->
+          <div class="analyst-dock" id="analyst-dock-rps">
             <div class="analyst-head">
               <span>🧠 BİYOMEKANİK & MARKOV ANALİZİ</span>
               <span id="markov-tag" class="analyst-badge">HAZIR</span>
@@ -159,6 +208,54 @@
               <span>V-Açısı: <b id="stat-v-angle">0.0°</b></span>
               <span>Tendon Hızı: <b id="stat-tendon-vel">0°/s</b></span>
               <span>Strateji: <b id="stat-psych">Nötr</b></span>
+            </div>
+          </div>
+
+          <!-- 2. MINDTWIN Live Pre-Cognitive & Intent Analyst Dock -->
+          <div class="analyst-dock mindtwin-dock hidden" id="analyst-dock-mindtwin">
+            <div class="analyst-head">
+              <span>🧠 NÖRAL NİYET & DİJİTAL İKİZ SİMÜLASYONU</span>
+              <span id="mindtwin-lead-badge" class="analyst-badge cyan">⚡ -180ms ÖNCEDEN</span>
+            </div>
+
+            <div class="mindtwin-intent-card">
+              <div class="intent-main">
+                <span class="intent-lbl">ÖNGÖRÜLEN NİYET:</span>
+                <span id="mindtwin-predicted-text" class="intent-val cyan">2 PARMAK ✌️</span>
+                <span id="mindtwin-conf-badge" class="intent-conf">%99.4</span>
+              </div>
+              <div class="intent-sub-strategy" id="mindtwin-sub-strategy">
+                Hedef Parite: <span class="badge-tag">TEK</span> (Kullanıcı: ÇİFT) ➔ AI Hamlesi: <span class="badge-tag gold">1 Parmak</span>
+              </div>
+            </div>
+
+            <!-- 5 Finger Extension Intent Bars -->
+            <div class="finger-intent-bars">
+              <div class="f-bar-col">
+                <span class="f-bar-name">BAŞ</span>
+                <div class="f-bar-track"><div id="fbar-thumb" class="f-bar-fill" style="height: 15%;"></div></div>
+                <span id="fval-thumb" class="f-bar-txt">0</span>
+              </div>
+              <div class="f-bar-col">
+                <span class="f-bar-name">İŞARET</span>
+                <div class="f-bar-track"><div id="fbar-index" class="f-bar-fill active" style="height: 98%;"></div></div>
+                <span id="fval-index" class="f-bar-txt">1</span>
+              </div>
+              <div class="f-bar-col">
+                <span class="f-bar-name">ORTA</span>
+                <div class="f-bar-track"><div id="fbar-middle" class="f-bar-fill active" style="height: 95%;"></div></div>
+                <span id="fval-middle" class="f-bar-txt">1</span>
+              </div>
+              <div class="f-bar-col">
+                <span class="f-bar-name">YÜZÜK</span>
+                <div class="f-bar-track"><div id="fbar-ring" class="f-bar-fill" style="height: 20%;"></div></div>
+                <span id="fval-ring" class="f-bar-txt">0</span>
+              </div>
+              <div class="f-bar-col">
+                <span class="f-bar-name">SERÇE</span>
+                <div class="f-bar-track"><div id="fbar-pinky" class="f-bar-fill" style="height: 12%;"></div></div>
+                <span id="fval-pinky" class="f-bar-txt">0</span>
+              </div>
             </div>
           </div>
 

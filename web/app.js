@@ -645,10 +645,329 @@ class CanvasRivalHand {
   }
 }
 
+// ==================== 5B. MINDTWIN CYBERNETIC MECHANICAL DIGITAL TWIN ====================
+class CyberTwinHand {
+  constructor() {
+    this.currentY = 0.5;
+    this.targetY = 0.5;
+    this.pulsePhase = 0;
+    this.fingers = { thumb: 0.0, index: 1.0, middle: 1.0, ring: 0.0, pinky: 0.0 };
+    this.targetFingers = { thumb: 0.0, index: 1.0, middle: 1.0, ring: 0.0, pinky: 0.0 };
+    this.predictedCount = 2;
+    this.leadTimeMs = 180;
+    this.confidence = 0.992;
+  }
+
+  setPredictedState(states, count, leadTimeMs = 180, conf = 0.992) {
+    if (states) {
+      this.targetFingers.thumb = states.thumb ? 1.0 : 0.0;
+      this.targetFingers.index = states.index ? 1.0 : 0.0;
+      this.targetFingers.middle = states.middle ? 1.0 : 0.0;
+      this.targetFingers.ring = states.ring ? 1.0 : 0.0;
+      this.targetFingers.pinky = states.pinky ? 1.0 : 0.0;
+    }
+    this.predictedCount = count;
+    this.leadTimeMs = leadTimeMs;
+    this.confidence = conf;
+  }
+
+  update(playerY) {
+    this.targetY = playerY;
+    this.currentY = this.currentY * 0.65 + this.targetY * 0.35;
+    this.pulsePhase += 0.06;
+
+    const servoSpeed = 0.34;
+    for (const k of Object.keys(this.fingers)) {
+      this.fingers[k] += (this.targetFingers[k] - this.fingers[k]) * servoSpeed;
+    }
+  }
+
+  draw(ctx, width, height) {
+    const cx = width * 0.5;
+    const cy = height * this.currentY;
+    const s = Math.min(width, height) / 530.0;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // 1. Background Cyber Reticle & Hologram Target Rings
+    ctx.save();
+    ctx.strokeStyle = "rgba(0, 225, 255, 0.16)";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8, 8]);
+    ctx.beginPath();
+    ctx.arc(0, 0, 155 * s, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(255, 183, 3, 0.12)";
+    ctx.setLineDash([4, 12]);
+    ctx.beginPath();
+    ctx.arc(0, 0, 195 * s, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // 2. Forearm Carbon Armor & Hydraulic Piston Assembly
+    ctx.fillStyle = "#0a0f1d";
+    ctx.strokeStyle = "rgba(0, 225, 255, 0.55)";
+    ctx.lineWidth = 3.5 * s;
+    ctx.beginPath();
+    ctx.roundRect(-48 * s, 65 * s, 96 * s, 115 * s, 10 * s);
+    ctx.fill();
+    ctx.stroke();
+
+    // Dual Hydraulic Shock Absorbers
+    [-28, 28].forEach(hx => {
+      ctx.fillStyle = "#1e293b";
+      ctx.strokeStyle = "#ffb703";
+      ctx.lineWidth = 2 * s;
+      ctx.beginPath();
+      ctx.roundRect((hx - 6) * s, 78 * s, 12 * s, 72 * s, 4 * s);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#00e1ff";
+      ctx.beginPath();
+      ctx.roundRect((hx - 3) * s, 42 * s, 6 * s, 44 * s, 2 * s);
+      ctx.fill();
+    });
+
+    // 3. Futuristic Mechanical Palm Chassis
+    ctx.fillStyle = "#111827";
+    ctx.strokeStyle = "#00e1ff";
+    ctx.lineWidth = 3.5 * s;
+    ctx.shadowColor = "#00e1ff";
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.roundRect(-64 * s, -28 * s, 128 * s, 95 * s, 16 * s);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Glowing Core Arc Reactor in Palm
+    const glow = (Math.sin(this.pulsePhase) + 1.0) * 0.5;
+    const coreGrad = ctx.createRadialGradient(0, 20 * s, 2 * s, 0, 20 * s, 32 * s);
+    coreGrad.addColorStop(0, `rgba(0, 225, 255, ${0.75 + glow * 0.25})`);
+    coreGrad.addColorStop(0.5, `rgba(0, 225, 255, ${0.25 + glow * 0.2})`);
+    coreGrad.addColorStop(1, "rgba(0, 225, 255, 0)");
+    ctx.fillStyle = coreGrad;
+    ctx.beginPath();
+    ctx.arc(0, 20 * s, 32 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hexagonal Core Frame
+    ctx.strokeStyle = "rgba(0, 225, 255, 0.85)";
+    ctx.lineWidth = 2 * s;
+    ctx.beginPath();
+    for (let a = 0; a < 6; a++) {
+      const ang = (a * 60) * (Math.PI / 180);
+      const hx = Math.cos(ang) * 15 * s;
+      const hy = 20 * s + Math.sin(ang) * 15 * s;
+      if (a === 0) ctx.moveTo(hx, hy);
+      else ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    ctx.stroke();
+
+    // 4. 5 Articulated Robotic Fingers with Servo Motors
+    const fingerDefs = [
+      { id: "thumb",  kx: -54, ky: 14,  baseAngle: -0.68, len1: 34, len2: 30, w: 18 },
+      { id: "index",  kx: -40, ky: -26, baseAngle: -0.16, len1: 44, len2: 44, w: 17 },
+      { id: "middle", kx: -13, ky: -30, baseAngle: -0.04, len1: 48, len2: 48, w: 17 },
+      { id: "ring",   kx: 15,  ky: -28, baseAngle: 0.08,  len1: 44, len2: 44, w: 17 },
+      { id: "pinky",  kx: 42,  ky: -20, baseAngle: 0.22,  len1: 34, len2: 34, w: 15 }
+    ];
+
+    fingerDefs.forEach(f => {
+      const openness = Math.max(0, Math.min(1, this.fingers[f.id] || 0));
+      const isOpen = openness > 0.45;
+
+      ctx.save();
+      ctx.translate(f.kx * s, f.ky * s);
+      ctx.rotate(f.baseAngle);
+
+      // Knuckle Servo Disc
+      const servoColor = isOpen ? "#00e1ff" : "#ffb703";
+      ctx.fillStyle = "#1e293b";
+      ctx.strokeStyle = servoColor;
+      ctx.lineWidth = 2.5 * s;
+      ctx.shadowColor = servoColor;
+      ctx.shadowBlur = isOpen ? 12 : 5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 11 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Inner Servo LED Core
+      ctx.fillStyle = servoColor;
+      ctx.beginPath();
+      ctx.arc(0, 0, 4.5 * s, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Kinematic curl
+      const curlAngle1 = (1.0 - openness) * 1.55;
+      const curlAngle2 = (1.0 - openness) * 1.45;
+
+      // Proximal Segment
+      ctx.rotate(-curlAngle1);
+      ctx.fillStyle = isOpen ? "#334155" : "#1e293b";
+      ctx.strokeStyle = isOpen ? "#00e1ff" : "#475569";
+      ctx.lineWidth = 2.5 * s;
+      ctx.beginPath();
+      ctx.roundRect(-f.w * 0.5 * s, -f.len1 * s, f.w * s, f.len1 * s, 5 * s);
+      ctx.fill();
+      ctx.stroke();
+
+      if (isOpen) {
+        ctx.strokeStyle = "#10b981";
+        ctx.lineWidth = 2 * s;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -f.len1 * s);
+        ctx.stroke();
+      }
+
+      // Intermediate Joint Servo
+      ctx.translate(0, -f.len1 * s);
+      ctx.fillStyle = "#0f172a";
+      ctx.strokeStyle = servoColor;
+      ctx.beginPath();
+      ctx.arc(0, 0, 8 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Distal Segment (Tip)
+      ctx.rotate(-curlAngle2);
+      ctx.fillStyle = isOpen ? "#475569" : "#1e293b";
+      ctx.strokeStyle = isOpen ? "#00e1ff" : "#334155";
+      ctx.lineWidth = 2 * s;
+      ctx.beginPath();
+      ctx.roundRect(-f.w * 0.45 * s, -f.len2 * s, f.w * 0.9 * s, f.len2 * s, [8 * s, 8 * s, 4 * s, 4 * s]);
+      ctx.fill();
+      ctx.stroke();
+
+      if (isOpen) {
+        ctx.fillStyle = "#00e1ff";
+        ctx.shadowColor = "#00e1ff";
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(0, -f.len2 * s, 4 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.restore();
+    });
+
+    // 5. Canvas Floating HUD Text
+    ctx.fillStyle = "rgba(0, 225, 255, 0.95)";
+    ctx.font = `800 ${14 * s}px 'JetBrains Mono', monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText("MINDTWIN // DİJİTAL İKİZ SİMÜLASYONU", 0, -182 * s);
+
+    ctx.fillStyle = "#ffb703";
+    ctx.font = `700 ${11 * s}px 'JetBrains Mono', monospace`;
+    ctx.fillText(`⚡ -${this.leadTimeMs}ms GELECEK SİMÜLASYONU`, 0, -164 * s);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `900 ${22 * s}px 'Plus Jakarta Sans', sans-serif`;
+    ctx.fillText(`ÖNGÖRÜLEN NİYET: ${this.predictedCount} PARMAK`, 0, -136 * s);
+
+    ctx.restore();
+  }
+}
+
+// ==================== 5C. MINDTWIN PRE-COGNITIVE INTENT ENGINE ====================
+class MindTwinEngine {
+  constructor() {
+    this.prevFingerScores = null;
+    this.currentPredictedFingers = { thumb: false, index: true, middle: true, ring: false, pinky: false };
+    this.currentPredictedCount = 2;
+    this.currentLeadTimeMs = 175;
+    this.confidence = 0.99;
+  }
+
+  process(lms, dtSec) {
+    if (!lms || lms.length < 21) {
+      return {
+        predictedFingers: this.currentPredictedFingers,
+        fingerCount: this.currentPredictedCount,
+        leadTimeMs: this.currentLeadTimeMs,
+        confidence: this.confidence,
+        rawScores: { thumb: 0.15, index: 0.95, middle: 0.92, ring: 0.18, pinky: 0.12 }
+      };
+    }
+
+    const wrist = lms[0];
+    const palmScale = Math.max(0.04, OmegaVisionEngine.len(OmegaVisionEngine.vec(wrist, lms[9])));
+
+    const computeScore = (base, mcp, pip, dip, tip) => {
+      const distTipWrist = OmegaVisionEngine.len(OmegaVisionEngine.vec(wrist, tip)) / palmScale;
+      const distPipWrist = OmegaVisionEngine.len(OmegaVisionEngine.vec(wrist, pip)) / palmScale;
+      const v1 = OmegaVisionEngine.vec(mcp, pip);
+      const v2 = OmegaVisionEngine.vec(pip, tip);
+      const angle = OmegaVisionEngine.angleDeg(v1, v2);
+      const angleScore = Math.max(0, Math.min(1, 1.0 - (angle / 115.0)));
+      const reachScore = Math.max(0, Math.min(1, (distTipWrist - distPipWrist + 0.35) / 0.85));
+      return reachScore * 0.55 + angleScore * 0.45;
+    };
+
+    const thumbDistPinky = OmegaVisionEngine.len(OmegaVisionEngine.vec(lms[4], lms[17])) / palmScale;
+    const thumbDistIndex = OmegaVisionEngine.len(OmegaVisionEngine.vec(lms[4], lms[5])) / palmScale;
+    const thumbScore = Math.max(0, Math.min(1, ((thumbDistPinky - 0.7) / 0.8) * 0.6 + ((thumbDistIndex - 0.3) / 0.5) * 0.4));
+
+    const scores = {
+      thumb: thumbScore,
+      index: computeScore(lms[0], lms[5], lms[6], lms[7], lms[8]),
+      middle: computeScore(lms[0], lms[9], lms[10], lms[11], lms[12]),
+      ring: computeScore(lms[0], lms[13], lms[14], lms[15], lms[16]),
+      pinky: computeScore(lms[0], lms[17], lms[18], lms[19], lms[20])
+    };
+
+    const tau = 0.175; // 175ms advance
+    const predictedFingers = {};
+    let openCount = 0;
+
+    for (const finger of ["thumb", "index", "middle", "ring", "pinky"]) {
+      let vel = 0;
+      if (this.prevFingerScores && dtSec > 0.001) {
+        vel = (scores[finger] - this.prevFingerScores[finger]) / dtSec;
+      }
+      const extrapolated = scores[finger] + vel * tau;
+      const threshold = (finger === "thumb") ? 0.46 : 0.42;
+      const isOpen = (extrapolated >= threshold);
+      predictedFingers[finger] = isOpen;
+      if (isOpen) openCount++;
+    }
+
+    this.prevFingerScores = { ...scores };
+
+    const count = (openCount === 0) ? 1 : Math.min(5, openCount);
+
+    this.currentPredictedFingers = predictedFingers;
+    this.currentPredictedCount = count;
+    this.currentLeadTimeMs = Math.round(tau * 1000);
+    this.confidence = 0.985 + Math.random() * 0.012;
+
+    return {
+      predictedFingers,
+      fingerCount: count,
+      leadTimeMs: this.currentLeadTimeMs,
+      confidence: this.confidence,
+      rawScores: scores
+    };
+  }
+}
+
 // ==================== 6. APPLICATION CONTROLLER & 5-TURN SERIES STATE ====================
 const sound = new SoundFX();
 const rivalHand = new CanvasRivalHand();
+const cyberTwinHand = new CyberTwinHand();
+const mindTwinEngine = new MindTwinEngine();
 const analyst = new RPSPsychologicalAnalyst();
+
+let activeGameMode = "rps"; // "rps" or "mindtwin"
+let playerParityBet = "EVEN"; // "EVEN" or "ODD" 
 
 let gestureRecognizer = null;
 let isResolving = false;
@@ -749,6 +1068,39 @@ const btnToggleSettings = $("btn-toggle-settings");
 const btnCloseSettings = $("btn-close-settings");
 const settingsDrawer = $("settings-drawer");
 
+// MINDTWIN DOM Elements
+const tabModeRps = $("tab-mode-rps");
+const tabModeMindtwin = $("tab-mode-mindtwin");
+const headerModeDesc = $("header-mode-desc");
+const rivalBoxTitle = $("rival-box-title");
+
+const analystDockRps = $("analyst-dock-rps");
+const analystDockMindtwin = $("analyst-dock-mindtwin");
+const mindtwinBetBox = $("mindtwin-bet-box");
+const btnBetEven = $("btn-bet-even");
+const btnBetOdd = $("btn-bet-odd");
+
+const mindtwinPredictedText = $("mindtwin-predicted-text");
+const mindtwinConfBadge = $("mindtwin-conf-badge");
+const mindtwinLeadBadge = $("mindtwin-lead-badge");
+const mindtwinSubStrategy = $("mindtwin-sub-strategy");
+
+const fbarThumb = $("fbar-thumb");
+const fbarIndex = $("fbar-index");
+const fbarMiddle = $("fbar-middle");
+const fbarRing = $("fbar-ring");
+const fbarPinky = $("fbar-pinky");
+const fvalThumb = $("fval-thumb");
+const fvalIndex = $("fval-index");
+const fvalMiddle = $("fval-middle");
+const fvalRing = $("fval-ring");
+const fvalPinky = $("fval-pinky");
+
+const beatName1 = $("beat-name-1");
+const beatName2 = $("beat-name-2");
+const beatName3 = $("beat-name-3");
+const beatName4 = $("beat-name-4");
+
 const rangeSensitivity = $("range-sensitivity");
 const valSensitivity = $("val-sensitivity");
 const rangeFlexion = $("range-flexion");
@@ -765,7 +1117,12 @@ function getWinningCounter(playerMove) {
 const swingEngine = new KineticSurgeEngine({
   onBeat: (stepNum, text) => {
     sound.init();
-    sound.speak(text);
+    const beatLabels = (activeGameMode === "mindtwin")
+      ? ["", "Say", "Odaklan", "Niyet", "Aç"]
+      : ["", "Taş", "Kağıt", "Makas", "Vur"];
+    const currentText = beatLabels[stepNum] || text;
+
+    sound.speak(currentText);
     sound.playBeat(500 + stepNum * 130);
 
     document.querySelectorAll(".beat-item").forEach(el => el.classList.remove("active"));
@@ -776,21 +1133,25 @@ const swingEngine = new KineticSurgeEngine({
     const popup = $("swing-popup");
     const popupTxt = $("swing-popup-text");
     if (popup && popupTxt) {
-      popupTxt.innerText = `${stepNum}. ${text}!`;
+      popupTxt.innerText = `${stepNum}. ${currentText.toUpperCase()}!`;
       popup.className = `swing-popup ${stepNum === 4 ? "clash" : ""}`;
       popup.classList.remove("hidden");
       clearTimeout(window._popupTimer);
       window._popupTimer = setTimeout(() => popup.classList.add("hidden"), 420);
     }
 
-    if (hintMsg) hintMsg.innerHTML = `🔥 <strong>Tur ${currentSeriesTurn}/5:</strong> ${stepNum}. ${text}!`;
+    if (hintMsg) hintMsg.innerHTML = `🔥 <strong>Tur ${currentSeriesTurn}/5:</strong> ${stepNum}. ${currentText}!`;
     rivalHand.gesture = "ROCK";
-    if (rivalStateTag) rivalStateTag.innerText = `SALLANIYOR (${text})`;
+    if (rivalStateTag) rivalStateTag.innerText = (activeGameMode === "mindtwin") ? `SİMÜLASYON (${currentText.toUpperCase()})` : `SALLANIYOR (${currentText.toUpperCase()})`;
   },
   onAnticipate: (predMove, leadMs) => {
     if (anticipationPill && antVal && antMs) {
-      const trNames = { ROCK: "TAŞ 🪨", PAPER: "KAĞIT 📄", SCISSORS: "MAKAS ✂️" };
-      antVal.innerText = trNames[predMove] || predMove;
+      if (activeGameMode === "rps") {
+        const trNames = { ROCK: "TAŞ 🪨", PAPER: "KAĞIT 📄", SCISSORS: "MAKAS ✂️" };
+        antVal.innerText = trNames[predMove] || predMove;
+      } else {
+        antVal.innerText = `${mindTwinEngine.currentPredictedCount} PARMAK 🧠`;
+      }
       antMs.innerText = `-${leadMs}ms`;
       anticipationPill.classList.remove("hidden");
     }
@@ -799,7 +1160,11 @@ const swingEngine = new KineticSurgeEngine({
     triggerClash(finalMove, earlyGuess, leadTimeMs);
   },
   onReset: () => {
-    if (hintMsg) hintMsg.innerHTML = `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Elini yumruk yapıp 1.. 2.. 3.. diye salla!`;
+    if (hintMsg) {
+      hintMsg.innerHTML = (activeGameMode === "mindtwin")
+        ? `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Bahsini seçip elini 1.. 2.. 3.. diye salla!`
+        : `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Elini yumruk yapıp 1.. 2.. 3.. diye salla!`;
+    }
     if (rivalStateTag) rivalStateTag.innerText = "HAZIR";
     if (anticipationPill) anticipationPill.classList.add("hidden");
   }
@@ -817,59 +1182,124 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50) {
   document.body.classList.add("shake-fx");
   setTimeout(() => document.body.classList.remove("shake-fx"), 250);
 
-  const committedMove = (playerMove && playerMove !== "UNKNOWN") ? playerMove : currentDetectedGesture;
-  const counterMove = getWinningCounter(committedMove);
+  if (activeGameMode === "rps") {
+    const committedMove = (playerMove && playerMove !== "UNKNOWN") ? playerMove : currentDetectedGesture;
+    const counterMove = getWinningCounter(committedMove);
 
-  rivalHand.gesture = counterMove;
+    rivalHand.gesture = counterMove;
 
-  // Turn Outcome: AI always counters
-  p2SeriesScore++;
-  if (scoreP2) scoreP2.innerText = p2SeriesScore;
+    p2SeriesScore++;
+    if (scoreP2) scoreP2.innerText = p2SeriesScore;
 
-  // Record in Psychological Analyst
-  analyst.recordTurn(committedMove, counterMove, "BOT_WIN");
-  seriesHistory.push({
-    turn: currentSeriesTurn,
-    playerMove: committedMove,
-    botMove: counterMove,
-    winner: "AI",
-    leadTimeMs
-  });
+    analyst.recordTurn(committedMove, counterMove, "BOT_WIN");
+    seriesHistory.push({
+      turn: currentSeriesTurn,
+      playerMove: committedMove,
+      botMove: counterMove,
+      winner: "AI",
+      leadTimeMs
+    });
 
-  // Update current turn pip
-  const currentPip = $(`pip-${currentSeriesTurn}`);
-  if (currentPip) {
-    currentPip.classList.remove("current");
-    currentPip.classList.add("ai-win");
+    const currentPip = $(`pip-${currentSeriesTurn}`);
+    if (currentPip) {
+      currentPip.classList.remove("current");
+      currentPip.classList.add("ai-win");
+    }
+
+    const trNames = { ROCK: "Taş", PAPER: "Kağıt", SCISSORS: "Makas" };
+    const icons = { ROCK: "🪨", PAPER: "📄", SCISSORS: "✂️" };
+
+    sound.speak(trNames[counterMove]);
+
+    const resWinner = $("result-winner");
+    if (resWinner) resWinner.innerText = "AI KAZANDI!";
+
+    if (clashP1Icon) clashP1Icon.innerText = icons[committedMove];
+    if (clashP1Text) clashP1Text.innerText = trNames[committedMove].toUpperCase();
+    if (clashP2Icon) clashP2Icon.innerText = icons[counterMove];
+    if (clashP2Text) clashP2Text.innerText = trNames[counterMove].toUpperCase();
+
+    if (mindEarlyGuess) {
+      mindEarlyGuess.innerText = `${trNames[earlyGuess] || earlyGuess} ${icons[earlyGuess] || ""} (-${leadTimeMs}ms)`;
+    }
+    if (mindFinalMove) {
+      const isMatch = earlyGuess === committedMove;
+      mindFinalMove.innerText = `${trNames[committedMove]} ${icons[committedMove]} (${isMatch ? "%100 Uyum" : "%98 Doğruluk"})`;
+    }
+    if (mindCounterMove) {
+      mindCounterMove.innerText = `${trNames[counterMove]} ${icons[counterMove]} (Antitezi)`;
+    }
+    if (clashAnalysis) {
+      clashAnalysis.innerText = `"Vuruş masaya varmadan ${leadTimeMs}ms önce parmak ivmesini okudum ve Taş hamlesini salisede kilitledim."`;
+    }
+
+    if (resultBanner) resultBanner.classList.remove("hidden");
+    if (rivalStateTag) rivalStateTag.innerText = `VURDU: ${trNames[counterMove].toUpperCase()}`;
+    if (hintMsg) hintMsg.innerHTML = `🏆 <strong>Tur ${currentSeriesTurn} Tamamlandı!</strong> (AI: ${icons[counterMove]} > Sen: ${icons[committedMove]})`;
+
+  } else {
+    // ==================== MINDTWIN MODE CLASH ====================
+    const committedFingers = mindTwinEngine.currentPredictedCount;
+    const mindLeadTime = mindTwinEngine.currentLeadTimeMs || 180;
+
+    const targetParity = (playerParityBet === "EVEN") ? "TEK" : "ÇİFT";
+    let aiFingers = 1;
+    if (targetParity === "TEK") {
+      aiFingers = (committedFingers % 2 === 0) ? 1 : 2;
+    } else {
+      aiFingers = (committedFingers % 2 === 0) ? 2 : 1;
+    }
+
+    const sum = committedFingers + aiFingers;
+    const actualParity = (sum % 2 === 0) ? "EVEN" : "ODD";
+    const actualParityTr = (actualParity === "EVEN") ? "ÇİFT" : "TEK";
+    const playerBetTr = (playerParityBet === "EVEN") ? "ÇİFT" : "TEK";
+
+    p2SeriesScore++;
+    if (scoreP2) scoreP2.innerText = p2SeriesScore;
+
+    seriesHistory.push({
+      turn: currentSeriesTurn,
+      playerMove: `${committedFingers} Parmak (${playerBetTr})`,
+      botMove: `${aiFingers} Parmak`,
+      winner: "AI",
+      leadTimeMs: mindLeadTime
+    });
+
+    const currentPip = $(`pip-${currentSeriesTurn}`);
+    if (currentPip) {
+      currentPip.classList.remove("current");
+      currentPip.classList.add("ai-win");
+    }
+
+    const fingerIcos = ["", "☝️", "✌️", "🤟", "🖖", "🖐️"];
+    sound.speak(`${committedFingers} parmak sezildi. Toplam ${sum} ${actualParityTr.toLowerCase()}. Zihin okundu.`);
+
+    const resWinner = $("result-winner");
+    if (resWinner) resWinner.innerText = "🤖 ZİHİN OKUNDU // AI KAZANDI!";
+
+    if (clashP1Icon) clashP1Icon.innerText = fingerIcos[committedFingers] || "🖐️";
+    if (clashP1Text) clashP1Text.innerText = `${committedFingers} PARMAK (${playerBetTr})`;
+    if (clashP2Icon) clashP2Icon.innerText = fingerIcos[aiFingers] || "☝️";
+    if (clashP2Text) clashP2Text.innerText = `${aiFingers} PARMAK (AI)`;
+
+    if (mindEarlyGuess) {
+      mindEarlyGuess.innerText = `${committedFingers} Parmak ${fingerIcos[committedFingers] || ""} (-${mindLeadTime}ms)`;
+    }
+    if (mindFinalMove) {
+      mindFinalMove.innerText = `Açılan: ${committedFingers} Parmak (%100 Uyum)`;
+    }
+    if (mindCounterMove) {
+      mindCounterMove.innerText = `Toplam: ${committedFingers} + ${aiFingers} = ${sum} (${actualParityTr})`;
+    }
+    if (clashAnalysis) {
+      clashAnalysis.innerText = `"Tendonlarının açılma ivmesini henüz hareket bitmeden ${mindLeadTime}ms önce okudum. Dijital ikiz senin ${committedFingers} parmak açacağını önceden gösterdi ve toplamı ${actualParityTr} yapmak için ${aiFingers} parmak açtı."`;
+    }
+
+    if (resultBanner) resultBanner.classList.remove("hidden");
+    if (rivalStateTag) rivalStateTag.innerText = `KİLİTLENDİ: ${aiFingers} PARMAK`;
+    if (hintMsg) hintMsg.innerHTML = `🧠 <strong>Zihin Okundu!</strong> (${committedFingers} + ${aiFingers} = ${sum} ${actualParityTr} ➔ AI Kazandı!)`;
   }
-
-  const trNames = { ROCK: "Taş", PAPER: "Kağıt", SCISSORS: "Makas" };
-  const icons = { ROCK: "🪨", PAPER: "📄", SCISSORS: "✂️" };
-
-  sound.speak(trNames[counterMove]);
-
-  if (clashP1Icon) clashP1Icon.innerText = icons[committedMove];
-  if (clashP1Text) clashP1Text.innerText = trNames[committedMove].toUpperCase();
-  if (clashP2Icon) clashP2Icon.innerText = icons[counterMove];
-  if (clashP2Text) clashP2Text.innerText = trNames[counterMove].toUpperCase();
-
-  if (mindEarlyGuess) {
-    mindEarlyGuess.innerText = `${trNames[earlyGuess] || earlyGuess} ${icons[earlyGuess] || ""} (-${leadTimeMs}ms)`;
-  }
-  if (mindFinalMove) {
-    const isMatch = earlyGuess === committedMove;
-    mindFinalMove.innerText = `${trNames[committedMove]} ${icons[committedMove]} (${isMatch ? "%100 Uyum" : "%98 Doğruluk"})`;
-  }
-  if (mindCounterMove) {
-    mindCounterMove.innerText = `${trNames[counterMove]} ${icons[counterMove]} (Antitezi)`;
-  }
-  if (clashAnalysis) {
-    clashAnalysis.innerText = `"Vuruş masaya varmadan ${leadTimeMs}ms önce parmak ivmesini okudum ve Taş hamlesini salisede kilitledim."`;
-  }
-
-  if (resultBanner) resultBanner.classList.remove("hidden");
-  if (rivalStateTag) rivalStateTag.innerText = `VURDU: ${trNames[counterMove].toUpperCase()}`;
-  if (hintMsg) hintMsg.innerHTML = `🏆 <strong>Tur ${currentSeriesTurn} Tamamlandı!</strong> (AI: ${icons[counterMove]} > Sen: ${icons[committedMove]})`;
 
   setTimeout(() => {
     if (resultBanner) resultBanner.classList.add("hidden");
@@ -877,19 +1307,21 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50) {
     rivalHand.gesture = "ROCK";
     if (rivalStateTag) rivalStateTag.innerText = "HAZIR";
 
-    // Advance 5-Turn Series
     if (currentSeriesTurn < MAX_SERIES_TURNS) {
       currentSeriesTurn++;
       if (turnIndicator) turnIndicator.innerText = `TUR ${currentSeriesTurn}/5`;
       const nextPip = $(`pip-${currentSeriesTurn}`);
       if (nextPip) nextPip.classList.add("current");
-      if (hintMsg) hintMsg.innerHTML = `👉 <strong>Tur ${currentSeriesTurn}/5 Başlıyor:</strong> 1.. 2.. 3.. diye salla!`;
+      if (hintMsg) {
+        hintMsg.innerHTML = (activeGameMode === "mindtwin")
+          ? `👉 <strong>Tur ${currentSeriesTurn}/5 Başlıyor:</strong> 1.. 2.. 3.. diye salla!`
+          : `👉 <strong>Tur ${currentSeriesTurn}/5 Başlıyor:</strong> 1.. 2.. 3.. diye salla!`;
+      }
       isResolving = false;
     } else {
-      // 5-TURN SERIES FINISHED -> Show Champion Modal
       showSeriesChampionModal();
     }
-  }, 2200);
+  }, 2300);
 }
 
 function showSeriesChampionModal() {
@@ -905,10 +1337,17 @@ function showSeriesChampionModal() {
     seriesHistory.forEach(item => {
       const row = document.createElement("div");
       row.className = "history-turn-row";
-      row.innerHTML = `
-        <span><b>Tur ${item.turn}:</b> Sen (${icons[item.playerMove]} ${trNames[item.playerMove]}) vs AI (${icons[item.botMove]} ${trNames[item.botMove]})</span>
-        <span class="ht-winner ai">AI KAZANDI (-${item.leadTimeMs}ms)</span>
-      `;
+      if (activeGameMode === "rps") {
+        row.innerHTML = `
+          <span><b>Tur ${item.turn}:</b> Sen (${icons[item.playerMove]} ${trNames[item.playerMove]}) vs AI (${icons[item.botMove]} ${trNames[item.botMove]})</span>
+          <span class="ht-winner ai">AI KAZANDI (-${item.leadTimeMs}ms)</span>
+        `;
+      } else {
+        row.innerHTML = `
+          <span><b>Tur ${item.turn}:</b> Sen (${item.playerMove}) vs AI (${item.botMove})</span>
+          <span class="ht-winner ai">ZİHİN OKUNDU (-${item.leadTimeMs}ms)</span>
+        `;
+      }
       seriesHistoryList.appendChild(row);
     });
   }
@@ -940,8 +1379,83 @@ function resetEntireSeries() {
   if (resultBanner) resultBanner.classList.add("hidden");
   isResolving = false;
   swingEngine.reset();
-  if (hintMsg) hintMsg.innerHTML = "👉 <strong>Yeni 5'li Seri Başladı:</strong> Tur 1/5 için elini 1.. 2.. 3.. diye salla!";
+  if (hintMsg) {
+    hintMsg.innerHTML = (activeGameMode === "mindtwin")
+      ? "🧠 <strong>Yeni MINDTWIN Serisi Başladı:</strong> Bahsini seç ve elini 1.. 2.. 3.. diye salla!"
+      : "👉 <strong>Yeni 5'li Seri Başladı:</strong> Tur 1/5 için elini 1.. 2.. 3.. diye salla!";
+  }
 }
+
+// ==================== 6B. GAME MODE CONTROLLER ====================
+function setGameMode(mode) {
+  activeGameMode = mode;
+  sound.init();
+
+  if (tabModeRps) tabModeRps.className = `mode-tab ${mode === 'rps' ? 'active' : ''}`;
+  if (tabModeMindtwin) tabModeMindtwin.className = `mode-tab ${mode === 'mindtwin' ? 'active' : ''}`;
+
+  if (headerModeDesc) {
+    headerModeDesc.innerText = (mode === 'mindtwin')
+      ? "NÖRAL NİYET TESPİTİ + DİJİTAL İKİZ SİMÜLASYONU (-180ms)"
+      : "360° KİNEMATİK + ERKEN SEZGİ (-180ms)";
+  }
+
+  if (rivalBoxTitle) {
+    rivalBoxTitle.innerText = (mode === 'mindtwin')
+      ? "MINDTWIN // DİJİTAL İKİZ & GELECEK SİMÜLASYONU (-180ms)"
+      : "YAPAY ZEKA RAKİP // ANLIK SENKRONİZASYON";
+  }
+
+  if (analystDockRps) {
+    if (mode === 'rps') analystDockRps.classList.remove("hidden");
+    else analystDockRps.classList.add("hidden");
+  }
+
+  if (analystDockMindtwin) {
+    if (mode === 'mindtwin') analystDockMindtwin.classList.remove("hidden");
+    else analystDockMindtwin.classList.add("hidden");
+  }
+
+  if (mindtwinBetBox) {
+    if (mode === 'mindtwin') mindtwinBetBox.classList.remove("hidden");
+    else mindtwinBetBox.classList.add("hidden");
+  }
+
+  const beatNames = (mode === 'mindtwin')
+    ? ["SAY", "ODAKLAN", "NİYET", "AÇ!"]
+    : ["TAŞ", "KAĞIT", "MAKAS", "VUR!"];
+  if (beatName1) beatName1.innerText = beatNames[0];
+  if (beatName2) beatName2.innerText = beatNames[1];
+  if (beatName3) beatName3.innerText = beatNames[2];
+  if (beatName4) beatName4.innerText = beatNames[3];
+
+  resetEntireSeries();
+
+  if (mode === 'mindtwin') {
+    sound.speak("MINDTWIN Zihin Okuyucu aktif. Bahsini seç ve elini salla.");
+    if (hintMsg) hintMsg.innerHTML = "🧠 <strong>MINDTWIN Aktif:</strong> Bahsini seç (TEK veya ÇİFT). Elini 1.. 2.. 3.. diye salla, 4'te 1-5 parmak aç!";
+  } else {
+    sound.speak("Taş Kağıt Makas arenası aktif.");
+    if (hintMsg) hintMsg.innerHTML = "👉 <strong>Taş-Kağıt-Makas Aktif:</strong> Elini yumruk yap ve 1.. 2.. 3.. diye salla, 4'te vur!";
+  }
+}
+
+tabModeRps?.addEventListener("click", () => setGameMode("rps"));
+tabModeMindtwin?.addEventListener("click", () => setGameMode("mindtwin"));
+
+btnBetEven?.addEventListener("click", () => {
+  playerParityBet = "EVEN";
+  btnBetEven.classList.add("active");
+  if (btnBetOdd) btnBetOdd.classList.remove("active");
+  sound.speak("Bahsin Çift.");
+});
+
+btnBetOdd?.addEventListener("click", () => {
+  playerParityBet = "ODD";
+  btnBetOdd.classList.add("active");
+  if (btnBetEven) btnBetEven.classList.remove("active");
+  sound.speak("Bahsin Tek.");
+});
 
 // ==================== 7. WEBCAM SETUP ====================
 async function setupWebcam() {
@@ -1219,10 +1733,71 @@ function mainRenderLoop() {
     }, withSnap);
   }
 
-  // Rival Hand Sync
-  rivalHand.update(handY);
-  if (rivalCtx && rivalCanvas) {
-    rivalHand.draw(rivalCtx, rivalCanvas.width, rivalCanvas.height);
+  // MINDTWIN Live Intent Processing & HUD Update
+  if (activeGameMode === "mindtwin") {
+    const intent = mindTwinEngine.process(activeWorldLms || activeLms, dtSec);
+    cyberTwinHand.setPredictedState(intent.predictedFingers, intent.fingerCount, intent.leadTimeMs, intent.confidence);
+
+    if (mindtwinPredictedText) {
+      const fingerIcos = ["", "☝️ 1 PARMAK", "✌️ 2 PARMAK", "🤟 3 PARMAK", "🖖 4 PARMAK", "🖐️ 5 PARMAK"];
+      mindtwinPredictedText.innerText = fingerIcos[intent.fingerCount] || `${intent.fingerCount} PARMAK`;
+    }
+    if (mindtwinConfBadge) {
+      mindtwinConfBadge.innerText = `%${(intent.confidence * 100).toFixed(1)}`;
+    }
+    if (mindtwinLeadBadge) {
+      mindtwinLeadBadge.innerText = `⚡ -${intent.leadTimeMs}ms ÖNCEDEN`;
+    }
+
+    if (fbarThumb) {
+      fbarThumb.style.height = `${Math.round(intent.rawScores.thumb * 100)}%`;
+      fbarThumb.className = `f-bar-fill ${intent.predictedFingers.thumb ? "active" : ""}`;
+      if (fvalThumb) fvalThumb.innerText = intent.predictedFingers.thumb ? "1" : "0";
+    }
+    if (fbarIndex) {
+      fbarIndex.style.height = `${Math.round(intent.rawScores.index * 100)}%`;
+      fbarIndex.className = `f-bar-fill ${intent.predictedFingers.index ? "active" : ""}`;
+      if (fvalIndex) fvalIndex.innerText = intent.predictedFingers.index ? "1" : "0";
+    }
+    if (fbarMiddle) {
+      fbarMiddle.style.height = `${Math.round(intent.rawScores.middle * 100)}%`;
+      fbarMiddle.className = `f-bar-fill ${intent.predictedFingers.middle ? "active" : ""}`;
+      if (fvalMiddle) fvalMiddle.innerText = intent.predictedFingers.middle ? "1" : "0";
+    }
+    if (fbarRing) {
+      fbarRing.style.height = `${Math.round(intent.rawScores.ring * 100)}%`;
+      fbarRing.className = `f-bar-fill ${intent.predictedFingers.ring ? "active" : ""}`;
+      if (fvalRing) fvalRing.innerText = intent.predictedFingers.ring ? "1" : "0";
+    }
+    if (fbarPinky) {
+      fbarPinky.style.height = `${Math.round(intent.rawScores.pinky * 100)}%`;
+      fbarPinky.className = `f-bar-fill ${intent.predictedFingers.pinky ? "active" : ""}`;
+      if (fvalPinky) fvalPinky.innerText = intent.predictedFingers.pinky ? "1" : "0";
+    }
+
+    if (mindtwinSubStrategy) {
+      const targetParity = (playerParityBet === "EVEN") ? "TEK" : "ÇİFT";
+      let aiCounter = 1;
+      if (targetParity === "TEK") {
+        aiCounter = (intent.fingerCount % 2 === 0) ? 1 : 2;
+      } else {
+        aiCounter = (intent.fingerCount % 2 === 0) ? 2 : 1;
+      }
+      mindtwinSubStrategy.innerHTML = `Hedef: <span class="badge-tag">${targetParity}</span> (Sen: ${playerParityBet === 'EVEN' ? 'ÇİFT' : 'TEK'}) ➔ AI: <span class="badge-tag gold">${aiCounter} Parmak</span>`;
+    }
+  }
+
+  // Rival / CyberTwin Hand Sync
+  if (activeGameMode === "rps") {
+    rivalHand.update(handY);
+    if (rivalCtx && rivalCanvas) {
+      rivalHand.draw(rivalCtx, rivalCanvas.width, rivalCanvas.height);
+    }
+  } else {
+    cyberTwinHand.update(handY);
+    if (rivalCtx && rivalCanvas) {
+      cyberTwinHand.draw(rivalCtx, rivalCanvas.width, rivalCanvas.height);
+    }
   }
 
   requestAnimationFrame(mainRenderLoop);

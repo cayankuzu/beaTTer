@@ -902,6 +902,320 @@ body {
 
 @media (max-width: 768px) {
   .app-container { padding: 6px; gap: 6px; }
+  .game-mode-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+  .mode-tabs { width: 100%; }
+  .mode-tab { flex: 1; }
   .arena-split { flex-direction: column; }
   .app-footer { flex-direction: column; gap: 8px; text-align: center; }
+}
+
+/* ==================== 0. APPLICATION MODE SELECTOR ==================== */
+.game-mode-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0b101a;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 6px 14px;
+  gap: 12px;
+}
+
+.brand-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-logo {
+  font-family: var(--font-mono);
+  font-weight: 900;
+  font-size: 1.15rem;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #00e1ff 0%, #ffb703 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-ver {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mode-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mode-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 6px 14px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+}
+
+.mode-tab:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.mode-tab.active {
+  background: rgba(0, 225, 255, 0.08);
+  border-color: var(--cyan);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(0, 225, 255, 0.25);
+}
+
+.mode-tab#tab-mode-mindtwin.active {
+  background: rgba(255, 183, 3, 0.08);
+  border-color: var(--gold);
+  box-shadow: 0 0 16px rgba(255, 183, 3, 0.25);
+}
+
+.tab-badge-icon {
+  font-size: 1.25rem;
+}
+
+.tab-title-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-name {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-new-pill {
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  background: linear-gradient(135deg, #f43f5e, #ffb703);
+  color: #000;
+  padding: 1px 6px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.tab-sub {
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.info-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--cyan);
+  background: rgba(0, 225, 255, 0.08);
+  border: 1px solid rgba(0, 225, 255, 0.25);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+/* Center Controls Wrapper */
+.center-controls-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* MINDTWIN Bet Toggle Group */
+.mindtwin-bet-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+}
+
+.bet-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.bet-toggle-group {
+  display: flex;
+  gap: 6px;
+}
+
+.bet-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--muted);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 800;
+  transition: all 0.15s ease;
+}
+
+.bet-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.bet-btn.active[data-bet="EVEN"] {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: var(--green);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+}
+
+.bet-btn.active[data-bet="ODD"] {
+  background: rgba(255, 183, 3, 0.2);
+  border-color: var(--gold);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(255, 183, 3, 0.35);
+}
+
+/* MINDTWIN Intent Analyst Card */
+.mindtwin-dock {
+  background: rgba(15, 20, 32, 0.95);
+}
+
+.mindtwin-intent-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  background: rgba(0, 225, 255, 0.04);
+  border: 1px solid rgba(0, 225, 255, 0.15);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.intent-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.intent-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.intent-val {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--cyan);
+  text-shadow: 0 0 12px rgba(0, 225, 255, 0.5);
+}
+
+.intent-conf {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--green);
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.intent-sub-strategy {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.badge-tag {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  color: var(--cyan);
+  background: rgba(0, 225, 255, 0.12);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.badge-tag.gold {
+  color: var(--gold);
+  background: rgba(255, 183, 3, 0.15);
+}
+
+/* 5 Finger Intent Bars */
+.finger-intent-bars {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+}
+
+.f-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.f-bar-name {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.f-bar-track {
+  width: 14px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.f-bar-fill {
+  width: 100%;
+  background: #334155;
+  transition: height 0.1s ease, background 0.15s ease;
+}
+
+.f-bar-fill.active {
+  background: linear-gradient(to top, #00e1ff, #10b981);
+  box-shadow: 0 0 8px rgba(0, 225, 255, 0.6);
+}
+
+.f-bar-txt {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #fff;
 }
