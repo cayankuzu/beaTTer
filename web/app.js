@@ -1890,11 +1890,30 @@ function mainRenderLoop() {
 
 // Precision Skeleton
 function drawPrecisionSkeleton(ctx, lms, w, h, states) {
+  if (!lms || lms.length < 21) return;
   const isTwin = (activeGameMode === "mindtwin");
-  ctx.strokeStyle = isTwin ? "#a855f7" : "#00e1ff";
+  ctx.strokeStyle = isTwin ? "#818cf8" : "#38bdf8";
   ctx.lineWidth = 3.5;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
+
+  // Perfect 1:1 pixel projection matching object-fit: cover of the webcam
+  const videoW = (video && video.videoWidth > 0) ? video.videoWidth : 640;
+  const videoH = (video && video.videoHeight > 0) ? video.videoHeight : 480;
+
+  const canvasW = w || (camCanvas ? camCanvas.width : 640);
+  const canvasH = h || (camCanvas ? camCanvas.height : 480);
+
+  const scale = Math.max(canvasW / videoW, canvasH / videoH);
+  const renderedW = videoW * scale;
+  const renderedH = videoH * scale;
+  const offsetX = (canvasW - renderedW) * 0.5;
+  const offsetY = (canvasH - renderedH) * 0.5;
+
+  const project = (lm) => ({
+    x: offsetX + lm.x * renderedW,
+    y: offsetY + lm.y * renderedH
+  });
 
   const chains = [
     [0, 1, 2, 3, 4],       // Thumb
@@ -1908,37 +1927,42 @@ function drawPrecisionSkeleton(ctx, lms, w, h, states) {
   chains.forEach(chain => {
     ctx.beginPath();
     for (let i = 0; i < chain.length - 1; i++) {
-      ctx.moveTo(lms[chain[i]].x * w, lms[chain[i]].y * h);
-      ctx.lineTo(lms[chain[i + 1]].x * w, lms[chain[i + 1]].y * h);
+      const p1 = project(lms[chain[i]]);
+      const p2 = project(lms[chain[i + 1]]);
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
     }
     ctx.stroke();
   });
 
   lms.forEach((lm, idx) => {
     if (![4, 8, 12, 16, 20].includes(idx)) {
+      const p = project(lm);
       ctx.fillStyle = "#ffffff";
       ctx.beginPath();
-      ctx.arc(lm.x * w, lm.y * h, 3.2, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 3.2, 0, Math.PI * 2);
       ctx.fill();
     }
   });
 
   const tipMap = [
-    { idx: 4, open: states.thumb },
-    { idx: 8, open: states.index },
-    { idx: 12, open: states.middle },
-    { idx: 16, open: states.ring },
-    { idx: 20, open: states.pinky }
+    { idx: 4, open: states ? states.thumb : false },
+    { idx: 8, open: states ? states.index : false },
+    { idx: 12, open: states ? states.middle : false },
+    { idx: 16, open: states ? states.ring : false },
+    { idx: 20, open: states ? states.pinky : false }
   ];
 
   tipMap.forEach(tip => {
     const lm = lms[tip.idx];
+    if (!lm) return;
+    const p = project(lm);
     const color = tip.open ? "#10b981" : "#f43f5e";
     ctx.fillStyle = color;
     ctx.shadowColor = color;
     ctx.shadowBlur = 8;
     ctx.beginPath();
-    ctx.arc(lm.x * w, lm.y * h, 6.0, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 6.0, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
   });
