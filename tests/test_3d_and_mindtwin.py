@@ -42,29 +42,28 @@ def test_twin_and_3d():
         page.click("#tab-mode-mindtwin")
         page.wait_for_timeout(1000)
 
-        # 3. Test Mirrored Hand Orientation Math (Palm facing vs Dorsal / Back of hand)
+        # 3. Test True Mirrored Hand Orientation Math (Palm facing camera -> Z > 0; Back of hand -> Z < 0)
         orientation_eval = page.evaluate("""() => {
             const twin = window.twin3D;
             if (!twin || !twin.computeHandOrientation) return { error: "computeHandOrientation missing" };
 
-            // In mirrored space: x_m = 1.0 - raw_x
-            // Case A: Palm facing camera:
-            // In raw image: Wrist=(0.5, 0.7), Mid=(0.5, 0.35), Pinky on left (raw_x=0.35), Index on right (raw_x=0.65)
+            // Real raw webcam landmarks when user shows right palm to camera:
+            // Wrist at bottom (y=0.7), Mid at (0.5, 0.35), Index at (0.42, 0.40), Pinky at (0.65, 0.45)
             const lmsPalm = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
             lmsPalm[0] = { x: 0.5, y: 0.7, z: 0 };  // Wrist
             lmsPalm[9] = { x: 0.5, y: 0.35, z: 0 }; // Mid MCP
-            lmsPalm[5] = { x: 0.65, y: 0.38, z: 0 };// Index MCP (raw right -> mirrored left)
-            lmsPalm[17] = { x: 0.35, y: 0.42, z: 0 };// Pinky MCP (raw left -> mirrored right)
+            lmsPalm[5] = { x: 0.42, y: 0.40, z: 0 };// Index MCP (camera raw left)
+            lmsPalm[17] = { x: 0.65, y: 0.45, z: 0 };// Pinky MCP (camera raw right)
 
             const quatPalm = twin.computeHandOrientation(lmsPalm);
 
-            // Case B: Back of hand (Dorsal) facing camera:
-            // In raw image: Index on left (raw_x=0.35), Pinky on right (raw_x=0.65)
+            // Back of hand (Dorsal) facing camera:
+            // Index at (0.65, 0.40), Pinky at (0.42, 0.45)
             const lmsDorsal = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
             lmsDorsal[0] = { x: 0.5, y: 0.7, z: 0 };
             lmsDorsal[9] = { x: 0.5, y: 0.35, z: 0 };
-            lmsDorsal[5] = { x: 0.35, y: 0.38, z: 0 };// Index MCP (raw left -> mirrored right)
-            lmsDorsal[17] = { x: 0.65, y: 0.42, z: 0 };// Pinky MCP (raw right -> mirrored left)
+            lmsDorsal[5] = { x: 0.65, y: 0.40, z: 0 };// Index MCP (camera raw right)
+            lmsDorsal[17] = { x: 0.42, y: 0.45, z: 0 };// Pinky MCP (camera raw left)
 
             const quatDorsal = twin.computeHandOrientation(lmsDorsal);
 
@@ -76,7 +75,7 @@ def test_twin_and_3d():
         }""")
         print("Hand Orientation Evaluation:", orientation_eval)
 
-        # 4. Test 1€ Motion Stabilizer and Schmitt-Trigger Predictive MindTwin
+        # 4. Test Continuous Biomechanical Intent Prediction
         predict_eval = page.evaluate("""() => {
             const engine = window.mindTwinEngine;
             if (!engine) return { error: "mindTwinEngine missing" };

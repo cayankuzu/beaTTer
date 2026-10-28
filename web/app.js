@@ -252,23 +252,34 @@ window.OmegaVisionEngine = OmegaVisionEngine;
 // ==================== 3. GRANDMASTER PSYCHOLOGICAL MARKOV ENGINE ====================
 class RPSPsychologicalAnalyst {
   constructor() {
-    this.history = []; // Array of { turn, playerMove, botMove, winner }
-    this.transitionMatrix = {
-      // After LOSS: Wang et al. Lose-Shift model (65% shift to counter opponent's winner)
-      "PLAYER_LOSS_ROCK":     { ROCK: 0.15, PAPER: 0.20, SCISSORS: 0.65 },
-      "PLAYER_LOSS_PAPER":    { ROCK: 0.65, PAPER: 0.15, SCISSORS: 0.20 },
-      "PLAYER_LOSS_SCISSORS": { ROCK: 0.20, PAPER: 0.65, SCISSORS: 0.15 },
+    this.history = []; // Array of { turn, playerMove, botMove, winner, leadTimeMs }
 
-      // After WIN: Win-Stay model (55% stick with winning move)
-      "PLAYER_WIN_ROCK":      { ROCK: 0.55, PAPER: 0.20, SCISSORS: 0.25 },
-      "PLAYER_WIN_PAPER":     { ROCK: 0.25, PAPER: 0.55, SCISSORS: 0.20 },
-      "PLAYER_WIN_SCISSORS":  { ROCK: 0.20, PAPER: 0.25, SCISSORS: 0.55 },
+    // 1. Wang-Xu-Zhou Conditional Heuristics (Nature 2014)
+    // Behavioral game theory of conditional human psychology: Win-Stay / Lose-Shift
+    this.wslsMatrix = {
+      // If player WON with Rock: 58% stick with Rock, 22% shift to Paper, 20% to Scissors
+      "WIN_ROCK":      { ROCK: 0.58, PAPER: 0.22, SCISSORS: 0.20 },
+      "WIN_PAPER":     { ROCK: 0.20, PAPER: 0.58, SCISSORS: 0.22 },
+      "WIN_SCISSORS":  { ROCK: 0.22, PAPER: 0.20, SCISSORS: 0.58 },
 
-      // After TIE: Cyclic shift (Taş -> Kağıt -> Makas)
-      "TIE_ROCK":             { ROCK: 0.20, PAPER: 0.60, SCISSORS: 0.20 },
-      "TIE_PAPER":            { ROCK: 0.20, PAPER: 0.20, SCISSORS: 0.60 },
-      "TIE_SCISSORS":         { ROCK: 0.60, PAPER: 0.20, SCISSORS: 0.20 }
+      // If player LOST to Rock (they threw Scissors): 68% shift to counter (Paper)
+      "LOSS_ROCK":     { ROCK: 0.16, PAPER: 0.68, SCISSORS: 0.16 },
+      "LOSS_PAPER":    { ROCK: 0.16, PAPER: 0.16, SCISSORS: 0.68 },
+      "LOSS_SCISSORS": { ROCK: 0.68, PAPER: 0.16, SCISSORS: 0.16 },
+
+      // If player TIED on Rock: cyclic shift to Paper (64%)
+      "TIE_ROCK":      { ROCK: 0.18, PAPER: 0.64, SCISSORS: 0.18 },
+      "TIE_PAPER":     { ROCK: 0.18, PAPER: 0.18, SCISSORS: 0.64 },
+      "TIE_SCISSORS":  { ROCK: 0.64, PAPER: 0.18, SCISSORS: 0.18 }
     };
+
+    // 2. Multi-Order Markov Frequency Learning
+    this.markov1 = {
+      ROCK:     { ROCK: 1, PAPER: 1, SCISSORS: 1 },
+      PAPER:    { ROCK: 1, PAPER: 1, SCISSORS: 1 },
+      SCISSORS: { ROCK: 1, PAPER: 1, SCISSORS: 1 }
+    };
+    this.markov2 = {}; // Bi-gram sequence table
   }
 
   recordTurn(playerMove, botMove, winner) {
@@ -278,92 +289,111 @@ class RPSPsychologicalAnalyst {
       botMove,
       winner
     });
-  }
 
-  getMarkovPrior() {
-    if (this.history.length === 0) {
-      // Demographic Baseline: Males play Rock 42%, Females play Scissors 38%
-      return { ROCK: 0.40, PAPER: 0.30, SCISSORS: 0.30, label: "İlk Tur (Demografik Öncelik)" };
+    // Update Markov Order 1
+    if (this.history.length >= 2) {
+      const prev = this.history[this.history.length - 2].playerMove;
+      if (this.markov1[prev] && playerMove) {
+        this.markov1[prev][playerMove] = (this.markov1[prev][playerMove] || 1) + 2;
+      }
     }
 
-    const last = this.history[this.history.length - 1];
-    let key = "";
-    let label = "Dengeli";
-
-    if (last.winner === "BOT_WIN") {
-      key = `PLAYER_LOSS_${last.playerMove}`;
-      label = `Lose-Shift (${last.playerMove} Kaybı Sonrası)`;
-    } else if (last.winner === "PLAYER_WIN") {
-      key = `PLAYER_WIN_${last.playerMove}`;
-      label = `Win-Stay (${last.playerMove} Zaferi Tekrarı)`;
-    } else {
-      key = `TIE_${last.playerMove}`;
-      label = `Döngüsel İvme (${last.playerMove} Beraberlik)`;
+    // Update Markov Order 2
+    if (this.history.length >= 3) {
+      const p1 = this.history[this.history.length - 3].playerMove;
+      const p2 = this.history[this.history.length - 2].playerMove;
+      const key = `${p1}_${p2}`;
+      if (!this.markov2[key]) this.markov2[key] = { ROCK: 1, PAPER: 1, SCISSORS: 1 };
+      if (playerMove) this.markov2[key][playerMove] = (this.markov2[key][playerMove] || 1) + 3;
     }
-
-    const p = this.transitionMatrix[key] || { ROCK: 0.33, PAPER: 0.33, SCISSORS: 0.34 };
-    return { ...p, label };
-  }
-
-  /**
-   * Computes the Unified Grandmaster Probability Distribution at 60 FPS
-   * Fuses: Markov Cognitive Prior (30%) + Biomechanical Tendon Kinematics (70%)
-   */
-  computeLiveDistribution(kinematic, prevScores, dtSec) {
-    const markov = this.getMarkovPrior();
-
-    if (!kinematic || !kinematic.metrics) {
-      return {
-        probabilities: markov,
-        vAngle: 0,
-        tendonVelocity: 0,
-        strategyLabel: markov.label
-      };
-    }
-
-    const m = kinematic.metrics;
-    const scores = kinematic.scores;
-
-    // Calculate Tendon Angular Velocity (rad/s equivalent)
-    let tendonVel = 0;
-    if (prevScores && dtSec > 0.001) {
-      const dFront = ((scores.index + scores.middle) - (prevScores.index + prevScores.middle)) * 0.5;
-      tendonVel = Math.round((dFront / dtSec) * 57.3); // degrees per second
-    }
-
-    // Biomechanical Evidence Scores
-    // ROCK: High when hand is curled tight and divergence is low
-    let bioRock = Math.max(0.02, (1.0 - m.sAll) * (1.0 - Math.max(0, m.deltaScissors)));
-    // PAPER: High when all fingers are extended and back fingers open
-    let bioPaper = Math.max(0.02, m.sAll * (m.sBack + 0.1));
-    // SCISSORS: High when front fingers extended, back fingers curled, V-spread angle wide
-    const vSpreadBonus = Math.min(2.0, 1.0 + (m.vSpreadAngle / 25.0));
-    let bioScissors = Math.max(0.02, m.sFront * Math.max(0.05, m.deltaScissors) * vSpreadBonus);
-
-    // Dynamic Bayesian Fusion: Weight = P_markov * (P_bio ^ 2.8)
-    let rawRock = Math.pow(markov.ROCK, 0.7) * Math.pow(bioRock, 2.8);
-    let rawPaper = Math.pow(markov.PAPER, 0.7) * Math.pow(bioPaper, 2.8);
-    let rawScissors = Math.pow(markov.SCISSORS, 0.7) * Math.pow(bioScissors, 2.8);
-
-    const sum = Math.max(1e-5, rawRock + rawPaper + rawScissors);
-
-    return {
-      probabilities: {
-        ROCK: rawRock / sum,
-        PAPER: rawPaper / sum,
-        SCISSORS: rawScissors / sum
-      },
-      vAngle: m.vSpreadAngle.toFixed(1),
-      tendonVelocity: tendonVel,
-      strategyLabel: markov.label
-    };
   }
 
   resetSeries() {
     this.history = [];
+    this.markov2 = {};
+  }
+
+  getMarkovPrior() {
+    return this.getBayesianPrediction(null);
+  }
+
+  getBayesianPrediction(liveMetrics) {
+    // 1. Prior from History & Behavioral Game Theory
+    let pR = 0.33, pP = 0.33, pS = 0.34;
+    let strategyLabel = "Nötr";
+
+    if (this.history.length === 0) {
+      // Demographic Baseline: Males throw Rock 42%, Females Scissors 38%
+      pR = 0.42; pP = 0.28; pS = 0.30;
+      strategyLabel = "Demografik Başlangıç (Taş %42)";
+    } else {
+      const last = this.history[this.history.length - 1];
+      const outcome = (last.winner === "USER") ? "WIN" : ((last.winner === "AI") ? "LOSS" : "TIE");
+      const wslsKey = `${outcome}_${last.botMove || "ROCK"}`;
+      const wslsPrior = this.wslsMatrix[wslsKey] || { ROCK: 0.33, PAPER: 0.33, SCISSORS: 0.34 };
+
+      const m1Counts = this.markov1[last.playerMove] || { ROCK: 1, PAPER: 1, SCISSORS: 1 };
+      const m1Sum = m1Counts.ROCK + m1Counts.PAPER + m1Counts.SCISSORS;
+      const m1Prior = {
+        ROCK: m1Counts.ROCK / m1Sum,
+        PAPER: m1Counts.PAPER / m1Sum,
+        SCISSORS: m1Counts.SCISSORS / m1Sum
+      };
+
+      let m2Prior = null;
+      if (this.history.length >= 2) {
+        const prev2 = this.history[this.history.length - 2].playerMove;
+        const key = `${prev2}_${last.playerMove}`;
+        if (this.markov2[key]) {
+          const m2c = this.markov2[key];
+          const m2s = m2c.ROCK + m2c.PAPER + m2c.SCISSORS;
+          m2Prior = { ROCK: m2c.ROCK / m2s, PAPER: m2c.PAPER / m2s, SCISSORS: m2c.SCISSORS / m2s };
+        }
+      }
+
+      if (m2Prior) {
+        pR = wslsPrior.ROCK * 0.40 + m1Prior.ROCK * 0.30 + m2Prior.ROCK * 0.30;
+        pP = wslsPrior.PAPER * 0.40 + m1Prior.PAPER * 0.30 + m2Prior.PAPER * 0.30;
+        pS = wslsPrior.SCISSORS * 0.40 + m1Prior.SCISSORS * 0.30 + m2Prior.SCISSORS * 0.30;
+        strategyLabel = `Markov-2 & WSLS (${outcome})`;
+      } else {
+        pR = wslsPrior.ROCK * 0.55 + m1Prior.ROCK * 0.45;
+        pP = wslsPrior.PAPER * 0.55 + m1Prior.PAPER * 0.45;
+        pS = wslsPrior.SCISSORS * 0.55 + m1Prior.SCISSORS * 0.45;
+        strategyLabel = `WSLS-Model (${outcome})`;
+      }
+    }
+
+    // 2. Real-Time Biomechanical Tendon Likelihood Fusion
+    if (liveMetrics && liveMetrics.deltaScissors !== undefined) {
+      const ds = Math.max(-0.5, Math.min(1.0, liveMetrics.deltaScissors || 0));
+      const sAll = liveMetrics.sAll || 0.25;
+
+      const lR = Math.exp(-Math.pow(sAll - 0.15, 2) / 0.12);
+      const lP = Math.exp(-Math.pow(sAll - 0.85, 2) / 0.15);
+      const lS = Math.exp(-Math.pow(ds - 0.55, 2) / 0.14);
+
+      pR = pR * lR;
+      pP = pP * lP;
+      pS = pS * lS;
+    }
+
+    const sumP = pR + pP + pS || 1e-4;
+    pR /= sumP;
+    pP /= sumP;
+    pS /= sumP;
+
+    let predictedMove = "ROCK";
+    if (pS > pR && pS > pP) predictedMove = "SCISSORS";
+    else if (pP > pR && pP > pS) predictedMove = "PAPER";
+
+    return {
+      predictedMove,
+      probabilities: { ROCK: pR, PAPER: pP, SCISSORS: pS },
+      strategy: strategyLabel
+    };
   }
 }
-
 // ==================== 4. ZERO-LATENCY KINETIC SURGE RHYTHM ENGINE ====================
 class KineticSurgeEngine {
   constructor(callbacks) {
@@ -1011,11 +1041,10 @@ class Twin3DHandEngine {
     // 2. Transverse Vector (Pinky Knuckle to Index Knuckle in mirrored screen space)
     const vX_raw = new THREE.Vector3().subVectors(pIdx, pPky);
 
-    // 3. Outward Palm Normal Vector (AVUÇ İÇİ NORMALİ)
-    // When palm faces screen: fingers point UP (Y~0,1,0), Index is on left (vX~-1,0,0)
-    // Y_basis x vX_raw = (0,1,0) x (-1,0,0) = (0, 0, 1) -> DIRECTLY TOWARDS VIEWER!
-    // When back of hand faces screen: vX flips sign -> normal becomes (0, 0, -1) -> DIRECTLY AWAY!
-    const vZ_raw = new THREE.Vector3().crossVectors(Y_basis, vX_raw);
+    // 3. Outward Palm Normal Vector (TRUE MIRROR REFLECTION - AYNA GÖRÜNTÜSÜ)
+    // When user holds palm facing the webcam: The 3D avatar's palm faces directly at the user (+Z)!
+    // When user turns hand so back of hand faces webcam: The 3D avatar turns 180° and shows dorsal side (-Z)!
+    const vZ_raw = new THREE.Vector3().crossVectors(vX_raw, Y_basis);
     if (vZ_raw.lengthSq() < 1e-6) return null;
     const Z_basis = vZ_raw.clone().normalize();
 
