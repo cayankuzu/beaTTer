@@ -393,6 +393,33 @@ class RPSPsychologicalAnalyst {
       strategy: strategyLabel
     };
   }
+
+  computeLiveDistribution(currentKinematic, prevScores, dtSec = 0.016) {
+    const scores = currentKinematic ? currentKinematic.scores : null;
+    const vAngle = (currentKinematic && typeof currentKinematic.vAngle === 'number')
+      ? currentKinematic.vAngle
+      : 0.0;
+
+    let tendonVelocity = 0.0;
+    if (scores && prevScores && dtSec > 0.001) {
+      const dIndex = Math.abs(scores.index - (prevScores.index || 0));
+      const dMid = Math.abs(scores.middle - (prevScores.middle || 0));
+      tendonVelocity = Math.round(((dIndex + dMid) * 0.5 / dtSec) * 180.0);
+    }
+
+    const bayes = this.getBayesianPrediction({
+      deltaScissors: scores ? (scores.index + scores.middle - scores.ring - scores.pinky) * 0.5 : 0,
+      sAll: scores ? (scores.thumb + scores.index + scores.middle + scores.ring + scores.pinky) * 0.2 : 0.25
+    });
+
+    return {
+      probabilities: bayes.probabilities,
+      predictedMove: bayes.predictedMove,
+      strategyLabel: bayes.strategy,
+      vAngle: (typeof vAngle === 'number') ? vAngle.toFixed(1) : '0.0',
+      tendonVelocity: Math.min(999, tendonVelocity)
+    };
+  }
 }
 // ==================== 4. ZERO-LATENCY KINETIC SURGE RHYTHM ENGINE ====================
 class KineticSurgeEngine {
@@ -838,53 +865,71 @@ class Twin3DHandEngine {
       this.handGroup.add(dorsalPiston);
     });
 
-    // 2. Anatomical Wrist Joint Sphere (Carpals)
+    // 2. Anatomical Wrist Joint Gimbal (Carpals)
     const wristGeo = new THREE.SphereGeometry(0.19, 16, 16);
     this.wristMesh = new THREE.Mesh(wristGeo, this.darkJointMaterial);
     this.wristMesh.position.y = -0.22;
     this.handGroup.add(this.wristMesh);
 
-    // 3. Anatomical Palm Chassis (Carpals & Metacarpals)
-    const palmGeo = new THREE.BoxGeometry(0.70, 0.72, 0.22);
+    const wristRingGeo = new THREE.TorusGeometry(0.21, 0.024, 12, 24);
+    const wristRing = new THREE.Mesh(wristRingGeo, this.chromeMaterial);
+    wristRing.rotation.x = Math.PI * 0.5;
+    wristRing.position.y = -0.22;
+    this.handGroup.add(wristRing);
+
+    // 3. Ergonomic Sculpted Cyber Palm Chassis (Carpals & Metacarpals)
+    const palmGeo = new THREE.BoxGeometry(0.68, 0.70, 0.18);
     this.palmMesh = new THREE.Mesh(palmGeo, this.armorMaterial);
-    this.palmMesh.position.y = 0.22;
+    this.palmMesh.position.set(0, 0.22, 0);
     this.handGroup.add(this.palmMesh);
 
-    // PALMAR SURFACE (AVUÇ İÇİ +Z)
-    // Thenar Pad (Base of thumb on palmar side +Z)
-    const thenarGeo = new THREE.BoxGeometry(0.24, 0.36, 0.08);
+    // Smooth Ergonomic Thenar Contour (Base of Thumb on Palmar side +Z)
+    const thenarGeo = new THREE.CylinderGeometry(0.11, 0.07, 0.38, 16);
     const thenarMesh = new THREE.Mesh(thenarGeo, this.musclePadMaterial);
-    thenarMesh.position.set(-0.20, 0.14, 0.12);
-    thenarMesh.rotation.z = 0.25;
+    thenarMesh.position.set(-0.19, 0.15, 0.09);
+    thenarMesh.rotation.set(0.12, 0, 0.32);
     this.handGroup.add(thenarMesh);
 
-    // Hypothenar Pad (Pinky side palm base on palmar side +Z)
-    const hypoGeo = new THREE.BoxGeometry(0.20, 0.38, 0.08);
+    // Smooth Ergonomic Hypothenar Contour (Pinky edge on Palmar side +Z)
+    const hypoGeo = new THREE.CylinderGeometry(0.09, 0.06, 0.40, 16);
     const hypoMesh = new THREE.Mesh(hypoGeo, this.musclePadMaterial);
-    hypoMesh.position.set(0.20, 0.16, 0.12);
-    hypoMesh.rotation.z = -0.15;
+    hypoMesh.position.set(0.19, 0.17, 0.09);
+    hypoMesh.rotation.set(0.10, 0, -0.22);
     this.handGroup.add(hypoMesh);
 
-    // Glowing Hexagonal Arc Reactor in PALM CENTER (AVUÇ İÇİ MERKEZİ +Z)
-    const coreGeo = new THREE.CylinderGeometry(0.14, 0.14, 0.06, 6);
+    // Recessed Glowing Arc Reactor in Palm Center (Palmar +Z)
+    const coreGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.04, 24);
     this.coreMesh = new THREE.Mesh(coreGeo, this.coreMaterial);
     this.coreMesh.rotation.x = Math.PI * 0.5;
-    this.coreMesh.position.set(0, 0.22, 0.12);
+    this.coreMesh.position.set(0, 0.22, 0.09);
     this.handGroup.add(this.coreMesh);
 
-    // Hexagonal Core Outer Chrome Bezel
-    const frameGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.05, 6);
+    // Polished Chrome Bezel Ring
+    const frameGeo = new THREE.TorusGeometry(0.145, 0.022, 12, 24);
     const frameMesh = new THREE.Mesh(frameGeo, this.chromeMaterial);
-    frameMesh.rotation.x = Math.PI * 0.5;
-    frameMesh.position.set(0, 0.22, 0.11);
+    frameMesh.position.set(0, 0.22, 0.095);
     this.handGroup.add(frameMesh);
 
-    // DORSAL SURFACE (EL SIRTINDA 5 TENDON HATTI -Z)
-    [-0.22, -0.11, 0.0, 0.11, 0.22].forEach(x => {
-      const conduitGeo = new THREE.BoxGeometry(0.024, 0.62, 0.03);
-      const conduitMesh = new THREE.Mesh(conduitGeo, this.dorsalMaterial);
-      conduitMesh.position.set(x, 0.22, -0.12);
-      this.handGroup.add(conduitMesh);
+    // Palmar Energy Traces to 5 Knuckles
+    [-0.20, -0.10, 0.0, 0.10, 0.20].forEach((kx) => {
+      const conduitGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.28, 8);
+      const conduit = new THREE.Mesh(conduitGeo, this.coreMaterial);
+      conduit.position.set(kx * 0.55, 0.37, 0.09);
+      conduit.rotation.z = -kx * 0.55;
+      this.handGroup.add(conduit);
+    });
+
+    // Dorsal Armor Plate & 5 Luminescent Fiber-Optic Tendons (Dorsal -Z)
+    const dorsalPlateGeo = new THREE.BoxGeometry(0.56, 0.42, 0.03);
+    const dorsalPlate = new THREE.Mesh(dorsalPlateGeo, this.darkJointMaterial);
+    dorsalPlate.position.set(0, 0.20, -0.095);
+    this.handGroup.add(dorsalPlate);
+
+    [-0.21, -0.10, 0.0, 0.10, 0.21].forEach(x => {
+      const dorsalTendonGeo = new THREE.BoxGeometry(0.020, 0.62, 0.02);
+      const dorsalTendon = new THREE.Mesh(dorsalTendonGeo, this.dorsalMaterial);
+      dorsalTendon.position.set(x, 0.22, -0.10);
+      this.handGroup.add(dorsalTendon);
     });
 
     // 4. 5 Articulated Anatomical Robotic Digits
@@ -1076,10 +1121,12 @@ class Twin3DHandEngine {
         this.corePointLight.intensity = 2.4 + pulse * 1.4;
       }
 
+      const activeLandmarks = (lms && lms.length >= 21) ? lms : ((worldLms && worldLms.length >= 21) ? worldLms : null);
+
       if (this.mode === "rps") {
-        this.updateRpsMode(handY, rpsGesture, isResolving);
+        this.updateRpsMode(handY, activeLandmarks, rpsGesture, isResolving);
       } else {
-        this.updateMindTwinMode(lms, worldLms, intent);
+        this.updateMindTwinMode(activeLandmarks, intent);
       }
     } catch (err) {
       console.warn("twin3D.update error:", err);
@@ -1088,31 +1135,52 @@ class Twin3DHandEngine {
     }
   }
 
-  updateRpsMode(handY, rpsGesture, isResolving) {
+  updateRpsMode(handY, activeLandmarks, rpsGesture, isResolving) {
     const curGesture = rpsGesture || this._gesture || "ROCK";
 
-    // Follow player vertical motion in 3D
-    const normY = (typeof handY === "number") ? handY : 0.5;
-    const targetY = -(normY - 0.5) * 1.2 - 0.05;
-    this.handGroup.position.y += (targetY - this.handGroup.position.y) * 0.18;
-    this.handGroup.position.x += (0.0 - this.handGroup.position.x) * 0.18;
+    if (activeLandmarks && activeLandmarks.length >= 21) {
+      // 1. FULL 6-DOF ANATOMICAL ORIENTATION (AVUÇ İÇİ / DIŞI, PITCH, YAW, ROLL)
+      const targetQuat = this.computeHandOrientation(activeLandmarks);
+      if (targetQuat) {
+        this.handGroup.quaternion.slerp(targetQuat, 0.24);
+      }
 
-    // 3D Strike Thrust
-    const targetZ = isResolving ? 0.55 : 0.0;
-    this.handGroup.position.z += (targetZ - this.handGroup.position.z) * 0.28;
+      // 2. 3D Position tracking synced with mirrored screen space
+      const xm = 1.0 - activeLandmarks[0].x;
+      const targetX = (xm - 0.5) * 1.8;
+      const targetY = -(activeLandmarks[0].y - 0.5) * 1.5 - 0.05;
+      const palmDist = Math.hypot(
+        activeLandmarks[9].x - activeLandmarks[0].x,
+        activeLandmarks[9].y - activeLandmarks[0].y,
+        (activeLandmarks[9].z || 0) - (activeLandmarks[0].z || 0)
+      );
+      let targetZ = Math.max(-0.6, Math.min(0.6, (palmDist - 0.16) * 4.5));
+      if (isResolving) targetZ += 0.55;
 
-    // Natural 3D breathing angle
-    const targetRotX = isResolving ? -0.22 : (Math.sin(this.pulsePhase * 0.8) * 0.06);
-    this.handGroup.rotation.x += (targetRotX - this.handGroup.rotation.x) * 0.18;
-    this.handGroup.rotation.y += (0.0 - this.handGroup.rotation.y) * 0.18;
-    this.handGroup.rotation.z += (0.0 - this.handGroup.rotation.z) * 0.18;
+      this.handGroup.position.x += (targetX - this.handGroup.position.x) * 0.22;
+      this.handGroup.position.y += (targetY - this.handGroup.position.y) * 0.22;
+      this.handGroup.position.z += (targetZ - this.handGroup.position.z) * 0.26;
+    } else {
+      // Idle Hovering Levitation: Alive and breathing
+      const hoverY = -0.05 + Math.sin(this.pulsePhase) * 0.04;
+      this.handGroup.position.x += (0.0 - this.handGroup.position.x) * 0.1;
+      this.handGroup.position.y += (hoverY - this.handGroup.position.y) * 0.1;
+      this.handGroup.position.z += (0.0 - this.handGroup.position.z) * 0.1;
+
+      const idleQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+        Math.sin(this.pulsePhase * 0.6) * 0.05,
+        Math.sin(this.pulsePhase * 0.8) * 0.08,
+        0
+      ));
+      this.handGroup.quaternion.slerp(idleQuat, 0.1);
+    }
 
     // Form 3D Pose
     let curls = { thumb: 1.0, index: 1.0, middle: 1.0, ring: 1.0, pinky: 1.0 };
     if (curGesture === "PAPER") {
       curls = { thumb: 0.0, index: 0.0, middle: 0.0, ring: 0.0, pinky: 0.0 };
     } else if (curGesture === "SCISSORS") {
-      curls = { thumb: 1.0, index: 0.0, middle: 0.0, ring: 1.0, pinky: 1.0 };
+      curls = { thumb: 0.85, index: 0.0, middle: 0.0, ring: 1.0, pinky: 1.0 };
     }
 
     for (const [id, f] of Object.entries(this.fingers)) {
@@ -1125,8 +1193,7 @@ class Twin3DHandEngine {
     }
   }
 
-  updateMindTwinMode(lms, worldLms, intent) {
-    const activeLandmarks = (lms && lms.length >= 21) ? lms : ((worldLms && worldLms.length >= 21) ? worldLms : null);
+  updateMindTwinMode(activeLandmarks, intent) {
 
     if (activeLandmarks) {
       // 1. FULL 6-DOF ANATOMICAL ORIENTATION (AVUÇ İÇİ / DIŞI, PITCH, YAW, ROLL)
@@ -1988,30 +2055,39 @@ async function initRecognizer() {
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
     );
 
+    // Primary: CPU with XNNPACK SIMD (proven 20ms vs 125ms GPU stall, zero WebGL context conflict)
     try {
-      gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "./gesture_recognizer.task",
-          delegate: "GPU"
-        },
-        runningMode: "VIDEO",
-        numHands: 1
-      });
-      console.log("[beaTTer] Google GestureRecognizer (GPU) yüklendi!");
-    } catch (gpuErr) {
-      console.warn("[beaTTer] GPU delegate açılamadı, CPU moduna geçiliyor:", gpuErr);
       gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: "./gesture_recognizer.task",
           delegate: "CPU"
         },
         runningMode: "VIDEO",
-        numHands: 1
+        numHands: 1,
+        minHandDetectionConfidence: 0.3,
+        minHandPresenceConfidence: 0.3,
+        minTrackingConfidence: 0.3
       });
-      console.log("[beaTTer] Google GestureRecognizer (CPU) yüklendi!");
+      window.gestureRecognizer = gestureRecognizer;
+      console.log("[beaTTer] Google GestureRecognizer (CPU XNNPACK) yüklendi!");
+    } catch (cpuErr) {
+      console.warn("[beaTTer] CPU delegate açılamadı, GPU moduna geçiliyor:", cpuErr);
+      gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "./gesture_recognizer.task",
+          delegate: "GPU"
+        },
+        runningMode: "VIDEO",
+        numHands: 1,
+        minHandDetectionConfidence: 0.3,
+        minHandPresenceConfidence: 0.3,
+        minTrackingConfidence: 0.3
+      });
+      window.gestureRecognizer = gestureRecognizer;
+      console.log("[beaTTer] Google GestureRecognizer (GPU) yüklendi!");
     }
   } catch (err) {
-    console.warn("[beaTTer] GestureRecognizer yükleme uyarısı:", err);
+    console.error("[beaTTer] GestureRecognizer yükleme hatası:", err);
   }
 }
 
@@ -2045,6 +2121,9 @@ async function sendTelemetry(data, withSnapshot = false) {
 // ==================== 10. MAIN 60 FPS VISION & ANALYST LOOP ====================
 let lastFpsTime = performance.now();
 let frameCount = 0;
+let lastProcessedVideoTime = -1;
+let lastRecognizeTimestamp = 0;
+let recognizerErrorCount = 0;
 
 function mainRenderLoop() {
   try {
@@ -2079,11 +2158,33 @@ function mainRenderLoop() {
     let activeWorldLms = null;
     let intent = null;
 
-    if (gestureRecognizer && video && video.readyState >= 2) {
+    if (gestureRecognizer && video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0 && !video.paused) {
       let results = null;
-      try {
-        results = gestureRecognizer.recognizeForVideo(video, now);
-      } catch (e) {}
+
+      // Strictly monotonically increasing integer millisecond timestamp for MediaPipe C++ core
+      let nowMs = Math.round(now);
+      if (nowMs <= lastRecognizeTimestamp) {
+        nowMs = lastRecognizeTimestamp + 1;
+      }
+
+      // Run inference when video timestamp updates or every 30-35ms
+      if (video.currentTime !== lastProcessedVideoTime || (nowMs - lastRecognizeTimestamp >= 30)) {
+        lastProcessedVideoTime = video.currentTime;
+        lastRecognizeTimestamp = nowMs;
+
+        try {
+          results = gestureRecognizer.recognizeForVideo(video, nowMs);
+          recognizerErrorCount = 0;
+        } catch (recErr) {
+          console.warn("[beaTTer] recognizeForVideo exception:", recErr);
+          recognizerErrorCount++;
+          if (recognizerErrorCount > 15) {
+            console.warn("[beaTTer] Auto-healing GestureRecognizer after consecutive exceptions...");
+            recognizerErrorCount = 0;
+            initRecognizer();
+          }
+        }
+      }
 
       if (results && results.landmarks && results.landmarks.length > 0) {
         const rawLms = results.landmarks[0];
