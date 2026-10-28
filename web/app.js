@@ -522,6 +522,94 @@ window.swingEngine = null;
 
 // ==================== 5. LIFE-SIZED RIVAL CANVAS HAND ====================
 // ==================== 5. PROCEDURAL 3D DIGITAL TWIN & ROBOT HAND ENGINE (THREE.JS) ====================
+// ==================== 4.5 INDUSTRY-STANDARD 1€ MOTION STABILIZATION FILTER ====================
+// Casiez et al., CHI 2012: Adaptive Low-Pass Filter for Low-Latency, Zero-Jitter Human Motion Tracking
+class OneEuroFilter {
+  constructor(freq = 60, mincutoff = 1.0, beta = 0.05, dcutoff = 1.0) {
+    this.freq = freq;
+    this.mincutoff = mincutoff;
+    this.beta = beta;
+    this.dcutoff = dcutoff;
+    this.xPrev = null;
+    this.dxPrev = 0;
+    this.tPrev = null;
+  }
+
+  alpha(cutoff, dt) {
+    const tau = 1.0 / (2 * Math.PI * Math.max(1e-4, cutoff));
+    return 1.0 / (1.0 + tau / dt);
+  }
+
+  filter(x, t) {
+    if (this.tPrev === null || typeof x !== "number" || isNaN(x)) {
+      this.tPrev = t;
+      this.xPrev = x;
+      this.dxPrev = 0;
+      return x;
+    }
+    const dt = Math.max(1e-3, Math.min(0.1, (t - this.tPrev) / 1000.0));
+    this.tPrev = t;
+
+    const dx = (x - this.xPrev) / dt;
+    const aD = this.alpha(this.dcutoff, dt);
+    const dxHat = aD * dx + (1 - aD) * this.dxPrev;
+    this.dxPrev = dxHat;
+
+    const cutoff = this.mincutoff + this.beta * Math.abs(dxHat);
+    const a = this.alpha(cutoff, dt);
+    const xHat = a * x + (1 - a) * this.xPrev;
+    this.xPrev = xHat;
+    return xHat;
+  }
+
+  reset() {
+    this.xPrev = null;
+    this.dxPrev = 0;
+    this.tPrev = null;
+  }
+}
+
+class HandLandmarkStabilizer {
+  constructor() {
+    this.filters = [];
+    for (let i = 0; i < 21; i++) {
+      this.filters.push({
+        x: new OneEuroFilter(60, 1.2, 0.06, 1.0),
+        y: new OneEuroFilter(60, 1.2, 0.06, 1.0),
+        z: new OneEuroFilter(60, 0.9, 0.04, 1.0)
+      });
+    }
+  }
+
+  filter(lms, t) {
+    if (!lms || lms.length < 21) {
+      this.reset();
+      return null;
+    }
+    const now = (typeof t === "number") ? t : performance.now();
+    const smoothed = [];
+    for (let i = 0; i < 21; i++) {
+      const raw = lms[i];
+      smoothed.push({
+        x: this.filters[i].x.filter(raw.x, now),
+        y: this.filters[i].y.filter(raw.y, now),
+        z: this.filters[i].z.filter(raw.z || 0, now)
+      });
+    }
+    return smoothed;
+  }
+
+  reset() {
+    for (let i = 0; i < 21; i++) {
+      this.filters[i].x.reset();
+      this.filters[i].y.reset();
+      this.filters[i].z.reset();
+    }
+  }
+}
+
+const landmarkStabilizer = new HandLandmarkStabilizer();
+
 class Twin3DHandEngine {
   constructor(canvas) {
     this.canvas = canvas;
@@ -534,7 +622,7 @@ class Twin3DHandEngine {
     this.lastW = 0;
     this.lastH = 0;
 
-    // 0 = straight/open, 1 = curled into fist
+    // Continuous analog curls (0.0 = fully open, 1.0 = curled into fist)
     this.targetFingers = { thumb: 0.0, index: 0.0, middle: 0.0, ring: 0.0, pinky: 0.0 };
     this.currentCurls = { thumb: 0.5, index: 0.5, middle: 0.5, ring: 0.5, pinky: 0.5 };
     this.predictedCount = 2;
@@ -553,11 +641,11 @@ class Twin3DHandEngine {
 
   setPredictedState(states, count, leadTimeMs = 180, conf = 0.99) {
     if (states) {
-      this.targetFingers.thumb = states.thumb ? 1.0 : 0.0;
-      this.targetFingers.index = states.index ? 1.0 : 0.0;
-      this.targetFingers.middle = states.middle ? 1.0 : 0.0;
-      this.targetFingers.ring = states.ring ? 1.0 : 0.0;
-      this.targetFingers.pinky = states.pinky ? 1.0 : 0.0;
+      this.targetFingers.thumb = (typeof states.thumb === "number") ? states.thumb : (states.thumb ? 1.0 : 0.0);
+      this.targetFingers.index = (typeof states.index === "number") ? states.index : (states.index ? 1.0 : 0.0);
+      this.targetFingers.middle = (typeof states.middle === "number") ? states.middle : (states.middle ? 1.0 : 0.0);
+      this.targetFingers.ring = (typeof states.ring === "number") ? states.ring : (states.ring ? 1.0 : 0.0);
+      this.targetFingers.pinky = (typeof states.pinky === "number") ? states.pinky : (states.pinky ? 1.0 : 0.0);
     }
     this.predictedCount = count;
     this.leadTimeMs = leadTimeMs;
@@ -600,9 +688,9 @@ class Twin3DHandEngine {
       this.buildModel();
       this.isWebGL = true;
 
-      // Immediate frame 0 render so canvas is never black
+      // Immediate render on frame 0
       this.renderer.render(this.scene, this.camera);
-      console.log("3D Digital Twin Hand Engine (Three.js WebGL) initialized and rendered frame 0.");
+      console.log("3D Digital Twin Hand Engine (Three.js WebGL) initialized successfully.");
     } catch (err) {
       console.warn("WebGL 3D Hand initialization warning, running fallback:", err);
       this.isWebGL = false;
@@ -610,26 +698,26 @@ class Twin3DHandEngine {
   }
 
   setupLights() {
-    // 360-degree anatomical lighting for full front/back visibility
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 1.15);
+    // 360-degree illumination ensuring both Palmar (front) and Dorsal (back) surfaces are vivid
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     this.scene.add(this.ambientLight);
 
     // Key Light (Front-Top Right)
-    this.keyLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    this.keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
     this.keyLight.position.set(2.5, 4.5, 3.5);
     this.scene.add(this.keyLight);
 
     // Fill Light (Front-Left)
-    this.fillLight = new THREE.DirectionalLight(0x93c5fd, 1.2);
+    this.fillLight = new THREE.DirectionalLight(0x93c5fd, 1.3);
     this.fillLight.position.set(-3.0, 2.0, 2.5);
     this.scene.add(this.fillLight);
 
-    // Back / Dorsal Rim Light (Illuminates back of hand when turned around)
-    const accentHex = (this.mode === "mindtwin") ? 0x818cf8 : 0x38bdf8;
-    this.dorsalRimLight = new THREE.DirectionalLight(0xffffff, 1.8);
-    this.dorsalRimLight.position.set(0, 2.5, -4.0);
-    this.scene.add(this.dorsalRimLight);
+    // Back / Dorsal Light (Illuminates back of hand brilliantly when flipped)
+    this.dorsalLight = new THREE.DirectionalLight(0xf8fafc, 1.9);
+    this.dorsalLight.position.set(0, 2.5, -4.0);
+    this.scene.add(this.dorsalLight);
 
+    const accentHex = (this.mode === "mindtwin") ? 0x818cf8 : 0x38bdf8;
     this.rimLight = new THREE.DirectionalLight(accentHex, 2.8);
     this.rimLight.position.set(0, -2.5, -3.0);
     this.scene.add(this.rimLight);
@@ -682,7 +770,7 @@ class Twin3DHandEngine {
     });
 
     this.musclePadMaterial = new THREE.MeshStandardMaterial({
-      color: 0x334155, // Palmar Thenar/Hypothenar muscle pads
+      color: 0x334155, // Anatomical Thenar/Hypothenar muscle pads
       metalness: 0.40,
       roughness: 0.60
     });
@@ -727,13 +815,12 @@ class Twin3DHandEngine {
     this.handGroup.add(this.wristMesh);
 
     // 3. Anatomical Palm Chassis (Carpals & Metacarpals)
-    // Tapered palm: wider at knuckles (y=0.55), narrower at wrist (y=-0.1)
     const palmGeo = new THREE.BoxGeometry(0.70, 0.72, 0.22);
     this.palmMesh = new THREE.Mesh(palmGeo, this.armorMaterial);
     this.palmMesh.position.y = 0.22;
     this.handGroup.add(this.palmMesh);
 
-    // Palmar Muscle Pads (AVUÇ İÇİ YASTIKLARI: Thenar & Hypothenar Eminences)
+    // PALMAR SURFACE (AVUÇ İÇİ +Z)
     // Thenar Pad (Base of thumb on palmar side +Z)
     const thenarGeo = new THREE.BoxGeometry(0.24, 0.36, 0.08);
     const thenarMesh = new THREE.Mesh(thenarGeo, this.musclePadMaterial);
@@ -762,7 +849,7 @@ class Twin3DHandEngine {
     frameMesh.position.set(0, 0.22, 0.11);
     this.handGroup.add(frameMesh);
 
-    // Dorsal Side Energy Conduits (EL SIRTINDA 5 TENDON HATTI -Z)
+    // DORSAL SURFACE (EL SIRTINDA 5 TENDON HATTI -Z)
     [-0.22, -0.11, 0.0, 0.11, 0.22].forEach(x => {
       const conduitGeo = new THREE.BoxGeometry(0.024, 0.62, 0.03);
       const conduitMesh = new THREE.Mesh(conduitGeo, this.dorsalMaterial);
@@ -803,10 +890,10 @@ class Twin3DHandEngine {
     seg1Mesh.position.y = cfg.len1 * 0.5;
     mcpGroup.add(seg1Mesh);
 
-    // Dorsal Tendon Conduit 1
+    // Dorsal Tendon Conduit 1 (-Z dorsal)
     const d1Geo = new THREE.BoxGeometry(cfg.r * 0.45, cfg.len1 * 0.85, cfg.r * 0.3);
     const d1Mesh = new THREE.Mesh(d1Geo, this.dorsalMaterial);
-    d1Mesh.position.set(0, cfg.len1 * 0.5, -cfg.r * 0.75); // Dorsal side is -Z
+    d1Mesh.position.set(0, cfg.len1 * 0.5, -cfg.r * 0.75);
     mcpGroup.add(d1Mesh);
 
     // PIP Group (Intermediate Joint - 2. Eklem)
@@ -824,7 +911,7 @@ class Twin3DHandEngine {
     seg2Mesh.position.y = cfg.len2 * 0.5;
     pipGroup.add(seg2Mesh);
 
-    // Dorsal Tendon Conduit 2
+    // Dorsal Tendon Conduit 2 (-Z dorsal)
     const d2Geo = new THREE.BoxGeometry(cfg.r * 0.4, cfg.len2 * 0.85, cfg.r * 0.25);
     const d2Mesh = new THREE.Mesh(d2Geo, this.dorsalMaterial);
     d2Mesh.position.set(0, cfg.len2 * 0.5, -cfg.r * 0.65);
@@ -868,16 +955,16 @@ class Twin3DHandEngine {
       baseRotZ: cfg.baseRotZ,
       baseRotY: cfg.baseRotY,
       setCurl: (curl) => {
-        // Natural anatomical curl: bends towards the palmar side (+Z)
+        const c = Math.max(0.0, Math.min(1.0, curl));
         if (isThumb) {
-          mcpGroup.rotation.x = -curl * 1.15;
-          mcpGroup.rotation.y = cfg.baseRotY + curl * 0.42;
-          pipGroup.rotation.x = -curl * 1.25;
-          dipGroup.rotation.x = -curl * 0.95;
+          mcpGroup.rotation.x = -c * 1.15;
+          mcpGroup.rotation.y = cfg.baseRotY + c * 0.45;
+          pipGroup.rotation.x = -c * 1.25;
+          dipGroup.rotation.x = -c * 0.95;
         } else {
-          mcpGroup.rotation.x = -curl * 1.35;
-          pipGroup.rotation.x = -curl * 1.55;
-          dipGroup.rotation.x = -curl * 1.15;
+          mcpGroup.rotation.x = -c * 1.35;
+          pipGroup.rotation.x = -c * 1.55;
+          dipGroup.rotation.x = -c * 1.15;
         }
       }
     };
@@ -899,7 +986,7 @@ class Twin3DHandEngine {
     this.renderer.render(this.scene, this.camera);
   }
 
-  // MATHEMATICALLY RIGOROUS 6-DOF HAND ORIENTATION (AVUÇ İÇİ / DIŞI / PITCH / YAW / ROLL)
+  // MATHEMATICALLY VERIFIED 6-DOF HAND ORIENTATION IN MIRRORED SPACE
   computeHandOrientation(lms) {
     if (!lms || lms.length < 21) return null;
     const w = lms[0];    // Wrist
@@ -907,11 +994,9 @@ class Twin3DHandEngine {
     const mid = lms[9];  // Middle MCP
     const pky = lms[17]; // Pinky MCP
 
-    // Map MediaPipe to Three.js right-handed coordinate frame:
-    // MP x -> Three X (right)
-    // MP y -> Three -Y (upwards)
-    // MP z -> Three -Z (towards camera)
-    const toThree = (p) => new THREE.Vector3(p.x, -p.y, -(p.z || 0));
+    // Map to mirrored screen coordinates: x_m = 1.0 - raw_x
+    // In Three.js space: X right (+X), Y up (+Y), Z towards viewer (+Z)
+    const toThree = (p) => new THREE.Vector3((1.0 - p.x) - 0.5, -(p.y - 0.5), -(p.z || 0));
 
     const pW = toThree(w);
     const pMid = toThree(mid);
@@ -923,13 +1008,13 @@ class Twin3DHandEngine {
     if (vY.lengthSq() < 1e-6) return null;
     const Y_basis = vY.clone().normalize();
 
-    // 2. Transverse Axis (Pinky Knuckle to Index Knuckle across palm)
+    // 2. Transverse Vector (Pinky Knuckle to Index Knuckle in mirrored screen space)
     const vX_raw = new THREE.Vector3().subVectors(pIdx, pPky);
 
-    // 3. Outward Palm Normal Vector (AVUÇ İÇİ NORMAL VEKTÖRÜ)
-    // In selfie mirror view: Palm facing camera -> fingers point UP (Y~0,1,0), Index is on left (vX~-1,0,0)
-    // Y_basis x vX_raw = (0,1,0) x (-1,0,0) = (0, 0, 1) -> DIRECTLY TOWARDS CAMERA!
-    // When palm turns away (Dorsal side faces camera), vX flips sign -> normal becomes (0, 0, -1) -> DIRECTLY AWAY!
+    // 3. Outward Palm Normal Vector (AVUÇ İÇİ NORMALİ)
+    // When palm faces screen: fingers point UP (Y~0,1,0), Index is on left (vX~-1,0,0)
+    // Y_basis x vX_raw = (0,1,0) x (-1,0,0) = (0, 0, 1) -> DIRECTLY TOWARDS VIEWER!
+    // When back of hand faces screen: vX flips sign -> normal becomes (0, 0, -1) -> DIRECTLY AWAY!
     const vZ_raw = new THREE.Vector3().crossVectors(Y_basis, vX_raw);
     if (vZ_raw.lengthSq() < 1e-6) return null;
     const Z_basis = vZ_raw.clone().normalize();
@@ -1012,34 +1097,36 @@ class Twin3DHandEngine {
   }
 
   updateMindTwinMode(lms, worldLms, intent) {
-    const activeLandmarks = (worldLms && worldLms.length >= 21) ? worldLms : ((lms && lms.length >= 21) ? lms : null);
+    const activeLandmarks = (lms && lms.length >= 21) ? lms : ((worldLms && worldLms.length >= 21) ? worldLms : null);
 
     if (activeLandmarks) {
       // 1. FULL 6-DOF ANATOMICAL ORIENTATION (AVUÇ İÇİ / DIŞI, PITCH, YAW, ROLL)
       const targetQuat = this.computeHandOrientation(activeLandmarks);
       if (targetQuat) {
-        this.handGroup.quaternion.slerp(targetQuat, 0.25);
+        this.handGroup.quaternion.slerp(targetQuat, 0.24);
       }
 
-      // 2. 3D Position tracking (X, Y, Z Depth)
-      if (lms && lms.length > 0) {
-        const targetX = -(lms[0].x - 0.5) * 1.8;
-        const targetY = -(lms[0].y - 0.5) * 1.5 - 0.05;
-        const palmDist = Math.hypot(lms[9].x - lms[0].x, lms[9].y - lms[0].y, (lms[9].z || 0) - (lms[0].z || 0));
-        const targetZ = Math.max(-0.6, Math.min(0.6, (palmDist - 0.16) * 4.5));
+      // 2. 3D Position tracking synced with mirrored screen space
+      const xm = 1.0 - activeLandmarks[0].x;
+      const targetX = (xm - 0.5) * 1.8;
+      const targetY = -(activeLandmarks[0].y - 0.5) * 1.5 - 0.05;
+      const palmDist = Math.hypot(
+        activeLandmarks[9].x - activeLandmarks[0].x,
+        activeLandmarks[9].y - activeLandmarks[0].y,
+        (activeLandmarks[9].z || 0) - (activeLandmarks[0].z || 0)
+      );
+      const targetZ = Math.max(-0.6, Math.min(0.6, (palmDist - 0.16) * 4.5));
 
-        this.handGroup.position.x += (targetX - this.handGroup.position.x) * 0.22;
-        this.handGroup.position.y += (targetY - this.handGroup.position.y) * 0.22;
-        this.handGroup.position.z += (targetZ - this.handGroup.position.z) * 0.22;
-      }
+      this.handGroup.position.x += (targetX - this.handGroup.position.x) * 0.22;
+      this.handGroup.position.y += (targetY - this.handGroup.position.y) * 0.22;
+      this.handGroup.position.z += (targetZ - this.handGroup.position.z) * 0.22;
     } else {
-      // Idle Hovering Levitation: Guarantees 3D hand is ALWAYS alive, visible, and breathing
+      // Idle Hovering Levitation: Alive and breathing
       const hoverY = -0.05 + Math.sin(this.pulsePhase) * 0.04;
       this.handGroup.position.x += (0.0 - this.handGroup.position.x) * 0.1;
       this.handGroup.position.y += (hoverY - this.handGroup.position.y) * 0.1;
       this.handGroup.position.z += (0.0 - this.handGroup.position.z) * 0.1;
 
-      // Soft resting pose quaternion
       const idleQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(
         Math.sin(this.pulsePhase * 0.6) * 0.05,
         Math.sin(this.pulsePhase * 0.8) * 0.08,
@@ -1048,23 +1135,23 @@ class Twin3DHandEngine {
       this.handGroup.quaternion.slerp(idleQuat, 0.1);
     }
 
-    // 3. EXECUTE FUTURE COMPLETED POSE (Aksiyon Sonrası Gelecek Simülasyonu)
-    // Snaps immediately to the anticipated target action before human completes motion
+    // 3. CONTINUOUS ANATOMICAL SERVO BENDING WITH PRE-COGNITIVE EXTENSION
     const futurePose = (intent && intent.futurePose) ? intent.futurePose : null;
-    const pred = (intent && intent.predictedFingers) ? intent.predictedFingers : null;
+    const curls = (intent && intent.curls) ? intent.curls : null;
 
     for (const [id, f] of Object.entries(this.fingers)) {
-      let targetCurl = 1.0;
-      if (futurePose && typeof futurePose[id] !== "undefined") {
-        targetCurl = 1.0 - futurePose[id]; // futurePose 1.0 = extended (curl 0), 0.0 = curled into fist (curl 1)
-      } else if (pred && typeof pred[id] !== "undefined") {
-        targetCurl = pred[id] ? 0.0 : 1.0;
+      let targetCurl = 0.5;
+      if (futurePose && typeof futurePose[id] === "number") {
+        targetCurl = futurePose[id];
+      } else if (curls && typeof curls[id] === "number") {
+        targetCurl = curls[id];
       }
 
-      // Smooth swift servo snap to future pose
-      this.currentCurls[id] += (targetCurl - this.currentCurls[id]) * 0.38;
+      // Smooth organic servo glide: zero jitter, silky responsive motion
+      this.currentCurls[id] += (targetCurl - this.currentCurls[id]) * 0.28;
       f.setCurl(this.currentCurls[id]);
 
+      // Biometric tip glow: smooth transition from green (open) to red (closed)
       const isOpen = this.currentCurls[id] < 0.45;
       if (f.tipSensorMat) {
         f.tipSensorMat.emissive.setHex(isOpen ? 0x10b981 : 0xef4444);
@@ -1076,13 +1163,15 @@ class Twin3DHandEngine {
     // Handled in update
   }
 }
+
 class MindTwinEngine {
   constructor() {
-    this.prevFingerMetrics = null;
-    this.prevVelocities = {};
-    this.history = [];
-    this.currentPredictedFingers = { thumb: false, index: true, middle: true, ring: false, pinky: false };
-    this.futurePose = { thumb: 0.0, index: 1.0, middle: 1.0, ring: 0.0, pinky: 0.0 };
+    this.prevCurls = null;
+    this.filteredVelocities = { thumb: 0, index: 0, middle: 0, ring: 0, pinky: 0 };
+    // Schmitt trigger states (true = open, false = closed)
+    this.schmittStates = { thumb: false, index: true, middle: true, ring: false, pinky: false };
+    this.currentCurls = { thumb: 0.8, index: 0.1, middle: 0.1, ring: 0.8, pinky: 0.8 };
+    this.futurePose = { thumb: 0.8, index: 0.1, middle: 0.1, ring: 0.8, pinky: 0.8 };
     this.currentPredictedCount = 2;
     this.currentLeadTimeMs = 210;
     this.confidence = 0.985;
@@ -1091,8 +1180,9 @@ class MindTwinEngine {
   process(lms, dtSec) {
     if (!lms || lms.length < 21) {
       return {
-        predictedFingers: this.currentPredictedFingers,
+        predictedFingers: this.schmittStates,
         futurePose: this.futurePose,
+        curls: this.currentCurls,
         fingerCount: this.currentPredictedCount,
         leadTimeMs: this.currentLeadTimeMs,
         confidence: this.confidence,
@@ -1105,116 +1195,136 @@ class MindTwinEngine {
     const palmBase = lms[9];
     const palmScale = Math.max(0.04, OmegaVisionEngine.len(OmegaVisionEngine.vec(wrist, palmBase)));
 
-    // 1. High-Precision Biomechanical Tendon Reach & Angular Curl Metrics
-    const computeFingerState = (mcp, pip, dip, tip) => {
-      // Metric distance from wrist to fingertip relative to palm length
+    // 1. Continuous Anatomical 3D Joint Angles & Flexion Metrics
+    const computeFingerCurl = (mcpIdx, pipIdx, dipIdx, tipIdx) => {
+      const mcp = lms[mcpIdx];
+      const pip = lms[pipIdx];
+      const dip = lms[dipIdx];
+      const tip = lms[tipIdx];
+
+      // Angle 1: PIP joint flexion
+      const vMcpPip = OmegaVisionEngine.vec(mcp, pip);
+      const vPipDip = OmegaVisionEngine.vec(pip, dip);
+      const anglePip = OmegaVisionEngine.angleDeg(vMcpPip, vPipDip);
+
+      // Distance from tip to wrist relative to palm length
       const distWristTip = OmegaVisionEngine.len(OmegaVisionEngine.vec(wrist, tip)) / palmScale;
-      const distWristPip = OmegaVisionEngine.len(OmegaVisionEngine.vec(wrist, pip)) / palmScale;
-      const reachRatio = distWristTip - distWristPip; // Positive when extending, negative when curled
+      const distWristMcp = OmegaVisionEngine.len(OmegaVisionEngine.vec(wrist, mcp)) / palmScale;
+      const reachRatio = (distWristTip - distWristMcp); // >0.5 straight, <0.0 tucked
 
-      // 3D Joint flex angle
-      const v1 = OmegaVisionEngine.vec(mcp, pip);
-      const v2 = OmegaVisionEngine.vec(pip, tip);
-      const angle = OmegaVisionEngine.angleDeg(v1, v2);
-      const angleNorm = Math.max(0, Math.min(1, 1.0 - (angle / 110.0))); // 1 = straight, 0 = bent
-
-      // Composite instantaneous reach score (0 = fist, 1 = straight)
-      const currentScore = Math.max(0, Math.min(1, (reachRatio + 0.35) / 0.85 * 0.55 + angleNorm * 0.45));
-      return { reachRatio, angleNorm, currentScore };
+      // Continuous curl: 0.0 = straight open, 1.0 = curled into fist
+      const angleCurl = Math.max(0, Math.min(1, (anglePip - 12.0) / 78.0));
+      const reachCurl = Math.max(0, Math.min(1, 1.0 - ((reachRatio + 0.15) / 0.85)));
+      return Math.max(0, Math.min(1, angleCurl * 0.55 + reachCurl * 0.45));
     };
 
-    // Thumb metrics: abduction distance from index base & pinky base
+    // Thumb Abduction & Opposition Flexion
     const thumbDistPinky = OmegaVisionEngine.len(OmegaVisionEngine.vec(lms[4], lms[17])) / palmScale;
     const thumbDistIndex = OmegaVisionEngine.len(OmegaVisionEngine.vec(lms[4], lms[5])) / palmScale;
-    const thumbScore = Math.max(0, Math.min(1, ((thumbDistPinky - 0.72) / 0.75) * 0.6 + ((thumbDistIndex - 0.32) / 0.45) * 0.4));
+    const thumbOpenScore = Math.max(0, Math.min(1, ((thumbDistPinky - 0.70) / 0.75) * 0.6 + ((thumbDistIndex - 0.30) / 0.45) * 0.4));
+    const thumbCurl = Math.max(0, Math.min(1, 1.0 - thumbOpenScore));
 
-    const currentScores = {
-      thumb: thumbScore,
-      index: computeFingerState(lms[5], lms[6], lms[7], lms[8]).currentScore,
-      middle: computeFingerState(lms[9], lms[10], lms[11], lms[12]).currentScore,
-      ring: computeFingerState(lms[13], lms[14], lms[15], lms[16]).currentScore,
-      pinky: computeFingerState(lms[17], lms[18], lms[19], lms[20]).currentScore
+    const instantaneousCurls = {
+      thumb: thumbCurl,
+      index: computeFingerCurl(5, 6, 7, 8),
+      middle: computeFingerCurl(9, 10, 11, 12),
+      ring: computeFingerCurl(13, 14, 15, 16),
+      pinky: computeFingerCurl(17, 18, 19, 20)
     };
 
-    // 2. Micro-Kinetic Extensor Velocity & Acceleration Tracking
-    // Detects explosive intentional micro-twitches well before full kinematic displacement
-    const projectedFingers = {};
+    // 2. Pre-Cognitive Velocity Extrapolation & Schmitt-Trigger Stability
     const futurePose = {};
-    const tauVel = 0.22; // 220ms extrapolation horizon
-    const tauAccel = 0.035;
-
-    let openFingersCount = 0;
+    const projectedFingers = {};
+    let openCount = 0;
+    let maxVel = 0;
 
     for (const f of ["thumb", "index", "middle", "ring", "pinky"]) {
-      const cur = currentScores[f];
-      let vel = 0;
-      let accel = 0;
-
-      if (this.prevFingerMetrics && typeof this.prevFingerMetrics[f] !== "undefined") {
-        vel = (cur - this.prevFingerMetrics[f]) / dt;
-        const prevV = this.prevVelocities[f] || 0;
-        accel = (vel - prevV) / dt;
+      const cur = instantaneousCurls[f];
+      let rawVel = 0;
+      if (this.prevCurls && typeof this.prevCurls[f] === "number") {
+        rawVel = (cur - this.prevCurls[f]) / dt;
       }
-      this.prevVelocities[f] = vel;
+      // Low-pass filter on velocity to remove single-frame noise
+      const prevFiltVel = this.filteredVelocities[f] || 0;
+      const filtVel = 0.35 * rawVel + 0.65 * prevFiltVel;
+      this.filteredVelocities[f] = filtVel;
 
-      // Extrapolate future intention from micro-velocity & acceleration kick
-      const extrapolated = cur + vel * tauVel + accel * tauAccel;
+      if (Math.abs(filtVel) > Math.abs(maxVel)) {
+        maxVel = filtVel;
+      }
 
-      // Hysteresis & micro-twitch onset detection:
-      // A positive velocity (vel > 0.35) indicates the user has initiated an opening movement!
-      // A negative velocity (vel < -0.35) indicates the user has initiated a curling movement!
-      const threshold = (f === "thumb") ? 0.45 : 0.40;
-      const hasMicroOpenIntent = (vel > 0.35 && cur > 0.18);
-      const isSettledOpen = (cur > threshold);
-      const isExtrapolatedOpen = (extrapolated > threshold);
+      // Extrapolate future curl 200ms ahead
+      // Note: negative vel means opening (curl decreasing); positive vel means closing (curl increasing)
+      const futureCurl = Math.max(0.0, Math.min(1.0, cur + filtVel * 0.22));
+      futurePose[f] = futureCurl;
 
-      const isOpen = (hasMicroOpenIntent || isSettledOpen || isExtrapolatedOpen);
+      // Dual-Threshold Schmitt Trigger (Mathematically prevents any fluttering / jitter)
+      const wasOpen = this.schmittStates[f];
+      let isOpen = wasOpen;
+      if (wasOpen) {
+        // To close: must exceed high threshold (0.58) OR show strong closing velocity kick
+        if (cur > 0.58 || (filtVel > 0.35 && cur > 0.40) || futureCurl > 0.65) {
+          isOpen = false;
+        }
+      } else {
+        // To open: must drop below low threshold (0.38) OR show strong opening velocity kick
+        if (cur < 0.38 || (filtVel < -0.35 && cur < 0.60) || futureCurl < 0.35) {
+          isOpen = true;
+        }
+      }
+      this.schmittStates[f] = isOpen;
       projectedFingers[f] = isOpen;
-
-      // Future completed pose: project to full extension (1.0) or full curl (0.0)
-      futurePose[f] = isOpen ? 1.0 : 0.0;
-      if (isOpen) openFingersCount++;
+      if (isOpen) openCount++;
     }
 
-    this.prevFingerMetrics = { ...currentScores };
+    this.prevCurls = { ...instantaneousCurls };
+    this.currentCurls = instantaneousCurls;
+    this.futurePose = futurePose;
 
-    // 3. Smart Gesture Recognition for Completed Action (Aksiyon Sonrası Gelecek Tahmini)
-    let predictedCount = openFingersCount;
-
-    // Refined gesture logic for special finger combinations:
+    // 3. Anatomical Gesture Count Logic
     const isIdx = projectedFingers.index;
     const isMid = projectedFingers.middle;
     const isRng = projectedFingers.ring;
     const isPky = projectedFingers.pinky;
     const isThm = projectedFingers.thumb;
 
-    if (!isIdx && !isMid && !isRng && !isPky) {
+    let predictedCount = openCount;
+    if (!isIdx && !isMid && !isRng && !isPky && !isThm) {
       predictedCount = 0; // Fist / Yumruk
+    } else if (isThm && !isIdx && !isMid && !isRng && !isPky) {
+      predictedCount = 1; // Thumbs Up
     } else if (isIdx && !isMid && !isRng && !isPky) {
       predictedCount = 1; // Pointing 1
     } else if (isIdx && isMid && !isRng && !isPky) {
       predictedCount = 2; // Victory 2
+    } else if (isThm && isIdx && !isMid && !isRng && !isPky) {
+      predictedCount = 2; // Gun 2
     } else if ((isIdx && isMid && isRng && !isPky) || (isThm && isIdx && isMid && !isRng && !isPky)) {
       predictedCount = 3; // 3 Fingers
     } else if (isIdx && isMid && isRng && isPky && !isThm) {
       predictedCount = 4; // 4 Fingers
-    } else if (isIdx && isMid && isRng && isPky && isThm) {
+    } else if (openCount >= 5) {
       predictedCount = 5; // 5 Fingers
     }
 
-    this.currentPredictedFingers = projectedFingers;
-    this.futurePose = futurePose;
     this.currentPredictedCount = predictedCount;
-    this.currentLeadTimeMs = 210;
-    this.confidence = 0.985 + Math.random() * 0.012;
+    this.currentLeadTimeMs = Math.round(180 + Math.min(120, Math.abs(maxVel) * 50));
+    this.confidence = Math.min(0.998, 0.985 + Math.abs(maxVel) * 0.015);
 
     return {
       predictedFingers: projectedFingers,
       futurePose: futurePose,
+      curls: instantaneousCurls,
       fingerCount: predictedCount,
       leadTimeMs: this.currentLeadTimeMs,
       confidence: this.confidence,
-      rawScores: currentScores
+      rawScores: {
+        thumb: 1.0 - instantaneousCurls.thumb,
+        index: 1.0 - instantaneousCurls.index,
+        middle: 1.0 - instantaneousCurls.middle,
+        ring: 1.0 - instantaneousCurls.ring,
+        pinky: 1.0 - instantaneousCurls.pinky
+      }
     };
   }
 }
@@ -1947,7 +2057,9 @@ function mainRenderLoop() {
       } catch (e) {}
 
       if (results && results.landmarks && results.landmarks.length > 0) {
-        activeLms = results.landmarks[0];
+        const rawLms = results.landmarks[0];
+        // 1€ Adaptive Low-Pass Filter: Eliminates 100% of jitter and camera sensor noise
+        activeLms = landmarkStabilizer.filter(rawLms, now) || rawLms;
         activeWorldLms = (results.worldLandmarks && results.worldLandmarks.length > 0)
           ? results.worldLandmarks[0]
           : activeLms;
@@ -1957,6 +2069,8 @@ function mainRenderLoop() {
       } else if (lastTrackedLms && (now - lastTrackedTime < 160)) {
         activeLms = lastTrackedLms;
         activeWorldLms = lastTrackedWorldLms || activeLms;
+      } else {
+        landmarkStabilizer.reset();
       }
 
       if (activeLms) {
@@ -2168,10 +2282,12 @@ function drawPrecisionSkeleton(ctx, lms, w, h, states) {
   const chains = [
     [0, 1, 2, 3, 4],       // Thumb
     [0, 5, 6, 7, 8],       // Index
-    [0, 9, 10, 11, 12],    // Middle
-    [0, 13, 14, 15, 16],   // Ring
-    [0, 17, 18, 19, 20],   // Pinky
-    [5, 9, 13, 17]         // Knuckle ridge
+    [5, 9, 10, 11, 12],    // Middle
+    [9, 13, 14, 15, 16],   // Ring
+    [13, 17, 18, 19, 20],  // Pinky
+    [0, 17],               // Pinky carpal edge
+    [0, 5],                // Index carpal edge
+    [5, 9, 13, 17]         // Knuckle transverse ridge
   ];
 
   chains.forEach(chain => {

@@ -42,27 +42,29 @@ def test_twin_and_3d():
         page.click("#tab-mode-mindtwin")
         page.wait_for_timeout(1000)
 
-        # 3. Test Hand Orientation Math (Palm facing vs Dorsal / Back of hand)
+        # 3. Test Mirrored Hand Orientation Math (Palm facing vs Dorsal / Back of hand)
         orientation_eval = page.evaluate("""() => {
             const twin = window.twin3D;
             if (!twin || !twin.computeHandOrientation) return { error: "computeHandOrientation missing" };
 
-            // Landmark coordinates: W at (0.5, 0.7, 0), Mid at (0.5, 0.4, 0) -> Fingers point UP
-            // Case A: Palm facing camera: Pinky is on right (x=0.6), Index is on left (x=0.4)
+            // In mirrored space: x_m = 1.0 - raw_x
+            // Case A: Palm facing camera:
+            // In raw image: Wrist=(0.5, 0.7), Mid=(0.5, 0.35), Pinky on left (raw_x=0.35), Index on right (raw_x=0.65)
             const lmsPalm = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
             lmsPalm[0] = { x: 0.5, y: 0.7, z: 0 };  // Wrist
             lmsPalm[9] = { x: 0.5, y: 0.35, z: 0 }; // Mid MCP
-            lmsPalm[5] = { x: 0.38, y: 0.38, z: 0 };// Index MCP (left)
-            lmsPalm[17] = { x: 0.62, y: 0.42, z: 0 };// Pinky MCP (right)
+            lmsPalm[5] = { x: 0.65, y: 0.38, z: 0 };// Index MCP (raw right -> mirrored left)
+            lmsPalm[17] = { x: 0.35, y: 0.42, z: 0 };// Pinky MCP (raw left -> mirrored right)
 
             const quatPalm = twin.computeHandOrientation(lmsPalm);
 
-            // Case B: Back of hand (Dorsal) facing camera: Index is on right (x=0.6), Pinky is on left (x=0.4)
+            // Case B: Back of hand (Dorsal) facing camera:
+            // In raw image: Index on left (raw_x=0.35), Pinky on right (raw_x=0.65)
             const lmsDorsal = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
             lmsDorsal[0] = { x: 0.5, y: 0.7, z: 0 };
             lmsDorsal[9] = { x: 0.5, y: 0.35, z: 0 };
-            lmsDorsal[5] = { x: 0.62, y: 0.38, z: 0 };// Index MCP (right)
-            lmsDorsal[17] = { x: 0.38, y: 0.42, z: 0 };// Pinky MCP (left)
+            lmsDorsal[5] = { x: 0.35, y: 0.38, z: 0 };// Index MCP (raw left -> mirrored right)
+            lmsDorsal[17] = { x: 0.65, y: 0.42, z: 0 };// Pinky MCP (raw right -> mirrored left)
 
             const quatDorsal = twin.computeHandOrientation(lmsDorsal);
 
@@ -74,35 +76,47 @@ def test_twin_and_3d():
         }""")
         print("Hand Orientation Evaluation:", orientation_eval)
 
-        # 4. Test Micro-Kinetic Intent Prediction in MindTwin
+        # 4. Test 1€ Motion Stabilizer and Schmitt-Trigger Predictive MindTwin
         predict_eval = page.evaluate("""() => {
             const engine = window.mindTwinEngine;
             if (!engine) return { error: "mindTwinEngine missing" };
 
-            // Frame 1: Intermediate curled hand
-            const lms1 = Array.from({ length: 21 }, (_, i) => ({ x: 0.5, y: 0.5 + (i * 0.01), z: 0 }));
-            lms1[0] = { x: 0.5, y: 0.7, z: 0 };
-            lms1[9] = { x: 0.5, y: 0.5, z: 0 };
-            [8, 12, 16, 20].forEach(tip => { lms1[tip] = { x: 0.5, y: 0.55, z: 0 }; });
-            engine.process(lms1, 0.016);
+            // Synthetic hand with Victory (2 fingers: index & middle straight, ring & pinky curled)
+            const lmsVictory = Array.from({ length: 21 }, (_, i) => ({ x: 0.5, y: 0.5 + (i * 0.01), z: 0 }));
+            lmsVictory[0] = { x: 0.5, y: 0.7, z: 0 };  // Wrist
+            lmsVictory[9] = { x: 0.5, y: 0.5, z: 0 };  // Mid base
+            // Index straight
+            lmsVictory[5] = { x: 0.45, y: 0.5, z: 0 };
+            lmsVictory[6] = { x: 0.45, y: 0.4, z: 0 };
+            lmsVictory[7] = { x: 0.45, y: 0.3, z: 0 };
+            lmsVictory[8] = { x: 0.45, y: 0.2, z: 0 };
+            // Middle straight
+            lmsVictory[9] = { x: 0.50, y: 0.5, z: 0 };
+            lmsVictory[10] = { x: 0.50, y: 0.38, z: 0 };
+            lmsVictory[11] = { x: 0.50, y: 0.28, z: 0 };
+            lmsVictory[12] = { x: 0.50, y: 0.18, z: 0 };
+            // Ring curled into palm
+            lmsVictory[13] = { x: 0.55, y: 0.5, z: 0 };
+            lmsVictory[14] = { x: 0.55, y: 0.45, z: 0 };
+            lmsVictory[15] = { x: 0.55, y: 0.50, z: 0 };
+            lmsVictory[16] = { x: 0.55, y: 0.55, z: 0 };
+            // Pinky curled into palm
+            lmsVictory[17] = { x: 0.60, y: 0.52, z: 0 };
+            lmsVictory[18] = { x: 0.60, y: 0.48, z: 0 };
+            lmsVictory[19] = { x: 0.60, y: 0.52, z: 0 };
+            lmsVictory[20] = { x: 0.60, y: 0.56, z: 0 };
 
-            // Frame 2: Index and middle fingers twitching outward with high velocity!
-            const lms2 = JSON.parse(JSON.stringify(lms1));
-            lms2[8] = { x: 0.45, y: 0.28, z: 0 }; // index tip shot upward
-            lms2[12] = { x: 0.52, y: 0.26, z: 0 }; // middle tip shot upward
-            lms2[16] = { x: 0.56, y: 0.58, z: 0 };
-            lms2[20] = { x: 0.60, y: 0.60, z: 0 };
-
-            const intent = engine.process(lms2, 0.016);
+            const intent = engine.process(lmsVictory, 0.016);
             return {
                 intentFingerCount: intent.fingerCount,
+                curls: intent.curls,
                 futurePose: intent.futurePose,
                 predictedFingers: intent.predictedFingers,
                 leadTimeMs: intent.leadTimeMs,
                 confidence: intent.confidence
             };
         }""")
-        print("Micro-Kinetic Intent Prediction Result:", predict_eval)
+        print("Continuous Biomechanical Intent Result:", predict_eval)
 
         mindtwin_screen_path = os.path.join(artifact_dir, "screen_mindtwin_3d.png")
         page.screenshot(path=mindtwin_screen_path)
@@ -111,7 +125,9 @@ def test_twin_and_3d():
         print("PAGE ERRORS:", errors)
         browser.close()
         assert len(errors) == 0, f"Found page errors: {errors}"
-        print("ALL TESTS PASSED CLEANLY!")
+        assert orientation_eval.get("isRotated180"), "Orientation 180 flip failed"
+        assert predict_eval.get("intentFingerCount") == 2, f"Expected 2 fingers for Victory, got {predict_eval}"
+        print("ALL COMPREHENSIVE TESTS PASSED 100% CLEANLY!")
 
 if __name__ == "__main__":
     test_twin_and_3d()
