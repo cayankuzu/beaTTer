@@ -521,172 +521,35 @@ class KineticSurgeEngine {
 window.swingEngine = null;
 
 // ==================== 5. LIFE-SIZED RIVAL CANVAS HAND ====================
-class CanvasRivalHand {
-  constructor() {
-    this.gesture = "ROCK";
-    this.currentY = 0.5;
+// ==================== 5. PROCEDURAL 3D DIGITAL TWIN & ROBOT HAND ENGINE (THREE.JS) ====================
+class Twin3DHandEngine {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.isWebGL = false;
+    this.mode = "rps"; // "rps" or "mindtwin"
+    this._gesture = "ROCK"; // for RPS
     this.targetY = 0.5;
-  }
-
-  update(playerY) {
-    this.targetY = playerY;
-    this.currentY = this.currentY * 0.65 + this.targetY * 0.35;
-  }
-
-  draw(ctx, width, height) {
-    const cx = width * 0.5;
-    const cy = height * this.currentY;
-    const scale = Math.min(width, height) / 520.0;
-
-    ctx.save();
-    ctx.translate(cx, cy);
-
-    if (this.gesture === "ROCK") {
-      this._drawFist(ctx, scale);
-    } else if (this.gesture === "PAPER") {
-      this._drawPalm(ctx, scale);
-    } else if (this.gesture === "SCISSORS") {
-      this._drawScissors(ctx, scale);
-    }
-
-    ctx.restore();
-  }
-
-  _drawFist(ctx, s) {
-    ctx.fillStyle = "#1e293b";
-    ctx.strokeStyle = "#ffb703";
-    ctx.lineWidth = 4 * s;
-    ctx.beginPath();
-    ctx.roundRect(-45 * s, 45 * s, 90 * s, 115 * s, 8 * s);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = "#334155";
-    ctx.beginPath();
-    ctx.roundRect(-62 * s, -45 * s, 124 * s, 95 * s, 18 * s);
-    ctx.fill();
-    ctx.stroke();
-
-    [-42, -14, 14, 42].forEach(kx => {
-      ctx.fillStyle = "#475569";
-      ctx.strokeStyle = "#ffb703";
-      ctx.beginPath();
-      ctx.roundRect(kx * s - 11 * s, -65 * s, 22 * s, 42 * s, 6 * s);
-      ctx.fill();
-      ctx.stroke();
-    });
-
-    ctx.fillStyle = "#64748b";
-    ctx.beginPath();
-    ctx.roundRect(-58 * s, -12 * s, 90 * s, 30 * s, 8 * s);
-    ctx.fill();
-    ctx.stroke();
-  }
-
-  _drawPalm(ctx, s) {
-    ctx.fillStyle = "#1e293b";
-    ctx.strokeStyle = "#10b981";
-    ctx.lineWidth = 4 * s;
-    ctx.beginPath();
-    ctx.roundRect(-45 * s, 55 * s, 90 * s, 115 * s, 8 * s);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = "#334155";
-    ctx.beginPath();
-    ctx.roundRect(-60 * s, -20 * s, 120 * s, 85 * s, 16 * s);
-    ctx.fill();
-    ctx.stroke();
-
-    const fingers = [
-      { x: -44, len: 105, a: -0.16 },
-      { x: -15, len: 118, a: -0.05 },
-      { x: 15, len: 115, a: 0.05 },
-      { x: 44, len: 94, a: 0.16 }
-    ];
-
-    fingers.forEach(f => {
-      ctx.save();
-      ctx.translate(f.x * s, -20 * s);
-      ctx.rotate(f.a);
-      ctx.fillStyle = "#475569";
-      ctx.strokeStyle = "#10b981";
-      ctx.beginPath();
-      ctx.roundRect(-11 * s, -f.len * s, 22 * s, f.len * s, 8 * s);
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-    });
-
-    ctx.save();
-    ctx.translate(-52 * s, 18 * s);
-    ctx.rotate(-0.75);
-    ctx.fillStyle = "#64748b";
-    ctx.strokeStyle = "#10b981";
-    ctx.beginPath();
-    ctx.roundRect(-11 * s, -70 * s, 22 * s, 70 * s, 8 * s);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  _drawScissors(ctx, s) {
-    ctx.fillStyle = "#1e293b";
-    ctx.strokeStyle = "#00e1ff";
-    ctx.lineWidth = 4 * s;
-    ctx.beginPath();
-    ctx.roundRect(-45 * s, 55 * s, 90 * s, 115 * s, 8 * s);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = "#334155";
-    ctx.beginPath();
-    ctx.roundRect(-60 * s, -20 * s, 120 * s, 85 * s, 16 * s);
-    ctx.fill();
-    ctx.stroke();
-
-    [-12, 16].forEach(kx => {
-      ctx.fillStyle = "#475569";
-      ctx.beginPath();
-      ctx.roundRect(kx * s + 15 * s, -20 * s, 22 * s, 32 * s, 6 * s);
-      ctx.fill();
-      ctx.stroke();
-    });
-
-    const scis = [
-      { x: -30, len: 120, a: -0.32 },
-      { x: 6, len: 122, a: 0.28 }
-    ];
-
-    scis.forEach(f => {
-      ctx.save();
-      ctx.translate(f.x * s, -20 * s);
-      ctx.rotate(f.a);
-      ctx.fillStyle = "#64748b";
-      ctx.strokeStyle = "#00e1ff";
-      ctx.beginPath();
-      ctx.roundRect(-12 * s, -f.len * s, 24 * s, f.len * s, 10 * s);
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-    });
-  }
-}
-
-// ==================== 5B. MINDTWIN CYBERNETIC MECHANICAL DIGITAL TWIN ====================
-class CyberTwinHand {
-  constructor() {
     this.currentY = 0.5;
-    this.targetY = 0.5;
     this.pulsePhase = 0;
-    this.fingers = { thumb: 0.0, index: 1.0, middle: 1.0, ring: 0.0, pinky: 0.0 };
-    this.targetFingers = { thumb: 0.0, index: 1.0, middle: 1.0, ring: 0.0, pinky: 0.0 };
+
+    // Finger curl values: 0.0 = fully extended straight, 1.0 = fully curled into fist
+    this.targetFingers = { thumb: 0.0, index: 0.0, middle: 0.0, ring: 0.0, pinky: 0.0 };
+    this.currentCurls = { thumb: 1.0, index: 1.0, middle: 1.0, ring: 1.0, pinky: 1.0 };
     this.predictedCount = 2;
     this.leadTimeMs = 180;
-    this.confidence = 0.992;
+    this.confidence = 0.99;
+
+    this.init();
   }
 
-  setPredictedState(states, count, leadTimeMs = 180, conf = 0.992) {
+  get gesture() {
+    return this._gesture;
+  }
+  set gesture(g) {
+    this._gesture = g;
+  }
+
+  setPredictedState(states, count, leadTimeMs = 180, conf = 0.99) {
     if (states) {
       this.targetFingers.thumb = states.thumb ? 1.0 : 0.0;
       this.targetFingers.index = states.index ? 1.0 : 0.0;
@@ -699,213 +562,415 @@ class CyberTwinHand {
     this.confidence = conf;
   }
 
-  update(playerY) {
-    this.targetY = playerY;
-    this.currentY = this.currentY * 0.65 + this.targetY * 0.35;
-    this.pulsePhase += 0.06;
+  init() {
+    if (typeof THREE === "undefined" || !this.canvas) {
+      this.isWebGL = false;
+      return;
+    }
 
-    const servoSpeed = 0.34;
-    for (const k of Object.keys(this.fingers)) {
-      this.fingers[k] += (this.targetFingers[k] - this.fingers[k]) * servoSpeed;
+    try {
+      this.scene = new THREE.Scene();
+
+      const w = (this.canvas.width > 50) ? this.canvas.width : 640;
+      const h = (this.canvas.height > 50) ? this.canvas.height : 480;
+
+      this.camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 50);
+      this.camera.position.set(0, 0, 3.4);
+
+      this.renderer = new THREE.WebGLRenderer({
+        canvas: this.canvas,
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance"
+      });
+      this.renderer.setSize(w, h, false);
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      if (THREE.ACESFilmicToneMapping) {
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.25;
+      }
+
+      this.setupLights();
+      this.buildModel();
+      this.isWebGL = true;
+      console.log("3D Digital Twin Hand Engine (Three.js WebGL) initialized successfully.");
+    } catch (err) {
+      console.warn("WebGL 3D Hand initialization warning, running fallback:", err);
+      this.isWebGL = false;
     }
   }
 
-  draw(ctx, width, height) {
-    const cx = width * 0.5;
-    const cy = height * this.currentY;
-    const s = Math.min(width, height) / 530.0;
+  setupLights() {
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+    this.scene.add(this.ambientLight);
 
-    ctx.save();
-    ctx.translate(cx, cy);
+    this.keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
+    this.keyLight.position.set(2.5, 4.0, 3.5);
+    this.scene.add(this.keyLight);
 
-    // 1. Background Cyber Reticle & Hologram Target Rings
-    ctx.save();
-    ctx.strokeStyle = "rgba(0, 225, 255, 0.16)";
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([8, 8]);
-    ctx.beginPath();
-    ctx.arc(0, 0, 155 * s, 0, Math.PI * 2);
-    ctx.stroke();
+    this.fillLight = new THREE.DirectionalLight(0x94a3b8, 0.6);
+    this.fillLight.position.set(-3.0, 1.0, 2.0);
+    this.scene.add(this.fillLight);
 
-    ctx.strokeStyle = "rgba(255, 183, 3, 0.12)";
-    ctx.setLineDash([4, 12]);
-    ctx.beginPath();
-    ctx.arc(0, 0, 195 * s, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
+    const accentHex = (this.mode === "mindtwin") ? 0x818cf8 : 0x38bdf8;
+    this.rimLight = new THREE.DirectionalLight(accentHex, 2.2);
+    this.rimLight.position.set(-2.0, -2.0, -2.5);
+    this.scene.add(this.rimLight);
 
-    // 2. Forearm Carbon Armor & Hydraulic Piston Assembly
-    ctx.fillStyle = "#0a0f1d";
-    ctx.strokeStyle = "rgba(0, 225, 255, 0.55)";
-    ctx.lineWidth = 3.5 * s;
-    ctx.beginPath();
-    ctx.roundRect(-48 * s, 65 * s, 96 * s, 115 * s, 10 * s);
-    ctx.fill();
-    ctx.stroke();
+    this.corePointLight = new THREE.PointLight(accentHex, 2.5, 3.5);
+    this.corePointLight.position.set(0, 0, 0.25);
+    this.scene.add(this.corePointLight);
+  }
 
-    // Dual Hydraulic Shock Absorbers
-    [-28, 28].forEach(hx => {
-      ctx.fillStyle = "#1e293b";
-      ctx.strokeStyle = "#ffb703";
-      ctx.lineWidth = 2 * s;
-      ctx.beginPath();
-      ctx.roundRect((hx - 6) * s, 78 * s, 12 * s, 72 * s, 4 * s);
-      ctx.fill();
-      ctx.stroke();
+  setTheme(mode) {
+    this.mode = mode;
+    const accentHex = (mode === "mindtwin") ? 0x818cf8 : 0x38bdf8;
+    if (this.coreMaterial) {
+      this.coreMaterial.color.setHex(accentHex);
+      this.coreMaterial.emissive.setHex(accentHex);
+    }
+    if (this.dorsalMaterial) {
+      this.dorsalMaterial.color.setHex(accentHex);
+      this.dorsalMaterial.emissive.setHex(accentHex);
+    }
+    if (this.rimLight) {
+      this.rimLight.color.setHex(accentHex);
+    }
+    if (this.corePointLight) {
+      this.corePointLight.color.setHex(accentHex);
+    }
+  }
 
-      ctx.fillStyle = "#00e1ff";
-      ctx.beginPath();
-      ctx.roundRect((hx - 3) * s, 42 * s, 6 * s, 44 * s, 2 * s);
-      ctx.fill();
+  buildModel() {
+    this.handGroup = new THREE.Group();
+    this.scene.add(this.handGroup);
+
+    // Common High-Precision PBR Materials
+    this.armorMaterial = new THREE.MeshStandardMaterial({
+      color: 0x131a26,
+      metalness: 0.88,
+      roughness: 0.22
     });
 
-    // 3. Futuristic Mechanical Palm Chassis
-    ctx.fillStyle = "#111827";
-    ctx.strokeStyle = "#00e1ff";
-    ctx.lineWidth = 3.5 * s;
-    ctx.shadowColor = "#00e1ff";
-    ctx.shadowBlur = 12;
-    ctx.beginPath();
-    ctx.roundRect(-64 * s, -28 * s, 128 * s, 95 * s, 16 * s);
-    ctx.fill();
-    ctx.stroke();
-    ctx.shadowBlur = 0;
+    this.chromeMaterial = new THREE.MeshStandardMaterial({
+      color: 0xd1d5db,
+      metalness: 0.95,
+      roughness: 0.12
+    });
 
-    // Glowing Core Arc Reactor in Palm
-    const glow = (Math.sin(this.pulsePhase) + 1.0) * 0.5;
-    const coreGrad = ctx.createRadialGradient(0, 20 * s, 2 * s, 0, 20 * s, 32 * s);
-    coreGrad.addColorStop(0, `rgba(0, 225, 255, ${0.75 + glow * 0.25})`);
-    coreGrad.addColorStop(0.5, `rgba(0, 225, 255, ${0.25 + glow * 0.2})`);
-    coreGrad.addColorStop(1, "rgba(0, 225, 255, 0)");
-    ctx.fillStyle = coreGrad;
-    ctx.beginPath();
-    ctx.arc(0, 20 * s, 32 * s, 0, Math.PI * 2);
-    ctx.fill();
+    this.darkJointMaterial = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      metalness: 0.80,
+      roughness: 0.35
+    });
 
-    // Hexagonal Core Frame
-    ctx.strokeStyle = "rgba(0, 225, 255, 0.85)";
-    ctx.lineWidth = 2 * s;
-    ctx.beginPath();
-    for (let a = 0; a < 6; a++) {
-      const ang = (a * 60) * (Math.PI / 180);
-      const hx = Math.cos(ang) * 15 * s;
-      const hy = 20 * s + Math.sin(ang) * 15 * s;
-      if (a === 0) ctx.moveTo(hx, hy);
-      else ctx.lineTo(hx, hy);
-    }
-    ctx.closePath();
-    ctx.stroke();
+    const accentHex = (this.mode === "mindtwin") ? 0x818cf8 : 0x38bdf8;
+    this.coreMaterial = new THREE.MeshStandardMaterial({
+      color: accentHex,
+      emissive: accentHex,
+      emissiveIntensity: 1.8,
+      roughness: 0.3
+    });
 
-    // 4. 5 Articulated Robotic Fingers with Servo Motors
-    const fingerDefs = [
-      { id: "thumb",  kx: -54, ky: 14,  baseAngle: -0.68, len1: 34, len2: 30, w: 18 },
-      { id: "index",  kx: -40, ky: -26, baseAngle: -0.16, len1: 44, len2: 44, w: 17 },
-      { id: "middle", kx: -13, ky: -30, baseAngle: -0.04, len1: 48, len2: 48, w: 17 },
-      { id: "ring",   kx: 15,  ky: -28, baseAngle: 0.08,  len1: 44, len2: 44, w: 17 },
-      { id: "pinky",  kx: 42,  ky: -20, baseAngle: 0.22,  len1: 34, len2: 34, w: 15 }
+    this.dorsalMaterial = new THREE.MeshStandardMaterial({
+      color: accentHex,
+      emissive: accentHex,
+      emissiveIntensity: 1.4,
+      roughness: 0.3
+    });
+
+    // 1. Forearm Carbon Cylinder & Hydraulics
+    const forearmGeo = new THREE.CylinderGeometry(0.24, 0.20, 0.85, 16);
+    this.forearmMesh = new THREE.Mesh(forearmGeo, this.armorMaterial);
+    this.forearmMesh.position.y = -0.72;
+    this.handGroup.add(this.forearmMesh);
+
+    // Dual Hydraulic Shock Absorbers on Forearm
+    [-0.15, 0.15].forEach(x => {
+      const pistonGeo = new THREE.CylinderGeometry(0.032, 0.032, 0.65, 10);
+      const piston = new THREE.Mesh(pistonGeo, this.chromeMaterial);
+      piston.position.set(x, -0.65, 0.14);
+      this.handGroup.add(piston);
+    });
+
+    // 2. Wrist Joint Sphere
+    const wristGeo = new THREE.SphereGeometry(0.18, 16, 16);
+    this.wristMesh = new THREE.Mesh(wristGeo, this.darkJointMaterial);
+    this.wristMesh.position.y = -0.22;
+    this.handGroup.add(this.wristMesh);
+
+    // 3. Palm Chassis (Carpals & Metacarpals)
+    const palmGeo = new THREE.BoxGeometry(0.68, 0.72, 0.22);
+    this.palmMesh = new THREE.Mesh(palmGeo, this.armorMaterial);
+    this.palmMesh.position.y = 0.22;
+    this.handGroup.add(this.palmMesh);
+
+    // Glowing Hexagonal Arc Reactor in Palm Center
+    const coreGeo = new THREE.CylinderGeometry(0.14, 0.14, 0.06, 6);
+    this.coreMesh = new THREE.Mesh(coreGeo, this.coreMaterial);
+    this.coreMesh.rotation.x = Math.PI * 0.5;
+    this.coreMesh.position.set(0, 0.22, 0.11);
+    this.handGroup.add(this.coreMesh);
+
+    // Hexagonal Core Outer Frame
+    const frameGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.05, 6);
+    const frameMesh = new THREE.Mesh(frameGeo, this.chromeMaterial);
+    frameMesh.rotation.x = Math.PI * 0.5;
+    frameMesh.position.set(0, 0.22, 0.10);
+    this.handGroup.add(frameMesh);
+
+    // 4. 5 Articulated 3D Robotic Fingers
+    this.fingers = {};
+    const fingerConfigs = [
+      { id: "thumb",  x: -0.32, y: 0.12,  z: 0.04, baseRotZ:  0.65, baseRotY:  0.45, len1: 0.22, len2: 0.20, len3: 0.16, r: 0.062 },
+      { id: "index",  x: -0.21, y: 0.58,  z: 0.02, baseRotZ: -0.10, baseRotY:  0.02, len1: 0.28, len2: 0.22, len3: 0.18, r: 0.056 },
+      { id: "middle", x:  0.00, y: 0.60,  z: 0.03, baseRotZ:  0.00, baseRotY:  0.00, len1: 0.32, len2: 0.24, len3: 0.18, r: 0.058 },
+      { id: "ring",   x:  0.20, y: 0.57,  z: 0.02, baseRotZ:  0.10, baseRotY: -0.02, len1: 0.28, len2: 0.22, len3: 0.18, r: 0.055 },
+      { id: "pinky",  x:  0.36, y: 0.52,  z: 0.00, baseRotZ:  0.22, baseRotY: -0.05, len1: 0.22, len2: 0.18, len3: 0.14, r: 0.048 }
     ];
 
-    fingerDefs.forEach(f => {
-      const openness = Math.max(0, Math.min(1, this.fingers[f.id] || 0));
-      const isOpen = openness > 0.45;
-
-      ctx.save();
-      ctx.translate(f.kx * s, f.ky * s);
-      ctx.rotate(f.baseAngle);
-
-      // Knuckle Servo Disc
-      const servoColor = isOpen ? "#00e1ff" : "#ffb703";
-      ctx.fillStyle = "#1e293b";
-      ctx.strokeStyle = servoColor;
-      ctx.lineWidth = 2.5 * s;
-      ctx.shadowColor = servoColor;
-      ctx.shadowBlur = isOpen ? 12 : 5;
-      ctx.beginPath();
-      ctx.arc(0, 0, 11 * s, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // Inner Servo LED Core
-      ctx.fillStyle = servoColor;
-      ctx.beginPath();
-      ctx.arc(0, 0, 4.5 * s, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Kinematic curl
-      const curlAngle1 = (1.0 - openness) * 1.55;
-      const curlAngle2 = (1.0 - openness) * 1.45;
-
-      // Proximal Segment
-      ctx.rotate(-curlAngle1);
-      ctx.fillStyle = isOpen ? "#334155" : "#1e293b";
-      ctx.strokeStyle = isOpen ? "#00e1ff" : "#475569";
-      ctx.lineWidth = 2.5 * s;
-      ctx.beginPath();
-      ctx.roundRect(-f.w * 0.5 * s, -f.len1 * s, f.w * s, f.len1 * s, 5 * s);
-      ctx.fill();
-      ctx.stroke();
-
-      if (isOpen) {
-        ctx.strokeStyle = "#10b981";
-        ctx.lineWidth = 2 * s;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(0, -f.len1 * s);
-        ctx.stroke();
-      }
-
-      // Intermediate Joint Servo
-      ctx.translate(0, -f.len1 * s);
-      ctx.fillStyle = "#0f172a";
-      ctx.strokeStyle = servoColor;
-      ctx.beginPath();
-      ctx.arc(0, 0, 8 * s, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Distal Segment (Tip)
-      ctx.rotate(-curlAngle2);
-      ctx.fillStyle = isOpen ? "#475569" : "#1e293b";
-      ctx.strokeStyle = isOpen ? "#00e1ff" : "#334155";
-      ctx.lineWidth = 2 * s;
-      ctx.beginPath();
-      ctx.roundRect(-f.w * 0.45 * s, -f.len2 * s, f.w * 0.9 * s, f.len2 * s, [8 * s, 8 * s, 4 * s, 4 * s]);
-      ctx.fill();
-      ctx.stroke();
-
-      if (isOpen) {
-        ctx.fillStyle = "#00e1ff";
-        ctx.shadowColor = "#00e1ff";
-        ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.arc(0, -f.len2 * s, 4 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
-
-      ctx.restore();
+    fingerConfigs.forEach(cfg => {
+      this.fingers[cfg.id] = this.buildFingerChain(cfg);
     });
+  }
 
-    // 5. Canvas Floating HUD Text
-    ctx.fillStyle = "rgba(0, 225, 255, 0.95)";
-    ctx.font = `800 ${14 * s}px 'JetBrains Mono', monospace`;
-    ctx.textAlign = "center";
-    ctx.fillText("MINDTWIN // DİJİTAL İKİZ SİMÜLASYONU", 0, -182 * s);
+  buildFingerChain(cfg) {
+    const mcpGroup = new THREE.Group();
+    mcpGroup.position.set(cfg.x, cfg.y, cfg.z);
+    mcpGroup.rotation.z = cfg.baseRotZ;
+    mcpGroup.rotation.y = cfg.baseRotY;
+    this.handGroup.add(mcpGroup);
 
-    ctx.fillStyle = "#ffb703";
-    ctx.font = `700 ${11 * s}px 'JetBrains Mono', monospace`;
-    ctx.fillText(`⚡ -${this.leadTimeMs}ms GELECEK SİMÜLASYONU`, 0, -164 * s);
+    // Knuckle Joint Sphere
+    const kGeo = new THREE.SphereGeometry(cfg.r * 1.15, 12, 12);
+    const kMesh = new THREE.Mesh(kGeo, this.chromeMaterial);
+    mcpGroup.add(kMesh);
 
-    ctx.fillStyle = "#ffffff";
-    ctx.font = `900 ${22 * s}px 'Plus Jakarta Sans', sans-serif`;
-    ctx.fillText(`ÖNGÖRÜLEN NİYET: ${this.predictedCount} PARMAK`, 0, -136 * s);
+    // Segment 1 (Proximal Phalanx)
+    const seg1Geo = new THREE.BoxGeometry(cfg.r * 1.6, cfg.len1, cfg.r * 1.5);
+    const seg1Mesh = new THREE.Mesh(seg1Geo, this.armorMaterial);
+    seg1Mesh.position.y = cfg.len1 * 0.5;
+    mcpGroup.add(seg1Mesh);
 
-    ctx.restore();
+    // Dorsal cyber glow conduit 1
+    const d1Geo = new THREE.BoxGeometry(cfg.r * 0.5, cfg.len1 * 0.8, cfg.r * 0.3);
+    const d1Mesh = new THREE.Mesh(d1Geo, this.dorsalMaterial);
+    d1Mesh.position.set(0, cfg.len1 * 0.5, cfg.r * 0.75);
+    mcpGroup.add(d1Mesh);
+
+    // PIP Group (Intermediate joint)
+    const pipGroup = new THREE.Group();
+    pipGroup.position.y = cfg.len1;
+    mcpGroup.add(pipGroup);
+
+    const pipJointGeo = new THREE.SphereGeometry(cfg.r * 0.95, 10, 10);
+    const pipJointMesh = new THREE.Mesh(pipJointGeo, this.chromeMaterial);
+    pipGroup.add(pipJointMesh);
+
+    // Segment 2 (Intermediate Phalanx)
+    const seg2Geo = new THREE.BoxGeometry(cfg.r * 1.4, cfg.len2, cfg.r * 1.3);
+    const seg2Mesh = new THREE.Mesh(seg2Geo, this.armorMaterial);
+    seg2Mesh.position.y = cfg.len2 * 0.5;
+    pipGroup.add(seg2Mesh);
+
+    // DIP Group (Distal joint & Tip)
+    const dipGroup = new THREE.Group();
+    dipGroup.position.y = cfg.len2;
+    pipGroup.add(dipGroup);
+
+    const dipJointGeo = new THREE.SphereGeometry(cfg.r * 0.85, 10, 10);
+    const dipJointMesh = new THREE.Mesh(dipJointGeo, this.chromeMaterial);
+    dipGroup.add(dipJointMesh);
+
+    // Segment 3 (Distal Phalanx & Sensor Tip)
+    const seg3Geo = new THREE.BoxGeometry(cfg.r * 1.25, cfg.len3, cfg.r * 1.15);
+    const seg3Mesh = new THREE.Mesh(seg3Geo, this.armorMaterial);
+    seg3Mesh.position.y = cfg.len3 * 0.5;
+    dipGroup.add(seg3Mesh);
+
+    // Fingertip Glowing Sensor Cap
+    const tipSensorGeo = new THREE.SphereGeometry(cfg.r * 0.8, 12, 12);
+    const tipSensorMat = new THREE.MeshStandardMaterial({
+      color: 0x10b981,
+      emissive: 0x10b981,
+      emissiveIntensity: 1.5,
+      roughness: 0.2
+    });
+    const tipSensor = new THREE.Mesh(tipSensorGeo, tipSensorMat);
+    tipSensor.position.y = cfg.len3;
+    dipGroup.add(tipSensor);
+
+    return {
+      mcpGroup,
+      pipGroup,
+      dipGroup,
+      tipSensor,
+      tipSensorMat,
+      baseRotZ: cfg.baseRotZ,
+      baseRotY: cfg.baseRotY,
+      setCurl: (curl) => {
+        mcpGroup.rotation.x = -curl * 1.35;
+        pipGroup.rotation.x = -curl * 1.55;
+        dipGroup.rotation.x = -curl * 1.15;
+      }
+    };
+  }
+
+  resize(w, h) {
+    if (!this.isWebGL || !this.renderer || !this.camera) return;
+    const rw = w || (this.canvas ? this.canvas.width : 640);
+    const rh = h || (this.canvas ? this.canvas.height : 480);
+    this.camera.aspect = rw / rh;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(rw, rh, false);
+  }
+
+  update(handY, lms, worldLms, intent, rpsGesture, isResolving) {
+    if (!this.isWebGL || !this.renderer) return;
+
+    this.pulsePhase += 0.05;
+    const pulse = 0.5 + Math.sin(this.pulsePhase) * 0.3;
+    if (this.coreMaterial) {
+      this.coreMaterial.emissiveIntensity = 1.4 + pulse * 0.8;
+    }
+    if (this.corePointLight) {
+      this.corePointLight.intensity = 2.0 + pulse * 1.2;
+    }
+
+    if (this.mode === "rps") {
+      this.updateRpsMode(handY, rpsGesture, isResolving);
+    } else {
+      this.updateMindTwinMode(lms, worldLms, intent);
+    }
+
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  updateRpsMode(handY, rpsGesture, isResolving) {
+    const curGesture = rpsGesture || this._gesture || "ROCK";
+
+    // Follow player vertical motion
+    const normY = (typeof handY === "number") ? handY : 0.5;
+    const targetY = -(normY - 0.5) * 1.2 - 0.1;
+    this.handGroup.position.y += (targetY - this.handGroup.position.y) * 0.18;
+    this.handGroup.position.x += (0.0 - this.handGroup.position.x) * 0.18;
+
+    // Slight strike thrust forward in 3D
+    const targetZ = isResolving ? 0.45 : 0.0;
+    this.handGroup.position.z += (targetZ - this.handGroup.position.z) * 0.25;
+
+    // Face player
+    const targetRotX = isResolving ? -0.2 : (Math.sin(this.pulsePhase * 0.8) * 0.08);
+    this.handGroup.rotation.x += (targetRotX - this.handGroup.rotation.x) * 0.18;
+    this.handGroup.rotation.y += (0.0 - this.handGroup.rotation.y) * 0.18;
+    this.handGroup.rotation.z += (0.0 - this.handGroup.rotation.z) * 0.18;
+
+    // Pose 3D fingers according to Rock, Paper, Scissors
+    let curls = { thumb: 1.0, index: 1.0, middle: 1.0, ring: 1.0, pinky: 1.0 };
+    if (curGesture === "PAPER") {
+      curls = { thumb: 0.0, index: 0.0, middle: 0.0, ring: 0.0, pinky: 0.0 };
+    } else if (curGesture === "SCISSORS") {
+      curls = { thumb: 1.0, index: 0.0, middle: 0.0, ring: 1.0, pinky: 1.0 };
+    }
+
+    for (const [id, f] of Object.entries(this.fingers)) {
+      this.currentCurls[id] += (curls[id] - this.currentCurls[id]) * 0.28;
+      f.setCurl(this.currentCurls[id]);
+      const isOpen = this.currentCurls[id] < 0.45;
+      if (f.tipSensorMat) {
+        f.tipSensorMat.emissive.setHex(isOpen ? 0x10b981 : 0xef4444);
+      }
+    }
+  }
+
+  updateMindTwinMode(lms, worldLms, intent) {
+    if (worldLms && worldLms.length >= 21) {
+      // 1. Full 3D Orientation tracking (Pitch, Yaw, Roll)
+      const w = worldLms[0];
+      const idx = worldLms[5];
+      const mid = worldLms[9];
+      const pky = worldLms[17];
+
+      let fx = mid.x - w.x;
+      let fy = mid.y - w.y;
+      let fz = mid.z - w.z;
+      const fLen = Math.hypot(fx, fy, fz) || 1e-4;
+      fx /= fLen; fy /= fLen; fz /= fLen;
+
+      let sx = idx.x - pky.x;
+      let sy = idx.y - pky.y;
+      let sz = idx.z - pky.z;
+      const sLen = Math.hypot(sx, sy, sz) || 1e-4;
+      sx /= sLen; sy /= sLen; sz /= sLen;
+
+      let nx = fy * sz - fz * sy;
+      let ny = fz * sx - fx * sz;
+      let nz = fx * sy - fy * sx;
+      const nLen = Math.hypot(nx, ny, nz) || 1e-4;
+      nx /= nLen; ny /= nLen; nz /= nLen;
+
+      sx = ny * fz - nz * fy;
+      sy = nz * fx - nx * fz;
+      sz = nx * fy - ny * fx;
+
+      const m = new THREE.Matrix4();
+      m.set(
+        -sx, -fx,  nx, 0,
+        -sy, -fy,  ny, 0,
+        -sz, -fz,  nz, 0,
+         0,   0,   0, 1
+      );
+      const targetQuat = new THREE.Quaternion().setFromRotationMatrix(m);
+      this.handGroup.quaternion.slerp(targetQuat, 0.22);
+
+      // 2. 3D Position tracking (X, Y, Z Depth)
+      if (lms && lms.length > 0) {
+        const targetX = -(lms[0].x - 0.5) * 1.8;
+        const targetY = -(lms[0].y - 0.5) * 1.5 - 0.1;
+        const palmDist = Math.hypot(mid.x - w.x, mid.y - w.y, mid.z - w.z);
+        const targetZ = Math.max(-0.6, Math.min(0.6, (palmDist - 0.14) * 4.5));
+
+        this.handGroup.position.x += (targetX - this.handGroup.position.x) * 0.20;
+        this.handGroup.position.y += (targetY - this.handGroup.position.y) * 0.20;
+        this.handGroup.position.z += (targetZ - this.handGroup.position.z) * 0.20;
+      }
+    } else {
+      // Idle resting posture
+      this.handGroup.rotation.x += (0.0 - this.handGroup.rotation.x) * 0.1;
+      this.handGroup.rotation.y += (0.0 - this.handGroup.rotation.y) * 0.1;
+      this.handGroup.rotation.z += (0.0 - this.handGroup.rotation.z) * 0.1;
+      this.handGroup.position.x += (0.0 - this.handGroup.position.x) * 0.1;
+      this.handGroup.position.y += (-0.1 - this.handGroup.position.y) * 0.1;
+      this.handGroup.position.z += (0.0 - this.handGroup.position.z) * 0.1;
+    }
+
+    // 3. Dynamic Finger Curls from Pre-cognitive Intent
+    const raw = (intent && intent.rawScores) ? intent.rawScores : null;
+    const pred = (intent && intent.predictedFingers) ? intent.predictedFingers : null;
+
+    for (const [id, f] of Object.entries(this.fingers)) {
+      let targetCurl = 1.0;
+      if (pred && typeof pred[id] !== "undefined") {
+        targetCurl = pred[id] ? 0.0 : 1.0;
+      } else if (raw && typeof raw[id] !== "undefined") {
+        targetCurl = Math.max(0.0, Math.min(1.0, 1.0 - raw[id]));
+      }
+
+      this.currentCurls[id] += (targetCurl - this.currentCurls[id]) * 0.32;
+      f.setCurl(this.currentCurls[id]);
+
+      const isOpen = this.currentCurls[id] < 0.45;
+      if (f.tipSensorMat) {
+        f.tipSensorMat.emissive.setHex(isOpen ? 0x10b981 : 0xef4444);
+      }
+    }
+  }
+
+  draw() {
+    // 3D rendering handled in update
   }
 }
 
-// ==================== 5C. MINDTWIN PRE-COGNITIVE INTENT ENGINE ====================
 class MindTwinEngine {
   constructor() {
     this.prevFingerScores = null;
@@ -989,8 +1054,6 @@ class MindTwinEngine {
 
 // ==================== 6. APPLICATION CONTROLLER & 5-TURN SERIES STATE ====================
 const sound = new SoundFX();
-const rivalHand = new CanvasRivalHand();
-const cyberTwinHand = new CyberTwinHand();
 const mindTwinEngine = new MindTwinEngine();
 const analyst = new RPSPsychologicalAnalyst();
 
@@ -1032,6 +1095,9 @@ const camCanvas = $("camera-canvas");
 const camCtx = camCanvas ? camCanvas.getContext("2d") : null;
 const rivalCanvas = $("rival-canvas");
 const rivalCtx = rivalCanvas ? rivalCanvas.getContext("2d") : null;
+const twin3D = new Twin3DHandEngine(rivalCanvas);
+const rivalHand = twin3D;
+const cyberTwinHand = twin3D;
 
 const beat1 = $("beat-1");
 const beat2 = $("beat-2");
@@ -1506,6 +1572,10 @@ function setGameMode(mode) {
     else analystDockMindtwin.classList.add("hidden");
   }
 
+  if (typeof twin3D !== "undefined" && twin3D) {
+    twin3D.setTheme(mode);
+  }
+
   // Clear live overlays and reset state cleanly
   if (rivalStateTag) rivalStateTag.innerText = "HAZIR";
   if (gestureTitle) gestureTitle.innerText = "EL BEKLENİYOR...";
@@ -1550,6 +1620,9 @@ function syncCanvasSizes() {
   if (rivalCanvas && (rivalCanvas.width !== rw || rivalCanvas.height !== rh)) {
     rivalCanvas.width = rw;
     rivalCanvas.height = rh;
+  }
+  if (typeof twin3D !== "undefined" && twin3D) {
+    twin3D.resize(rw, rh);
   }
 }
 window.addEventListener("resize", syncCanvasSizes);
@@ -1681,6 +1754,7 @@ function mainRenderLoop() {
     let liveAnalysis = null;
     let activeLms = null;
     let activeWorldLms = null;
+    let intent = null;
 
     if (gestureRecognizer && video && video.readyState >= 2) {
       let results = null;
@@ -1773,7 +1847,7 @@ function mainRenderLoop() {
 
         } else {
           // ==================== MINDTWIN PRE-COGNITIVE PIPELINE ====================
-          const intent = mindTwinEngine.process(activeWorldLms || activeLms, dtSec);
+          intent = mindTwinEngine.process(activeWorldLms || activeLms, dtSec);
           cyberTwinHand.setPredictedState(intent.predictedFingers, intent.fingerCount, intent.leadTimeMs, intent.confidence);
 
           const fingerIcos = ["✊ YUMRUK (0)", "☝️ 1 PARMAK", "✌️ 2 PARMAK", "🤟 3 PARMAK", "🖖 4 PARMAK", "🖐️ 5 PARMAK"];
@@ -1868,17 +1942,9 @@ function mainRenderLoop() {
       }, withSnap);
     }
 
-    // Rival / CyberTwin Hand Sync
-    if (activeGameMode === "rps") {
-      rivalHand.update(handY);
-      if (rivalCtx && rivalCanvas) {
-        rivalHand.draw(rivalCtx, rivalCanvas.width, rivalCanvas.height);
-      }
-    } else {
-      cyberTwinHand.update(handY);
-      if (rivalCtx && rivalCanvas) {
-        cyberTwinHand.draw(rivalCtx, rivalCanvas.width, rivalCanvas.height);
-      }
+    // 3D Procedural Digital Twin & Robot Hand Real-Time Render
+    if (typeof twin3D !== "undefined" && twin3D) {
+      twin3D.update(handY, activeLms, activeWorldLms, intent, finalGesture, isResolving);
     }
 
   } catch (err) {
