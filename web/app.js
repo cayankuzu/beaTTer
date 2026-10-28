@@ -84,6 +84,24 @@ class SoundFX {
       osc.stop(now + 0.30);
     } catch (e) {}
   }
+
+  playModeSwitch() {
+    if (!this.ctx || !this.voiceEnabled) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(420, now);
+      osc.frequency.exponentialRampToValueAtTime(840, now + 0.12);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } catch (e) {}
+  }
 }
 
 // ==================== 2. 360-DEGREE INVARIANT KINEMATICS & V-SPREAD ====================
@@ -1068,33 +1086,40 @@ const btnToggleSettings = $("btn-toggle-settings");
 const btnCloseSettings = $("btn-close-settings");
 const settingsDrawer = $("settings-drawer");
 
-// MINDTWIN DOM Elements
+// Unified Arcade HUD DOM Elements
 const tabModeRps = $("tab-mode-rps");
 const tabModeMindtwin = $("tab-mode-mindtwin");
-const headerModeDesc = $("header-mode-desc");
+const playerBoxTitle = $("player-box-title");
 const rivalBoxTitle = $("rival-box-title");
-
-const analystDockRps = $("analyst-dock-rps");
-const analystDockMindtwin = $("analyst-dock-mindtwin");
+const beatsWrapper = $("beats-wrapper");
 const mindtwinBetBox = $("mindtwin-bet-box");
 const btnBetEven = $("btn-bet-even");
 const btnBetOdd = $("btn-bet-odd");
 
-const mindtwinPredictedText = $("mindtwin-predicted-text");
-const mindtwinConfBadge = $("mindtwin-conf-badge");
+const gestureLabelType = $("gesture-label-type");
+const capsuleFingerDots = $("capsule-finger-dots");
+const fdotThumb = $("fdot-thumb");
+const fdotIndex = $("fdot-index");
+const fdotMid = $("fdot-mid");
+const fdotRing = $("fdot-ring");
+const fdotPinky = $("fdot-pinky");
+
+const analystDockRps = $("analyst-dock-rps");
+const analystDockMindtwin = $("analyst-dock-mindtwin");
 const mindtwinLeadBadge = $("mindtwin-lead-badge");
 const mindtwinSubStrategy = $("mindtwin-sub-strategy");
 
-const fbarThumb = $("fbar-thumb");
-const fbarIndex = $("fbar-index");
-const fbarMiddle = $("fbar-middle");
-const fbarRing = $("fbar-ring");
-const fbarPinky = $("fbar-pinky");
-const fvalThumb = $("fval-thumb");
-const fvalIndex = $("fval-index");
-const fvalMiddle = $("fval-middle");
-const fvalRing = $("fval-ring");
-const fvalPinky = $("fval-pinky");
+// 5 Live Probability Bars for MindTwin
+const probBarF1 = $("prob-bar-f1");
+const probBarF2 = $("prob-bar-f2");
+const probBarF3 = $("prob-bar-f3");
+const probBarF4 = $("prob-bar-f4");
+const probBarF5 = $("prob-bar-f5");
+const probValF1 = $("prob-val-f1");
+const probValF2 = $("prob-val-f2");
+const probValF3 = $("prob-val-f3");
+const probValF4 = $("prob-val-f4");
+const probValF5 = $("prob-val-f5");
 
 const beatName1 = $("beat-name-1");
 const beatName2 = $("beat-name-2");
@@ -1390,20 +1415,43 @@ function resetEntireSeries() {
 function setGameMode(mode) {
   activeGameMode = mode;
   sound.init();
+  sound.playModeSwitch();
 
-  if (tabModeRps) tabModeRps.className = `mode-tab ${mode === 'rps' ? 'active' : ''}`;
-  if (tabModeMindtwin) tabModeMindtwin.className = `mode-tab ${mode === 'mindtwin' ? 'active' : ''}`;
+  // 1. Shift Entire Screen Atmosphere
+  document.body.className = (mode === "mindtwin") ? "game-mode-mindtwin" : "game-mode-rps";
 
-  if (headerModeDesc) {
-    headerModeDesc.innerText = (mode === 'mindtwin')
-      ? "NÖRAL NİYET TESPİTİ + DİJİTAL İKİZ SİMÜLASYONU (-180ms)"
-      : "360° KİNEMATİK + ERKEN SEZGİ (-180ms)";
+  if (tabModeRps) tabModeRps.className = `game-tab ${mode === 'rps' ? 'active' : ''}`;
+  if (tabModeMindtwin) tabModeMindtwin.className = `game-tab ${mode === 'mindtwin' ? 'active' : ''}`;
+
+  if (playerBoxTitle) {
+    playerBoxTitle.innerText = (mode === 'mindtwin')
+      ? "NÖRAL İSKELET // TENDON ANALİZİ"
+      : "CANLI KAMERA // 3D KİNEMATİK İSKELET";
   }
 
   if (rivalBoxTitle) {
     rivalBoxTitle.innerText = (mode === 'mindtwin')
-      ? "MINDTWIN // DİJİTAL İKİZ & GELECEK SİMÜLASYONU (-180ms)"
-      : "YAPAY ZEKA RAKİP // ANLIK SENKRONİZASYON";
+      ? "MINDTWIN // SİBER DİJİTAL İKİZ"
+      : "JANKEN AI // RAKİP EL SENKRONİZASYONU";
+  }
+
+  if (gestureLabelType) {
+    gestureLabelType.innerText = (mode === 'mindtwin') ? "ANLIK PARMAK:" : "ANLIK HAMLE:";
+  }
+
+  if (capsuleFingerDots) {
+    if (mode === 'mindtwin') capsuleFingerDots.classList.remove("hidden");
+    else capsuleFingerDots.classList.add("hidden");
+  }
+
+  if (beatsWrapper) {
+    if (mode === 'mindtwin') beatsWrapper.classList.add("hidden");
+    else beatsWrapper.classList.remove("hidden");
+  }
+
+  if (mindtwinBetBox) {
+    if (mode === 'mindtwin') mindtwinBetBox.classList.remove("hidden");
+    else mindtwinBetBox.classList.add("hidden");
   }
 
   if (analystDockRps) {
@@ -1416,26 +1464,13 @@ function setGameMode(mode) {
     else analystDockMindtwin.classList.add("hidden");
   }
 
-  if (mindtwinBetBox) {
-    if (mode === 'mindtwin') mindtwinBetBox.classList.remove("hidden");
-    else mindtwinBetBox.classList.add("hidden");
-  }
-
-  const beatNames = (mode === 'mindtwin')
-    ? ["SAY", "ODAKLAN", "NİYET", "AÇ!"]
-    : ["TAŞ", "KAĞIT", "MAKAS", "VUR!"];
-  if (beatName1) beatName1.innerText = beatNames[0];
-  if (beatName2) beatName2.innerText = beatNames[1];
-  if (beatName3) beatName3.innerText = beatNames[2];
-  if (beatName4) beatName4.innerText = beatNames[3];
-
   resetEntireSeries();
 
   if (mode === 'mindtwin') {
-    sound.speak("MINDTWIN Zihin Okuyucu aktif. Bahsini seç ve elini salla.");
-    if (hintMsg) hintMsg.innerHTML = "🧠 <strong>MINDTWIN Aktif:</strong> Bahsini seç (TEK veya ÇİFT). Elini 1.. 2.. 3.. diye salla, 4'te 1-5 parmak aç!";
+    sound.speak("MINDTWIN aktif. Bahsini seç.");
+    if (hintMsg) hintMsg.innerHTML = "🧠 <strong>MINDTWIN Aktif:</strong> Bahsini seç (TEK veya ÇİFT). Elini 1.. 2.. 3.. diye salla, 4'te parmak aç!";
   } else {
-    sound.speak("Taş Kağıt Makas arenası aktif.");
+    sound.speak("Taş Kağıt Makas aktif.");
     if (hintMsg) hintMsg.innerHTML = "👉 <strong>Taş-Kağıt-Makas Aktif:</strong> Elini yumruk yap ve 1.. 2.. 3.. diye salla, 4'te vur!";
   }
 }
@@ -1733,46 +1768,53 @@ function mainRenderLoop() {
     }, withSnap);
   }
 
-  // MINDTWIN Live Intent Processing & HUD Update
-  if (activeGameMode === "mindtwin") {
+  // MINDTWIN Real-Time Finger Intent & 5-Probability Distribution
+  if (activeGameMode === "mindtwin" && activeLms) {
     const intent = mindTwinEngine.process(activeWorldLms || activeLms, dtSec);
     cyberTwinHand.setPredictedState(intent.predictedFingers, intent.fingerCount, intent.leadTimeMs, intent.confidence);
 
-    if (mindtwinPredictedText) {
-      const fingerIcos = ["", "☝️ 1 PARMAK", "✌️ 2 PARMAK", "🤟 3 PARMAK", "🖖 4 PARMAK", "🖐️ 5 PARMAK"];
-      mindtwinPredictedText.innerText = fingerIcos[intent.fingerCount] || `${intent.fingerCount} PARMAK`;
+    const fingerIcos = ["", "☝️ 1", "✌️ 2", "🤟 3", "🖖 4", "🖐️ 5"];
+    if (gestureTitle) {
+      gestureTitle.innerText = `${fingerIcos[intent.fingerCount] || intent.fingerCount} PARMAK`;
     }
-    if (mindtwinConfBadge) {
-      mindtwinConfBadge.innerText = `%${(intent.confidence * 100).toFixed(1)}`;
-    }
-    if (mindtwinLeadBadge) {
-      mindtwinLeadBadge.innerText = `⚡ -${intent.leadTimeMs}ms ÖNCEDEN`;
+    if (gestureConf) {
+      gestureConf.innerText = `%${(intent.confidence * 100).toFixed(1)}`;
     }
 
-    if (fbarThumb) {
-      fbarThumb.style.height = `${Math.round(intent.rawScores.thumb * 100)}%`;
-      fbarThumb.className = `f-bar-fill ${intent.predictedFingers.thumb ? "active" : ""}`;
-      if (fvalThumb) fvalThumb.innerText = intent.predictedFingers.thumb ? "1" : "0";
+    // Update 5 Finger Dots in Capsule
+    if (fdotThumb) fdotThumb.className = `f-dot ${intent.predictedFingers.thumb ? 'open' : ''}`;
+    if (fdotIndex) fdotIndex.className = `f-dot ${intent.predictedFingers.index ? 'open' : ''}`;
+    if (fdotMid) fdotMid.className = `f-dot ${intent.predictedFingers.middle ? 'open' : ''}`;
+    if (fdotRing) fdotRing.className = `f-dot ${intent.predictedFingers.ring ? 'open' : ''}`;
+    if (fdotPinky) fdotPinky.className = `f-dot ${intent.predictedFingers.pinky ? 'open' : ''}`;
+
+    // 5-Finger Continuous Probability Distribution (Calculates at 60 FPS!)
+    const contFingers = (intent.rawScores.thumb > 0.45 ? 1 : 0) +
+      intent.rawScores.index + intent.rawScores.middle + intent.rawScores.ring + intent.rawScores.pinky;
+
+    let sumP = 0;
+    const rawP = [];
+    for (let k = 1; k <= 5; k++) {
+      const diff = k - contFingers;
+      const val = Math.exp(-(diff * diff) / (2 * 0.46 * 0.46));
+      rawP.push(val);
+      sumP += val;
     }
-    if (fbarIndex) {
-      fbarIndex.style.height = `${Math.round(intent.rawScores.index * 100)}%`;
-      fbarIndex.className = `f-bar-fill ${intent.predictedFingers.index ? "active" : ""}`;
-      if (fvalIndex) fvalIndex.innerText = intent.predictedFingers.index ? "1" : "0";
+
+    for (let k = 1; k <= 5; k++) {
+      const pct = Math.round((rawP[k - 1] / Math.max(1e-4, sumP)) * 100);
+      const bar = document.getElementById(`prob-bar-f${k}`);
+      const val = document.getElementById(`prob-val-f${k}`);
+      if (bar) {
+        bar.style.height = `${pct}%`;
+        if (k === intent.fingerCount) bar.classList.add("active");
+        else bar.classList.remove("active");
+      }
+      if (val) val.innerText = `%${pct}`;
     }
-    if (fbarMiddle) {
-      fbarMiddle.style.height = `${Math.round(intent.rawScores.middle * 100)}%`;
-      fbarMiddle.className = `f-bar-fill ${intent.predictedFingers.middle ? "active" : ""}`;
-      if (fvalMiddle) fvalMiddle.innerText = intent.predictedFingers.middle ? "1" : "0";
-    }
-    if (fbarRing) {
-      fbarRing.style.height = `${Math.round(intent.rawScores.ring * 100)}%`;
-      fbarRing.className = `f-bar-fill ${intent.predictedFingers.ring ? "active" : ""}`;
-      if (fvalRing) fvalRing.innerText = intent.predictedFingers.ring ? "1" : "0";
-    }
-    if (fbarPinky) {
-      fbarPinky.style.height = `${Math.round(intent.rawScores.pinky * 100)}%`;
-      fbarPinky.className = `f-bar-fill ${intent.predictedFingers.pinky ? "active" : ""}`;
-      if (fvalPinky) fvalPinky.innerText = intent.predictedFingers.pinky ? "1" : "0";
+
+    if (mindtwinLeadBadge) {
+      mindtwinLeadBadge.innerText = `⚡ -${intent.leadTimeMs}ms ÖNCEDEN`;
     }
 
     if (mindtwinSubStrategy) {
@@ -1783,7 +1825,7 @@ function mainRenderLoop() {
       } else {
         aiCounter = (intent.fingerCount % 2 === 0) ? 2 : 1;
       }
-      mindtwinSubStrategy.innerHTML = `Hedef: <span class="badge-tag">${targetParity}</span> (Sen: ${playerParityBet === 'EVEN' ? 'ÇİFT' : 'TEK'}) ➔ AI: <span class="badge-tag gold">${aiCounter} Parmak</span>`;
+      mindtwinSubStrategy.innerHTML = `Hedef: <b class="badge-tag">${targetParity}</b> (Sen: ${playerParityBet === 'EVEN' ? 'ÇİFT' : 'TEK'}) ➔ AI: <b class="badge-tag gold">${aiCounter} Parmak</b>`;
     }
   }
 
@@ -1805,7 +1847,8 @@ function mainRenderLoop() {
 
 // Precision Skeleton
 function drawPrecisionSkeleton(ctx, lms, w, h, states) {
-  ctx.strokeStyle = "#00e1ff";
+  const isTwin = (activeGameMode === "mindtwin");
+  ctx.strokeStyle = isTwin ? "#a855f7" : "#00e1ff";
   ctx.lineWidth = 3.5;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
