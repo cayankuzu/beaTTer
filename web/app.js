@@ -970,7 +970,7 @@ class MindTwinEngine {
 
     this.prevFingerScores = { ...scores };
 
-    const count = (openCount === 0) ? 1 : Math.min(5, openCount);
+    const count = openCount;
 
     this.currentPredictedFingers = predictedFingers;
     this.currentPredictedCount = count;
@@ -1218,6 +1218,7 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50) {
   setTimeout(() => document.body.classList.remove("shake-fx"), 250);
 
   if (activeGameMode === "rps") {
+    // ==================== RPS MODE CLASH ====================
     const committedMove = (playerMove && playerMove !== "UNKNOWN") ? playerMove : currentDetectedGesture;
     const counterMove = getWinningCounter(committedMove);
 
@@ -1265,75 +1266,106 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50) {
       mindCounterMove.innerText = `${trNames[counterMove]} ${icons[counterMove]} (Antitezi)`;
     }
     if (clashAnalysis) {
-      clashAnalysis.innerText = `"Vuruş masaya varmadan ${leadTimeMs}ms önce parmak ivmesini okudum ve Taş hamlesini salisede kilitledim."`;
+      clashAnalysis.innerText = `"Vuruş masaya varmadan ${leadTimeMs}ms önce parmak ivmesini okudum ve ${trNames[counterMove]} hamlesini kilitledim."`;
     }
 
     if (resultBanner) resultBanner.classList.remove("hidden");
     if (rivalStateTag) rivalStateTag.innerText = `VURDU: ${trNames[counterMove].toUpperCase()}`;
-    if (hintMsg) hintMsg.innerHTML = `🏆 <strong>Tur ${currentSeriesTurn} Tamamlandı!</strong> (AI: ${icons[counterMove]} > Sen: ${icons[committedMove]})`;
+    if (hintMsg) hintMsg.innerHTML = `⚡ <strong>Tur ${currentSeriesTurn} Tamamlandı:</strong> AI kazandı! Sonraki tur için hazırlan...`;
 
   } else {
-    // ==================== MINDTWIN MODE CLASH ====================
-    const committedFingers = mindTwinEngine.currentPredictedCount;
-    const mindLeadTime = mindTwinEngine.currentLeadTimeMs || 180;
+    // ==================== MINDTWIN PREDICTIVE MOVEMENT CLASH ====================
+    let committedFingers = (typeof playerMove === "number") ? playerMove : mindTwinEngine.currentPredictedCount;
+    if (committedFingers < 0) committedFingers = 0;
+    if (committedFingers > 5) committedFingers = 5;
 
-    const targetParity = (playerParityBet === "EVEN") ? "TEK" : "ÇİFT";
-    let aiFingers = 1;
-    if (targetParity === "TEK") {
-      aiFingers = (committedFingers % 2 === 0) ? 1 : 2;
-    } else {
-      aiFingers = (committedFingers % 2 === 0) ? 2 : 1;
+    let earlyFingers = mindTwinEngine.currentPredictedCount;
+    if (typeof earlyGuess === "number") earlyFingers = earlyGuess;
+    else if (typeof earlyGuess === "string" && earlyGuess.includes("Parmak")) {
+      const parsed = parseInt(earlyGuess, 10);
+      if (!isNaN(parsed)) earlyFingers = parsed;
     }
 
-    const sum = committedFingers + aiFingers;
-    const actualParity = (sum % 2 === 0) ? "EVEN" : "ODD";
-    const actualParityTr = (actualParity === "EVEN") ? "ÇİFT" : "TEK";
-    const playerBetTr = (playerParityBet === "EVEN") ? "ÇİFT" : "TEK";
+    const mindLeadTime = mindTwinEngine.currentLeadTimeMs || 180;
+    const aiPredictedRight = (earlyFingers === committedFingers);
 
-    p2SeriesScore++;
-    if (scoreP2) scoreP2.innerText = p2SeriesScore;
-
-    seriesHistory.push({
-      turn: currentSeriesTurn,
-      playerMove: `${committedFingers} Parmak (${playerBetTr})`,
-      botMove: `${aiFingers} Parmak`,
-      winner: "AI",
-      leadTimeMs: mindLeadTime
-    });
+    const fingerNames = ["YUMRUK (0)", "1 PARMAK", "2 PARMAK", "3 PARMAK", "4 PARMAK", "5 PARMAK"];
+    const fingerIcos = ["✊", "☝️", "✌️", "🤟", "🖖", "🖐️"];
 
     const currentPip = $(`pip-${currentSeriesTurn}`);
-    if (currentPip) {
-      currentPip.classList.remove("current");
-      currentPip.classList.add("ai-win");
+
+    if (aiPredictedRight) {
+      // AI successfully read the player's mind
+      p2SeriesScore++;
+      if (scoreP2) scoreP2.innerText = p2SeriesScore;
+
+      seriesHistory.push({
+        turn: currentSeriesTurn,
+        playerMove: fingerNames[committedFingers],
+        botMove: `Sezgi: ${fingerNames[earlyFingers]}`,
+        winner: "AI",
+        leadTimeMs: mindLeadTime
+      });
+
+      if (currentPip) {
+        currentPip.classList.remove("current");
+        currentPip.classList.add("ai-win");
+      }
+
+      sound.speak(`${committedFingers} parmak sezildi. Zihin okundu.`);
+
+      const resWinner = $("result-winner");
+      if (resWinner) resWinner.innerText = "ZİHİN OKUNDU! // AI BİLDİ";
+
+      if (clashAnalysis) {
+        clashAnalysis.innerText = `"Tendon açılma ivmelerinden hareket bitmeden ${mindLeadTime}ms önce ${committedFingers} parmak açacağını sezdim ve mekanik ikizde aynısını simüle ettim."`;
+      }
+    } else {
+      // Player tricked / fooled the AI
+      p1SeriesScore++;
+      if (scoreP1) scoreP1.innerText = p1SeriesScore;
+
+      seriesHistory.push({
+        turn: currentSeriesTurn,
+        playerMove: fingerNames[committedFingers],
+        botMove: `Sezgi: ${fingerNames[earlyFingers]}`,
+        winner: "USER",
+        leadTimeMs: mindLeadTime
+      });
+
+      if (currentPip) {
+        currentPip.classList.remove("current");
+        currentPip.classList.add("player-win");
+      }
+
+      sound.speak("Tebrikler. Yapay zekayı yanılttın.");
+
+      const resWinner = $("result-winner");
+      if (resWinner) resWinner.innerText = "TEBRİKLER! // AI ŞAŞIRTILDI!";
+
+      if (clashAnalysis) {
+        clashAnalysis.innerText = `"Yapay zeka tendon ivmenden ${fingerNames[earlyFingers]} bekliyordu, ancak ani refleksle ${fingerNames[committedFingers]} yaparak yapay zekayı yanılttın!"`;
+      }
     }
-
-    const fingerIcos = ["", "☝️", "✌️", "🤟", "🖖", "🖐️"];
-    sound.speak(`${committedFingers} parmak sezildi. Toplam ${sum} ${actualParityTr.toLowerCase()}. Zihin okundu.`);
-
-    const resWinner = $("result-winner");
-    if (resWinner) resWinner.innerText = "🤖 ZİHİN OKUNDU // AI KAZANDI!";
 
     if (clashP1Icon) clashP1Icon.innerText = fingerIcos[committedFingers] || "🖐️";
-    if (clashP1Text) clashP1Text.innerText = `${committedFingers} PARMAK (${playerBetTr})`;
-    if (clashP2Icon) clashP2Icon.innerText = fingerIcos[aiFingers] || "☝️";
-    if (clashP2Text) clashP2Text.innerText = `${aiFingers} PARMAK (AI)`;
+    if (clashP1Text) clashP1Text.innerText = fingerNames[committedFingers];
+    if (clashP2Icon) clashP2Icon.innerText = fingerIcos[earlyFingers] || "🤖";
+    if (clashP2Text) clashP2Text.innerText = `SEZGİ: ${fingerNames[earlyFingers]}`;
 
     if (mindEarlyGuess) {
-      mindEarlyGuess.innerText = `${committedFingers} Parmak ${fingerIcos[committedFingers] || ""} (-${mindLeadTime}ms)`;
+      mindEarlyGuess.innerText = `${fingerNames[earlyFingers]} (-${mindLeadTime}ms)`;
     }
     if (mindFinalMove) {
-      mindFinalMove.innerText = `Açılan: ${committedFingers} Parmak (%100 Uyum)`;
+      mindFinalMove.innerText = `${fingerNames[committedFingers]} (${aiPredictedRight ? "%100 Uyum" : "Şaşırtıldı"})`;
     }
     if (mindCounterMove) {
-      mindCounterMove.innerText = `Toplam: ${committedFingers} + ${aiFingers} = ${sum} (${actualParityTr})`;
-    }
-    if (clashAnalysis) {
-      clashAnalysis.innerText = `"Tendonlarının açılma ivmesini henüz hareket bitmeden ${mindLeadTime}ms önce okudum. Dijital ikiz senin ${committedFingers} parmak açacağını önceden gösterdi ve toplamı ${actualParityTr} yapmak için ${aiFingers} parmak açtı."`;
+      mindCounterMove.innerText = `İkiz Sezgisi: ${fingerNames[earlyFingers]}`;
     }
 
     if (resultBanner) resultBanner.classList.remove("hidden");
-    if (rivalStateTag) rivalStateTag.innerText = `KİLİTLENDİ: ${aiFingers} PARMAK`;
-    if (hintMsg) hintMsg.innerHTML = `🧠 <strong>Zihin Okundu!</strong> (${committedFingers} + ${aiFingers} = ${sum} ${actualParityTr} ➔ AI Kazandı!)`;
+    if (rivalStateTag) rivalStateTag.innerText = `SEZDİ: ${fingerNames[earlyFingers]}`;
+    if (hintMsg) hintMsg.innerHTML = `🧠 <strong>Tur ${currentSeriesTurn} Tamamlandı:</strong> ${aiPredictedRight ? "AI zihnini okudu!" : "AI'yı şaşırttın!"}`;
   }
 
   setTimeout(() => {
@@ -1349,14 +1381,14 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50) {
       if (nextPip) nextPip.classList.add("current");
       if (hintMsg) {
         hintMsg.innerHTML = (activeGameMode === "mindtwin")
-          ? `👉 <strong>Tur ${currentSeriesTurn}/5 Başlıyor:</strong> 1.. 2.. 3.. diye salla!`
-          : `👉 <strong>Tur ${currentSeriesTurn}/5 Başlıyor:</strong> 1.. 2.. 3.. diye salla!`;
+          ? `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Elini kameranın karşısında salla, parmaklarını aç!`
+          : `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Elini yumruk yapıp 1.. 2.. 3.. diye salla, 4'te vur!`;
       }
       isResolving = false;
     } else {
       showSeriesChampionModal();
     }
-  }, 2300);
+  }, 2200);
 }
 
 function showSeriesChampionModal() {
@@ -1374,13 +1406,14 @@ function showSeriesChampionModal() {
       row.className = "history-turn-row";
       if (activeGameMode === "rps") {
         row.innerHTML = `
-          <span><b>Tur ${item.turn}:</b> Sen (${icons[item.playerMove]} ${trNames[item.playerMove]}) vs AI (${icons[item.botMove]} ${trNames[item.botMove]})</span>
+          <span><b>Tur ${item.turn}:</b> Sen (${icons[item.playerMove] || ''} ${trNames[item.playerMove] || item.playerMove}) vs AI (${icons[item.botMove] || ''} ${trNames[item.botMove] || item.botMove})</span>
           <span class="ht-winner ai">AI KAZANDI (-${item.leadTimeMs}ms)</span>
         `;
       } else {
+        const isAi = (item.winner === "AI");
         row.innerHTML = `
           <span><b>Tur ${item.turn}:</b> Sen (${item.playerMove}) vs AI (${item.botMove})</span>
-          <span class="ht-winner ai">ZİHİN OKUNDU (-${item.leadTimeMs}ms)</span>
+          <span class="ht-winner ${isAi ? 'ai' : 'user'}">${isAi ? 'ZİHİN OKUNDU' : 'AI ŞAŞIRTILDI'} (-${item.leadTimeMs}ms)</span>
         `;
       }
       seriesHistoryList.appendChild(row);
@@ -1427,26 +1460,24 @@ function setGameMode(mode) {
   sound.init();
   sound.playModeSwitch();
 
-  // 1. Shift Entire Screen Atmosphere & Themes
+  // 1. Shift Entire Screen Atmosphere
   document.body.className = (mode === "mindtwin") ? "game-mode-mindtwin" : "game-mode-rps";
 
   if (tabModeRps) tabModeRps.className = `game-tab ${mode === 'rps' ? 'active' : ''}`;
   if (tabModeMindtwin) tabModeMindtwin.className = `game-tab ${mode === 'mindtwin' ? 'active' : ''}`;
 
   if (playerBoxTitle) {
-    playerBoxTitle.innerText = (mode === 'mindtwin')
-      ? "NÖRAL İSKELET // TENDON ANALİZİ"
-      : "CANLI KAMERA // 3D KİNEMATİK İSKELET";
+    playerBoxTitle.innerText = "CANLI KAMERA & İSKELET";
   }
 
   if (rivalBoxTitle) {
     rivalBoxTitle.innerText = (mode === 'mindtwin')
-      ? "MINDTWIN // SİBER DİJİTAL İKİZ"
-      : "JANKEN AI // RAKİP EL SENKRONİZASYONU";
+      ? "MEKANİK DİJİTAL İKİZ // HAREKET SİMÜLASYONU"
+      : "JANKEN AI // RAKİP ROBOT EL";
   }
 
   if (gestureLabelType) {
-    gestureLabelType.innerText = (mode === 'mindtwin') ? "ANLIK PARMAK:" : "ANLIK HAMLE:";
+    gestureLabelType.innerText = (mode === 'mindtwin') ? "PARMAK:" : "HAMLE:";
   }
 
   if (capsuleFingerDots) {
@@ -1454,14 +1485,15 @@ function setGameMode(mode) {
     else capsuleFingerDots.classList.add("hidden");
   }
 
-  if (beatsWrapper) {
-    if (mode === 'mindtwin') beatsWrapper.classList.add("hidden");
-    else beatsWrapper.classList.remove("hidden");
-  }
-
-  if (mindtwinBetBox) {
-    if (mode === 'mindtwin') mindtwinBetBox.classList.remove("hidden");
-    else mindtwinBetBox.classList.add("hidden");
+  const beatTexts = (mode === "mindtwin")
+    ? ["HAZIR", "ODAKLAN", "SEZGİ", "AÇ!"]
+    : ["TAŞ", "KAĞIT", "MAKAS", "VUR!"];
+  for (let b = 1; b <= 4; b++) {
+    const el = document.getElementById(`beat-${b}`);
+    if (el) {
+      const txt = document.getElementById(`beat-name-${b}`);
+      if (txt) txt.innerText = beatTexts[b - 1];
+    }
   }
 
   if (analystDockRps) {
@@ -1476,8 +1508,8 @@ function setGameMode(mode) {
 
   // Clear live overlays and reset state cleanly
   if (rivalStateTag) rivalStateTag.innerText = "HAZIR";
-  if (gestureTitle) gestureTitle.innerText = (mode === 'mindtwin') ? "PARMAK BEKLENİYOR..." : "EL BEKLENİYOR...";
-  if (gestureConf) gestureConf.innerText = "%0.0";
+  if (gestureTitle) gestureTitle.innerText = "EL BEKLENİYOR...";
+  if (gestureConf) gestureConf.innerText = "--";
   if (anticipationPill) anticipationPill.classList.add("hidden");
   if (resultBanner) resultBanner.classList.add("hidden");
   isResolving = false;
@@ -1486,32 +1518,42 @@ function setGameMode(mode) {
   resetEntireSeries();
 
   if (mode === 'mindtwin') {
-    sound.speak("MINDTWIN aktif. Bahsini seç.");
-    if (hintMsg) hintMsg.innerHTML = "🧠 <strong>MINDTWIN Aktif:</strong> Bahsini seç (TEK veya ÇİFT). Elini 1.. 2.. 3.. diye salla, 4'te parmak aç!";
+    sound.speak("MINDTWIN aktif. Kameraya elini göster.");
+    if (hintMsg) hintMsg.innerHTML = "🧠 <strong>MINDTWIN Aktif:</strong> Kameraya elini göster, hareket et. Mekanik dijital ikiz el hareketlerini önceden okuyup simüle eder!";
   } else {
     sound.speak("Taş Kağıt Makas aktif.");
-    if (hintMsg) hintMsg.innerHTML = "👉 <strong>Taş-Kağıt-Makas Aktif:</strong> Elini yumruk yap ve 1.. 2.. 3.. diye salla, 4'te vur!";
+    if (hintMsg) hintMsg.innerHTML = "👉 <strong>Taş-Kağıt-Makas Aktif:</strong> Elini yumruk (Taş) yap ve kameranın karşısında 1.. 2.. 3.. diye salla, 4. adımda vur!";
   }
 }
 
 tabModeRps?.addEventListener("click", () => setGameMode("rps"));
 tabModeMindtwin?.addEventListener("click", () => setGameMode("mindtwin"));
 
-btnBetEven?.addEventListener("click", () => {
-  playerParityBet = "EVEN";
-  btnBetEven.classList.add("active");
-  if (btnBetOdd) btnBetOdd.classList.remove("active");
-  sound.speak("Bahsin Çift.");
-});
-
-btnBetOdd?.addEventListener("click", () => {
-  playerParityBet = "ODD";
-  btnBetOdd.classList.add("active");
-  if (btnBetEven) btnBetEven.classList.remove("active");
-  sound.speak("Bahsin Tek.");
-});
+// Parity bet removed
 
 // ==================== 7. WEBCAM SETUP ====================
+function syncCanvasSizes() {
+  const pStage = document.querySelector(".video-stage");
+  const rStage = document.querySelector(".rival-stage");
+  const vw = (video && video.videoWidth > 100) ? video.videoWidth : 640;
+  const vh = (video && video.videoHeight > 100) ? video.videoHeight : 480;
+
+  const w = (pStage && pStage.clientWidth > 100) ? pStage.clientWidth : vw;
+  const h = (pStage && pStage.clientHeight > 100) ? pStage.clientHeight : vh;
+
+  if (camCanvas && (camCanvas.width !== w || camCanvas.height !== h)) {
+    camCanvas.width = w;
+    camCanvas.height = h;
+  }
+  const rw = (rStage && rStage.clientWidth > 100) ? rStage.clientWidth : w;
+  const rh = (rStage && rStage.clientHeight > 100) ? rStage.clientHeight : h;
+  if (rivalCanvas && (rivalCanvas.width !== rw || rivalCanvas.height !== rh)) {
+    rivalCanvas.width = rw;
+    rivalCanvas.height = rh;
+  }
+}
+window.addEventListener("resize", syncCanvasSizes);
+
 async function setupWebcam() {
   if (!video) return;
   try {
@@ -1533,14 +1575,10 @@ async function setupWebcam() {
     });
     try { await video.play(); } catch (e) {}
 
-    const vw = video.videoWidth || 640;
-    const vh = video.videoHeight || 480;
-    if (camCanvas) { camCanvas.width = vw; camCanvas.height = vh; }
-    if (rivalCanvas) { rivalCanvas.width = vw; rivalCanvas.height = vh; }
+    syncCanvasSizes();
   } catch (err) {
     console.warn("Kamera erişimi uyarısı:", err);
-    if (camCanvas) { camCanvas.width = 640; camCanvas.height = 480; }
-    if (rivalCanvas) { rivalCanvas.width = 640; rivalCanvas.height = 480; }
+    syncCanvasSizes();
   }
 }
 
@@ -1610,249 +1648,244 @@ let lastFpsTime = performance.now();
 let frameCount = 0;
 
 function mainRenderLoop() {
-  const now = performance.now();
-  const dtSec = Math.max(0.001, (now - prevFrameTime) / 1000.0);
-  prevFrameTime = now;
+  try {
+    const now = performance.now();
+    const dtSec = Math.max(0.001, (now - prevFrameTime) / 1000.0);
+    prevFrameTime = now;
 
-  frameCount++;
-  if (now - lastFpsTime >= 1000) {
-    if (fpsCounter) fpsCounter.innerText = `${frameCount} FPS`;
-    frameCount = 0;
-    lastFpsTime = now;
-  }
+    frameCount++;
+    if (now - lastFpsTime >= 1000) {
+      if (fpsCounter) fpsCounter.innerText = `${frameCount} FPS`;
+      frameCount = 0;
+      lastFpsTime = now;
+    }
 
-  if (camCtx && camCanvas) {
-    camCtx.clearRect(0, 0, camCanvas.width, camCanvas.height);
-  }
-  if (rivalCtx && rivalCanvas) {
-    rivalCtx.clearRect(0, 0, rivalCanvas.width, rivalCanvas.height);
-  }
+    if (rivalCanvas && (rivalCanvas.width < 50 || rivalCanvas.height < 50)) {
+      syncCanvasSizes();
+    }
 
-  let handY = 0.5;
-  let finalGesture = "ROCK";
-  let finalConfidence = 0.998;
-  let currentKinematic = null;
-  let currentNeuralGesture = "UNKNOWN";
-  let currentNeuralScore = 0.0;
-  let currentRawNeuralCategory = "None";
-  let liveAnalysis = null;
+    if (camCtx && camCanvas) {
+      camCtx.clearRect(0, 0, camCanvas.width, camCanvas.height);
+    }
+    if (rivalCtx && rivalCanvas) {
+      rivalCtx.clearRect(0, 0, rivalCanvas.width, rivalCanvas.height);
+    }
 
-  if (gestureRecognizer && video && video.readyState >= 2) {
-    let results = null;
-    try {
-      results = gestureRecognizer.recognizeForVideo(video, now);
-    } catch (e) {}
-
-    // Motion Persistence Buffer
+    let handY = 0.5;
+    let finalGesture = "ROCK";
+    let finalConfidence = 0.998;
+    let currentKinematic = null;
+    let currentNeuralGesture = "UNKNOWN";
+    let currentNeuralScore = 0.0;
+    let currentRawNeuralCategory = "None";
+    let liveAnalysis = null;
     let activeLms = null;
     let activeWorldLms = null;
 
-    if (results && results.landmarks && results.landmarks.length > 0) {
-      activeLms = results.landmarks[0];
-      activeWorldLms = (results.worldLandmarks && results.worldLandmarks.length > 0)
-        ? results.worldLandmarks[0]
-        : activeLms;
-      lastTrackedLms = activeLms;
-      lastTrackedWorldLms = activeWorldLms;
-      lastTrackedTime = now;
-    } else if (lastTrackedLms && (now - lastTrackedTime < 160)) {
-      activeLms = lastTrackedLms;
-      activeWorldLms = lastTrackedWorldLms || activeLms;
-    }
+    if (gestureRecognizer && video && video.readyState >= 2) {
+      let results = null;
+      try {
+        results = gestureRecognizer.recognizeForVideo(video, now);
+      } catch (e) {}
 
-    if (activeLms) {
-      handY = (activeLms[0].y + activeLms[9].y) * 0.5;
+      if (results && results.landmarks && results.landmarks.length > 0) {
+        activeLms = results.landmarks[0];
+        activeWorldLms = (results.worldLandmarks && results.worldLandmarks.length > 0)
+          ? results.worldLandmarks[0]
+          : activeLms;
+        lastTrackedLms = activeLms;
+        lastTrackedWorldLms = activeWorldLms;
+        lastTrackedTime = now;
+      } else if (lastTrackedLms && (now - lastTrackedTime < 160)) {
+        activeLms = lastTrackedLms;
+        activeWorldLms = lastTrackedWorldLms || activeLms;
+      }
 
-      if (activeGameMode === "rps") {
-        // ==================== RPS MODE PIPELINE ====================
-        currentKinematic = OmegaVisionEngine.classify(activeWorldLms, config);
-        liveAnalysis = analyst.computeLiveDistribution(currentKinematic, prevFingerScores, dtSec);
-        prevFingerScores = currentKinematic.scores;
+      if (activeLms) {
+        handY = (activeLms[0].y + activeLms[9].y) * 0.5;
 
-        if (liveAnalysis && probBarRock && probBarPaper && probBarScissors) {
-          const pR = Math.round(liveAnalysis.probabilities.ROCK * 100);
-          const pP = Math.round(liveAnalysis.probabilities.PAPER * 100);
-          const pS = Math.max(0, 100 - pR - pP);
+        if (activeGameMode === "rps") {
+          // ==================== RPS MODE PIPELINE ====================
+          currentKinematic = OmegaVisionEngine.classify(activeWorldLms, config);
+          liveAnalysis = analyst.computeLiveDistribution(currentKinematic, prevFingerScores, dtSec);
+          prevFingerScores = currentKinematic.scores;
 
-          probBarRock.style.width = `${pR}%`;
-          probBarPaper.style.width = `${pP}%`;
-          probBarScissors.style.width = `${pS}%`;
-          if (probValRock) probValRock.innerText = `%${pR}`;
-          if (probValPaper) probValPaper.innerText = `%${pP}`;
-          if (probValScissors) probValScissors.innerText = `%${pS}`;
+          if (liveAnalysis && probBarRock && probBarPaper && probBarScissors) {
+            const pR = Math.round(liveAnalysis.probabilities.ROCK * 100);
+            const pP = Math.round(liveAnalysis.probabilities.PAPER * 100);
+            const pS = Math.max(0, 100 - pR - pP);
 
-          if (statVAngle) statVAngle.innerText = `${liveAnalysis.vAngle}°`;
-          if (statTendonVel) statTendonVel.innerText = `${liveAnalysis.tendonVelocity}°/s`;
-          if (statPsych) statPsych.innerText = liveAnalysis.strategyLabel;
-          if (markovTag) markovTag.innerText = `CANLI (${liveAnalysis.strategyLabel.split(' ')[0]})`;
-        }
+            probBarRock.style.width = `${pR}%`;
+            probBarPaper.style.width = `${pP}%`;
+            probBarScissors.style.width = `${pS}%`;
+            if (probValRock) probValRock.innerText = `%${pR}`;
+            if (probValPaper) probValPaper.innerText = `%${pP}`;
+            if (probValScissors) probValScissors.innerText = `%${pS}`;
 
-        if (camCtx && camCanvas) {
-          drawPrecisionSkeleton(camCtx, activeLms, camCanvas.width, camCanvas.height, currentKinematic.fingerStates);
-        }
-
-        if (results && results.gestures && results.gestures.length > 0 && results.gestures[0].length > 0) {
-          const top = results.gestures[0][0];
-          currentRawNeuralCategory = top.categoryName;
-          if (top.categoryName === "Closed_Fist") {
-            currentNeuralGesture = "ROCK";
-            currentNeuralScore = top.score;
-          } else if (top.categoryName === "Open_Palm") {
-            currentNeuralGesture = "PAPER";
-            currentNeuralScore = top.score;
-          } else if (top.categoryName === "Victory" || top.categoryName === "Pointing_Up") {
-            currentNeuralGesture = "SCISSORS";
-            currentNeuralScore = top.score;
-          } else {
-            currentNeuralGesture = "UNKNOWN";
-            currentNeuralScore = 0.0;
+            if (statVAngle) statVAngle.innerText = `${liveAnalysis.vAngle}°`;
+            if (statTendonVel) statTendonVel.innerText = `${liveAnalysis.tendonVelocity}°/s`;
+            if (statPsych) statPsych.innerText = liveAnalysis.strategyLabel;
+            if (markovTag) markovTag.innerText = `CANLI`;
           }
-        }
 
-        if (currentNeuralGesture === currentKinematic.gesture && currentNeuralGesture !== "UNKNOWN") {
-          finalGesture = currentNeuralGesture;
-          finalConfidence = 0.998;
-        } else if (currentNeuralScore >= 0.55 && currentNeuralGesture !== "UNKNOWN") {
-          if (currentNeuralGesture === "SCISSORS" && currentKinematic.metrics.deltaScissors > 0.15) {
-            finalGesture = "SCISSORS";
-            finalConfidence = Math.max(0.985, currentNeuralScore);
-          } else if (currentNeuralGesture === "PAPER" && currentKinematic.metrics.sAll > 0.42) {
-            finalGesture = "PAPER";
-            finalConfidence = Math.max(0.985, currentNeuralScore);
-          } else if (currentNeuralGesture === "ROCK" && currentKinematic.metrics.sBack < 0.45) {
-            finalGesture = "ROCK";
-            finalConfidence = Math.max(0.985, currentNeuralScore);
+          if (camCtx && camCanvas) {
+            drawPrecisionSkeleton(camCtx, activeLms, camCanvas.width, camCanvas.height, currentKinematic.fingerStates);
+          }
+
+          if (results && results.gestures && results.gestures.length > 0 && results.gestures[0].length > 0) {
+            const top = results.gestures[0][0];
+            currentRawNeuralCategory = top.categoryName;
+            if (top.categoryName === "Closed_Fist") {
+              currentNeuralGesture = "ROCK";
+              currentNeuralScore = top.score;
+            } else if (top.categoryName === "Open_Palm") {
+              currentNeuralGesture = "PAPER";
+              currentNeuralScore = top.score;
+            } else if (top.categoryName === "Victory" || top.categoryName === "Pointing_Up") {
+              currentNeuralGesture = "SCISSORS";
+              currentNeuralScore = top.score;
+            } else {
+              currentNeuralGesture = "UNKNOWN";
+              currentNeuralScore = 0.0;
+            }
+          }
+
+          if (currentNeuralGesture === currentKinematic.gesture && currentNeuralGesture !== "UNKNOWN") {
+            finalGesture = currentNeuralGesture;
+            finalConfidence = 0.998;
+          } else if (currentNeuralScore >= 0.55 && currentNeuralGesture !== "UNKNOWN") {
+            finalGesture = currentNeuralGesture;
+            finalConfidence = currentNeuralScore;
           } else {
             finalGesture = currentKinematic.gesture;
             finalConfidence = currentKinematic.confidence;
           }
+
+          currentDetectedGesture = finalGesture;
+
+          const labels = { ROCK: "TAŞ 🪨", PAPER: "KAĞIT 📄", SCISSORS: "MAKAS ✂️" };
+          if (gestureTitle) gestureTitle.innerText = labels[finalGesture] || finalGesture;
+          if (gestureConf) gestureConf.innerText = `%${(finalConfidence * 100).toFixed(1)}`;
+
+          if (!isResolving) {
+            swingEngine.process(activeLms, finalGesture, currentKinematic.scores, liveAnalysis);
+          }
+
         } else {
-          finalGesture = currentKinematic.gesture;
-          finalConfidence = currentKinematic.confidence;
-        }
+          // ==================== MINDTWIN PRE-COGNITIVE PIPELINE ====================
+          const intent = mindTwinEngine.process(activeWorldLms || activeLms, dtSec);
+          cyberTwinHand.setPredictedState(intent.predictedFingers, intent.fingerCount, intent.leadTimeMs, intent.confidence);
 
-        recentDecisions.push(finalGesture);
-        if (recentDecisions.length > 3) recentDecisions.shift();
-        const counts = { ROCK: 0, PAPER: 0, SCISSORS: 0 };
-        recentDecisions.forEach(g => counts[g] = (counts[g] || 0) + 1);
-        finalGesture = Object.keys(counts).reduce((a, b) => counts[a] >= counts[b] ? a : b);
-
-        currentDetectedGesture = finalGesture;
-
-        const labels = { ROCK: "TAŞ 🪨", PAPER: "KAĞIT 📄", SCISSORS: "MAKAS ✂️" };
-        if (gestureTitle) gestureTitle.innerText = labels[finalGesture] || finalGesture;
-        if (gestureConf) gestureConf.innerText = `%${(finalConfidence * 100).toFixed(1)}`;
-
-        if (!isResolving) {
-          swingEngine.process(activeLms, finalGesture, currentKinematic.scores, liveAnalysis);
-        }
-
-      } else {
-        // ==================== MINDTWIN MODE PIPELINE ====================
-        const intent = mindTwinEngine.process(activeWorldLms || activeLms, dtSec);
-        cyberTwinHand.setPredictedState(intent.predictedFingers, intent.fingerCount, intent.leadTimeMs, intent.confidence);
-
-        const fingerIcos = ["", "☝️ 1", "✌️ 2", "🤟 3", "🖖 4", "🖐️ 5"];
-        if (gestureTitle) {
-          gestureTitle.innerText = `${fingerIcos[intent.fingerCount] || intent.fingerCount} PARMAK`;
-        }
-        if (gestureConf) {
-          gestureConf.innerText = `%${(intent.confidence * 100).toFixed(1)}`;
-        }
-
-        // Live 5 Finger Dots in Capsule
-        if (fdotThumb) fdotThumb.className = `f-dot ${intent.predictedFingers.thumb ? 'open' : ''}`;
-        if (fdotIndex) fdotIndex.className = `f-dot ${intent.predictedFingers.index ? 'open' : ''}`;
-        if (fdotMid) fdotMid.className = `f-dot ${intent.predictedFingers.middle ? 'open' : ''}`;
-        if (fdotRing) fdotRing.className = `f-dot ${intent.predictedFingers.ring ? 'open' : ''}`;
-        if (fdotPinky) fdotPinky.className = `f-dot ${intent.predictedFingers.pinky ? 'open' : ''}`;
-
-        // 5-Finger Continuous Probability Distribution (Calculates at 60 FPS!)
-        const contFingers = (intent.rawScores.thumb > 0.45 ? 1 : 0) +
-          intent.rawScores.index + intent.rawScores.middle + intent.rawScores.ring + intent.rawScores.pinky;
-
-        let sumP = 0;
-        const rawP = [];
-        for (let k = 1; k <= 5; k++) {
-          const diff = k - contFingers;
-          const val = Math.exp(-(diff * diff) / (2 * 0.46 * 0.46));
-          rawP.push(val);
-          sumP += val;
-        }
-
-        for (let k = 1; k <= 5; k++) {
-          const pct = Math.round((rawP[k - 1] / Math.max(1e-4, sumP)) * 100);
-          const bar = document.getElementById(`prob-bar-f${k}`);
-          const val = document.getElementById(`prob-val-f${k}`);
-          if (bar) {
-            bar.style.height = `${pct}%`;
-            if (k === intent.fingerCount) bar.classList.add("active");
-            else bar.classList.remove("active");
+          const fingerIcos = ["✊ YUMRUK (0)", "☝️ 1 PARMAK", "✌️ 2 PARMAK", "🤟 3 PARMAK", "🖖 4 PARMAK", "🖐️ 5 PARMAK"];
+          if (gestureTitle) {
+            gestureTitle.innerText = fingerIcos[intent.fingerCount] || `${intent.fingerCount} PARMAK`;
           }
-          if (val) val.innerText = `%${pct}`;
-        }
-
-        if (mindtwinLeadBadge) {
-          mindtwinLeadBadge.innerText = `⚡ -${intent.leadTimeMs}ms ÖNCEDEN`;
-        }
-
-        if (mindtwinSubStrategy) {
-          const targetParity = (playerParityBet === "EVEN") ? "TEK" : "ÇİFT";
-          let aiCounter = 1;
-          if (targetParity === "TEK") {
-            aiCounter = (intent.fingerCount % 2 === 0) ? 1 : 2;
-          } else {
-            aiCounter = (intent.fingerCount % 2 === 0) ? 2 : 1;
+          if (gestureConf) {
+            gestureConf.innerText = `%${(intent.confidence * 100).toFixed(1)}`;
           }
-          mindtwinSubStrategy.innerHTML = `Hedef: <b class="badge-tag">${targetParity}</b> (Sen: ${playerParityBet === 'EVEN' ? 'ÇİFT' : 'TEK'}) ➔ AI: <b class="badge-tag gold">${aiCounter} Parmak</b>`;
-        }
 
-        if (camCtx && camCanvas) {
-          drawPrecisionSkeleton(camCtx, activeLms, camCanvas.width, camCanvas.height, intent.predictedFingers);
-        }
+          // Live 5 Finger Dots in Capsule
+          if (fdotThumb) fdotThumb.className = `f-dot ${intent.predictedFingers.thumb ? 'open' : ''}`;
+          if (fdotIndex) fdotIndex.className = `f-dot ${intent.predictedFingers.index ? 'open' : ''}`;
+          if (fdotMid) fdotMid.className = `f-dot ${intent.predictedFingers.middle ? 'open' : ''}`;
+          if (fdotRing) fdotRing.className = `f-dot ${intent.predictedFingers.ring ? 'open' : ''}`;
+          if (fdotPinky) fdotPinky.className = `f-dot ${intent.predictedFingers.pinky ? 'open' : ''}`;
 
-        if (!isResolving) {
-          swingEngine.process(activeLms, intent.fingerCount, intent.rawScores, null);
+          // Continuous 5-Finger Probability Distribution
+          const contFingers = (intent.rawScores.thumb > 0.45 ? 1 : 0) +
+            intent.rawScores.index + intent.rawScores.middle + intent.rawScores.ring + intent.rawScores.pinky;
+
+          let sumP = 0;
+          const rawP = [];
+          for (let k = 1; k <= 5; k++) {
+            const diff = k - contFingers;
+            const val = Math.exp(-(diff * diff) / (2 * 0.46 * 0.46));
+            rawP.push(val);
+            sumP += val;
+          }
+
+          for (let k = 1; k <= 5; k++) {
+            const pct = Math.round((rawP[k - 1] / Math.max(1e-4, sumP)) * 100);
+            const bar = document.getElementById(`prob-bar-f${k}`);
+            const val = document.getElementById(`prob-val-f${k}`);
+            if (bar) {
+              bar.style.height = `${pct}%`;
+              if (k === intent.fingerCount) bar.classList.add("active");
+              else bar.classList.remove("active");
+            }
+            if (val) val.innerText = `%${pct}`;
+          }
+
+          if (mindtwinLeadBadge) {
+            mindtwinLeadBadge.innerText = `-${intent.leadTimeMs}ms ÖNCEDEN`;
+          }
+
+          if (mindtwinSubStrategy) {
+            const moveName = (intent.fingerCount === 0) ? "YUMRUK" : `${intent.fingerCount} PARMAK`;
+            mindtwinSubStrategy.innerHTML = `Öngörülen: <b class="badge-tag">${moveName}</b> (Mekanik İkiz Senkronize)`;
+          }
+
+          if (camCtx && camCanvas) {
+            drawPrecisionSkeleton(camCtx, activeLms, camCanvas.width, camCanvas.height, intent.predictedFingers);
+          }
+
+          if (!isResolving) {
+            swingEngine.process(activeLms, intent.fingerCount, intent.rawScores, null);
+          }
         }
       }
-    } else {
+    }
+
+    if (!activeLms) {
       if (gestureTitle) gestureTitle.innerText = "EL BEKLENİYOR...";
       if (gestureConf) gestureConf.innerText = "--";
+      if (anticipationPill) anticipationPill.classList.add("hidden");
+      if (fdotThumb) fdotThumb.className = "f-dot";
+      if (fdotIndex) fdotIndex.className = "f-dot";
+      if (fdotMid) fdotMid.className = "f-dot";
+      if (fdotRing) fdotRing.className = "f-dot";
+      if (fdotPinky) fdotPinky.className = "f-dot";
+      if (activeGameMode === "mindtwin") {
+        cyberTwinHand.setPredictedState({ thumb: false, index: false, middle: false, ring: false, pinky: false }, 0, 0, 0.0);
+      }
     }
-  }
 
-  // Telemetry Sender
-  if (now - lastTelemetryTime > 180) {
-    lastTelemetryTime = now;
-    const withSnap = (now - lastSnapshotTime > 600);
-    if (withSnap) lastSnapshotTime = now;
+    // Telemetry Sender
+    if (now - lastTelemetryTime > 180) {
+      lastTelemetryTime = now;
+      const withSnap = (now - lastSnapshotTime > 600);
+      if (withSnap) lastSnapshotTime = now;
 
-    sendTelemetry({
-      turn: currentSeriesTurn,
-      gameMode: activeGameMode,
-      handDetected: !!activeLms,
-      gesture: (activeGameMode === "rps") ? finalGesture : `${mindTwinEngine.currentPredictedCount} Parmak`,
-      confidence: finalConfidence,
-      swingStep: swingEngine.step,
-      earlyPrediction: swingEngine.earlyPrediction,
-      earlyLeadTimeMs: swingEngine.earlyLeadTimeMs
-    }, withSnap);
-  }
-
-  // Rival / CyberTwin Hand Sync
-  if (activeGameMode === "rps") {
-    rivalHand.update(handY);
-    if (rivalCtx && rivalCanvas) {
-      rivalHand.draw(rivalCtx, rivalCanvas.width, rivalCanvas.height);
+      sendTelemetry({
+        turn: currentSeriesTurn,
+        gameMode: activeGameMode,
+        handDetected: !!activeLms,
+        gesture: (activeGameMode === "rps") ? finalGesture : `${mindTwinEngine.currentPredictedCount} Parmak`,
+        confidence: finalConfidence,
+        swingStep: swingEngine.step,
+        earlyPrediction: swingEngine.earlyPrediction,
+        earlyLeadTimeMs: swingEngine.earlyLeadTimeMs
+      }, withSnap);
     }
-  } else {
-    cyberTwinHand.update(handY);
-    if (rivalCtx && rivalCanvas) {
-      cyberTwinHand.draw(rivalCtx, rivalCanvas.width, rivalCanvas.height);
-    }
-  }
 
-  requestAnimationFrame(mainRenderLoop);
+    // Rival / CyberTwin Hand Sync
+    if (activeGameMode === "rps") {
+      rivalHand.update(handY);
+      if (rivalCtx && rivalCanvas) {
+        rivalHand.draw(rivalCtx, rivalCanvas.width, rivalCanvas.height);
+      }
+    } else {
+      cyberTwinHand.update(handY);
+      if (rivalCtx && rivalCanvas) {
+        cyberTwinHand.draw(rivalCtx, rivalCanvas.width, rivalCanvas.height);
+      }
+    }
+
+  } catch (err) {
+    console.error("Critical error in mainRenderLoop:", err);
+  } finally {
+    requestAnimationFrame(mainRenderLoop);
+  }
 }
 
 // Precision Skeleton
