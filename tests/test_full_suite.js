@@ -122,7 +122,7 @@ const elementIds = [
   "fdot-thumb", "fdot-index", "fdot-mid", "fdot-ring", "fdot-pinky",
   "kinetic-fill", "result-winner", "clash-p1-icon", "clash-p1-text", "clash-p2-icon", "clash-p2-text",
   "mind-early-guess", "mind-final-move", "mind-counter-move", "clash-analysis",
-  "mindtwin-lead-badge", "mindtwin-sub-strategy", "stat-v-angle", "stat-tendon-vel", "stat-psych"
+  "mindtwin-lead-badge", "mindtwin-sub-strategy", "stat-v-angle", "stat-tendon-vel", "stat-psych", "stat-accel", "stat-predictability", "stat-lock-badge", "mind-bio-trigger", "mind-game-theory"
 ];
 for (let i = 1; i <= 5; i++) elementIds.push(`pip-${i}`);
 elementIds.forEach(id => getOrCreateElement(id));
@@ -146,7 +146,11 @@ const sandbox = new Function(code + `
     OmegaVisionEngine,
     mindTwinEngine,
     swingEngine,
-    cyberTwinHand
+    cyberTwinHand,
+    analyst,
+    RPSPsychologicalAnalyst,
+    KineticSurgeEngine,
+    sound
   };
 `);
 
@@ -237,6 +241,52 @@ for (let turn = 2; turn <= 5; turn++) {
   app.triggerClash("SCISSORS", "SCISSORS", 50);
 }
 assert("5 turns recorded", app.p2SeriesScore() >= 5);
+
+// TEST 10: Honest RPS Feint / Outsmart AI (Player wins when bluffing)
+app.resetEntireSeries();
+app.setGameMode("rps");
+// AI locked PAPER (predicting ROCK), but player unexpectedly threw SCISSORS!
+app.triggerClash("SCISSORS", "ROCK", 210, "PAPER");
+assert("Player score incremented on successful RPS feint", app.p1SeriesScore() === 1);
+assert("AI score remains 0", app.p2SeriesScore() === 0);
+assert("Winner banner says SEN KAZANDIN! AI ŞAŞIRTILDI!", getOrCreateElement("result-winner").innerText.includes("SEN KAZANDIN"));
+
+// TEST 11: RPS Tie (Both throw same move)
+app.resetIsResolving();
+const prevP1 = app.p1SeriesScore();
+const prevP2 = app.p2SeriesScore();
+app.triggerClash("PAPER", "ROCK", 195, "PAPER");
+assert("Neither score incremented on tie", app.p1SeriesScore() === prevP1 && app.p2SeriesScore() === prevP2);
+assert("Winner banner says BERABERE", getOrCreateElement("result-winner").innerText.includes("BERABERE"));
+
+// TEST 12: Shannon Entropy & Predictability Index
+const shannonUniform = app.analyst.computeShannonEntropy({ ROCK: 0.33, PAPER: 0.33, SCISSORS: 0.34 });
+assert("Uniform distribution predictability is ~15-20%", shannonUniform.predictabilityPct >= 15 && shannonUniform.predictabilityPct <= 25);
+
+const shannonSharp = app.analyst.computeShannonEntropy({ ROCK: 0.90, PAPER: 0.05, SCISSORS: 0.05 });
+assert("Sharp peaked distribution predictability is > 60%", shannonSharp.predictabilityPct >= 60);
+
+// TEST 13: KineticSurgeEngine Pre-Lock Callback
+let lockTriggered = false;
+let lockedP = null;
+let lockedC = null;
+const engine = new app.KineticSurgeEngine({
+  onBeat: () => {},
+  onAnticipate: () => {},
+  onPreLock: (p, c, ms) => { lockTriggered = true; lockedP = p; lockedC = c; },
+  onClash: () => {},
+  onReset: () => {}
+});
+engine.step = 3;
+engine.anticipationActive = true;
+engine._executePreLock("ROCK", null, { probabilities: { ROCK: 0.8, PAPER: 0.1, SCISSORS: 0.1 } }, 1000);
+assert("Pre-Lock callback fired", lockTriggered === true);
+assert("Pre-Lock predicted move is ROCK", lockedP === "ROCK");
+assert("Pre-Lock locked counter is PAPER", lockedC === "PAPER");
+assert("Engine isLocked is true", engine.isLocked === true);
+
+// TEST 14: SoundFX playLock exists
+assert("SoundFX has playLock method", typeof app.sound.playLock === "function");
 
 console.log(`\nTest Summary: ${passed} passed, ${failed} failed.`);
 if (failed > 0) {

@@ -1034,3 +1034,69 @@ body {
     min-height: 320px;
   }
 }
+
+
+/* Pre-Lock & Telemetry Enhancements */
+.anticipation-pill.locked {
+  border-color: #06b6d4;
+  background: rgba(6, 182, 212, 0.16);
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.45);
+  animation: pulse-lock 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-lock {
+  0% { transform: scale(1); box-shadow: 0 0 6px rgba(6, 182, 212, 0.3); }
+  100% { transform: scale(1.04); box-shadow: 0 0 16px rgba(6, 182, 212, 0.65); }
+}
+
+.analyst-sub-2 {
+  border-top: none;
+  padding-top: 1px;
+}
+
+.stat-badge-lock {
+  font-size: 0.60rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-dim);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  letter-spacing: 0.02em;
+}
+
+.stat-badge-lock.locked {
+  background: rgba(6, 182, 212, 0.22);
+  color: #06b6d4;
+  border-color: #06b6d4;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.35);
+}
+
+.pip-dot.user-win {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+  color: #000;
+}
+
+.pip-dot.tie {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #000;
+}
+
+.result-winner.user-win {
+  color: #10b981;
+}
+
+.result-winner.ai-win {
+  color: #ef4444;
+}
+
+.result-winner.tie {
+  color: #f59e0b;
+}
+
+.ht-winner.tie {
+  color: #f59e0b;
+}

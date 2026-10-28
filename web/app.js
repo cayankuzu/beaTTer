@@ -85,6 +85,24 @@ class SoundFX {
     } catch (e) {}
   }
 
+  playLock() {
+    if (!this.ctx || !this.voiceEnabled) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(1760, now + 0.09);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } catch (e) {}
+  }
+
   playModeSwitch() {
     if (!this.ctx || !this.voiceEnabled) return;
     try {
@@ -394,6 +412,28 @@ class RPSPsychologicalAnalyst {
     };
   }
 
+  computeShannonEntropy(probs) {
+    const pR = Math.max(1e-5, probs.ROCK || 0.33);
+    const pP = Math.max(1e-5, probs.PAPER || 0.33);
+    const pS = Math.max(1e-5, probs.SCISSORS || 0.34);
+    const sum = pR + pP + pS;
+    const nR = pR / sum;
+    const nP = pP / sum;
+    const nS = pS / sum;
+
+    const entropy = -(
+      nR * Math.log2(nR) +
+      nP * Math.log2(nP) +
+      nS * Math.log2(nS)
+    );
+    const maxEntropy = 1.58496;
+    const normalizedPredictability = Math.max(0.15, Math.min(0.99, 1.0 - (entropy / maxEntropy)));
+    return {
+      entropyBits: entropy.toFixed(2),
+      predictabilityPct: Math.round(normalizedPredictability * 100)
+    };
+  }
+
   computeLiveDistribution(currentKinematic, prevScores, dtSec = 0.016) {
     const scores = currentKinematic ? currentKinematic.scores : null;
     const vAngle = (currentKinematic && typeof currentKinematic.vAngle === 'number')
@@ -412,12 +452,16 @@ class RPSPsychologicalAnalyst {
       sAll: scores ? (scores.thumb + scores.index + scores.middle + scores.ring + scores.pinky) * 0.2 : 0.25
     });
 
+    const shannon = this.computeShannonEntropy(bayes.probabilities);
+
     return {
       probabilities: bayes.probabilities,
       predictedMove: bayes.predictedMove,
       strategyLabel: bayes.strategy,
       vAngle: (typeof vAngle === 'number') ? vAngle.toFixed(1) : '0.0',
-      tendonVelocity: Math.min(999, tendonVelocity)
+      tendonVelocity: Math.min(999, tendonVelocity),
+      entropyBits: shannon.entropyBits,
+      predictabilityPct: shannon.predictabilityPct
     };
   }
 }
@@ -426,6 +470,7 @@ class KineticSurgeEngine {
   constructor(callbacks) {
     this.onBeat = callbacks.onBeat;
     this.onAnticipate = callbacks.onAnticipate;
+    this.onPreLock = callbacks.onPreLock;
     this.onClash = callbacks.onClash;
     this.onReset = callbacks.onReset;
 
@@ -436,12 +481,20 @@ class KineticSurgeEngine {
     this.sensitivityLevel = 3;
     this.gameMode = "rhythm4";
 
-    // Instant Anticipation Trigger
+    // Instant Anticipation & Honest Pre-Lock Trigger
     this.anticipationActive = false;
     this.anticipationStartTime = 0;
     this.fistBaselineScores = null;
     this.earlyPrediction = "ROCK";
     this.earlyLeadTimeMs = 0;
+
+    this.isLocked = false;
+    this.lockedPrediction = null;
+    this.lockedCounter = null;
+    this.lockedLeadTimeMs = 0;
+    this.lastVy = 0;
+    this.currentVelocityY = 0;
+    this.currentAccelY = 0;
   }
 
   process(lms, gesture, fingerScores, liveProbs) {
@@ -462,11 +515,6 @@ class KineticSurgeEngine {
 
     if (this.history.length < 5) return;
 
-    // Instant Early Tendon Anticipation during Step 3 -> 4 transition
-    if (this.anticipationActive) {
-      this._evaluateEarlyAnticipation(liveProbs, now);
-    }
-
     const ys = this.history.map(p => p.y);
     const minY = Math.min(...ys);
     const maxY = Math.max(...ys);
@@ -477,10 +525,23 @@ class KineticSurgeEngine {
     const dt = Math.max(0.01, (now - prev.t) / 1000.0);
     const vy = (cy - prev.y) / dt;
     const vx = (cx - prev.x) / dt;
-    const power = Math.min(100, Math.round(Math.sqrt(vx * vx + vy * vy) * 55));
+    const ay = (vy - this.lastVy) / dt;
+    this.lastVy = vy;
+    this.currentVelocityY = vy;
+    this.currentAccelY = ay;
 
+    const power = Math.min(100, Math.round(Math.sqrt(vx * vx + vy * vy) * 55));
     const fillEl = document.getElementById("kinetic-fill");
     if (fillEl) fillEl.style.width = `${power}%`;
+
+    // Live Anticipation calculation during transition
+    if (this.anticipationActive) {
+      this._evaluateEarlyAnticipation(liveProbs, now);
+      // Pre-Lock trigger: at step 3, when hand starts descent from apex (~180-250ms before strike)
+      if (!this.isLocked && this.step === 3 && (vy > 0.03 || cy > minY + 0.018)) {
+        this._executePreLock(gesture, fingerScores, liveProbs, now);
+      }
+    }
 
     const minAmp = 0.018 + this.sensitivityLevel * 0.007;
     const minVy = 0.05 + this.sensitivityLevel * 0.025;
@@ -492,11 +553,11 @@ class KineticSurgeEngine {
         this.state = "RISING";
       }
     } else if (this.state === "RISING") {
-      // Zero-Latency Trigger: Detects downward transition immediately
+      // Downward strike trigger
       if (cy > midY + 0.012 && vy > minVy && (now - this.lastBeatTime > 160)) {
         this.state = "FALLING";
         this.lastBeatTime = now;
-        this._handleStrike(fingerScores, gesture);
+        this._handleStrike(fingerScores, gesture, liveProbs);
       }
     }
   }
@@ -515,9 +576,9 @@ class KineticSurgeEngine {
     if (!liveProbs || !liveProbs.probabilities) return;
     const probs = liveProbs.probabilities;
     let pred = "ROCK";
-    if (probs.SCISSORS > probs.PAPER && probs.SCISSORS > probs.ROCK && probs.SCISSORS > 0.40) {
+    if (probs.SCISSORS > probs.PAPER && probs.SCISSORS > probs.ROCK && probs.SCISSORS > 0.38) {
       pred = "SCISSORS";
-    } else if (probs.PAPER > probs.SCISSORS && probs.PAPER > probs.ROCK && probs.PAPER > 0.40) {
+    } else if (probs.PAPER > probs.SCISSORS && probs.PAPER > probs.ROCK && probs.PAPER > 0.38) {
       pred = "PAPER";
     } else {
       pred = "ROCK";
@@ -531,10 +592,50 @@ class KineticSurgeEngine {
     }
   }
 
-  _handleStrike(fingerScores, currentGesture) {
+  _executePreLock(gesture, fingerScores, liveProbs, now) {
+    this.isLocked = true;
+    const isTwin = (typeof activeGameMode !== "undefined" && activeGameMode === "mindtwin");
+
+    if (isTwin) {
+      const predCount = (typeof mindTwinEngine !== "undefined") ? mindTwinEngine.currentPredictedCount : 2;
+      this.lockedPrediction = predCount;
+      this.lockedCounter = predCount;
+      this.lockedLeadTimeMs = Math.max(120, Math.round(now - this.anticipationStartTime));
+      if (this.onPreLock) {
+        this.onPreLock(this.lockedPrediction, this.lockedCounter, this.lockedLeadTimeMs);
+      }
+    } else {
+      let pred = "ROCK";
+      if (liveProbs && liveProbs.probabilities) {
+        const probs = liveProbs.probabilities;
+        if (probs.SCISSORS > probs.PAPER && probs.SCISSORS > probs.ROCK && probs.SCISSORS > 0.38) {
+          pred = "SCISSORS";
+        } else if (probs.PAPER > probs.SCISSORS && probs.PAPER > probs.ROCK && probs.PAPER > 0.38) {
+          pred = "PAPER";
+        } else {
+          pred = "ROCK";
+        }
+      }
+      const counter = getWinningCounter(pred);
+      this.lockedPrediction = pred;
+      this.lockedCounter = counter;
+      this.lockedLeadTimeMs = Math.max(160, Math.min(320, Math.round(now - this.anticipationStartTime)));
+
+      if (this.onPreLock) {
+        this.onPreLock(this.lockedPrediction, this.lockedCounter, this.lockedLeadTimeMs, {
+          vy: this.currentVelocityY,
+          ay: this.currentAccelY,
+          tendonVel: (liveProbs && liveProbs.tendonVelocity) || 0,
+          vAngle: (liveProbs && liveProbs.vAngle) || "0.0"
+        });
+      }
+    }
+  }
+
+  _handleStrike(fingerScores, currentGesture, liveProbs) {
     const isTwin = (typeof activeGameMode !== "undefined" && activeGameMode === "mindtwin");
     if (this.gameMode === "quick1") {
-      this._instantStrike(currentGesture);
+      this._instantStrike(currentGesture, liveProbs);
       return;
     }
 
@@ -549,20 +650,32 @@ class KineticSurgeEngine {
       this.onBeat(3, isTwin ? "NİYET" : "MAKAS");
       this.anticipationActive = true;
       this.anticipationStartTime = performance.now();
+      this.isLocked = false;
+      this.lockedPrediction = null;
+      this.lockedCounter = null;
       this.fistBaselineScores = fingerScores ? { ...fingerScores } : null;
     } else if (this.step === 3) {
       this.step = 0;
-      this._instantStrike(currentGesture);
+      this._instantStrike(currentGesture, liveProbs);
     }
   }
 
-  _instantStrike(currentGesture) {
+  _instantStrike(currentGesture, liveProbs) {
     const isTwin = (typeof activeGameMode !== "undefined" && activeGameMode === "mindtwin");
     this.onBeat(4, isTwin ? "AÇ!" : "VUR!");
     this.anticipationActive = false;
+
+    if (!this.isLocked) {
+      this._executePreLock(currentGesture, null, liveProbs, performance.now());
+    }
+
     const move = isTwin ? mindTwinEngine.currentPredictedCount : currentGesture;
-    const pred = isTwin ? mindTwinEngine.currentPredictedCount : this.earlyPrediction;
-    this.onClash(move, pred, Math.max(35, this.earlyLeadTimeMs));
+    const pred = this.lockedPrediction || (isTwin ? mindTwinEngine.currentPredictedCount : this.earlyPrediction);
+    const counter = this.lockedCounter || (isTwin ? pred : getWinningCounter(pred));
+    const leadMs = Math.max(45, this.lockedLeadTimeMs || this.earlyLeadTimeMs || 180);
+
+    this.isLocked = false;
+    this.onClash(move, pred, leadMs, counter);
   }
 
   reset() {
@@ -570,6 +683,15 @@ class KineticSurgeEngine {
     this.state = "IDLE";
     this.history = [];
     this.anticipationActive = false;
+    this.isLocked = false;
+    this.lockedPrediction = null;
+    this.lockedCounter = null;
+    this.lockedLeadTimeMs = 0;
+    const lockBadge = document.getElementById("stat-lock-badge");
+    if (lockBadge) {
+      lockBadge.className = "stat-badge-lock";
+      lockBadge.innerText = "KİLİT: BEKLENİYOR";
+    }
     if (typeof isResolving !== "undefined" && !isResolving) {
       document.querySelectorAll(".rhythm-chip").forEach(el => el.classList.remove("active"));
     }
@@ -1136,7 +1258,7 @@ class Twin3DHandEngine {
   }
 
   updateRpsMode(handY, activeLandmarks, rpsGesture, isResolving) {
-    const curGesture = rpsGesture || this._gesture || "ROCK";
+    const curGesture = this._gesture || rpsGesture || "ROCK";
 
     if (activeLandmarks && activeLandmarks.length >= 21) {
       // 1. FULL 6-DOF ANATOMICAL ORIENTATION (AVUÇ İÇİ / DIŞI, PITCH, YAW, ROLL)
@@ -1634,87 +1756,183 @@ const swingEngine = new KineticSurgeEngine({
       anticipationPill.classList.remove("hidden");
     }
   },
-  onClash: (finalMove, earlyGuess, leadTimeMs) => {
-    triggerClash(finalMove, earlyGuess, leadTimeMs);
+  onPreLock: (lockedPred, lockedCounter, leadMs, metrics) => {
+    sound.init();
+    sound.playLock();
+
+    const trNames = { ROCK: "Taş", PAPER: "Kağıt", SCISSORS: "Makas" };
+    const icons = { ROCK: "🪨", PAPER: "📄", SCISSORS: "✂️" };
+
+    if (activeGameMode === "rps") {
+      rivalHand.gesture = lockedCounter;
+      if (rivalStateTag) rivalStateTag.innerText = `🔒 KİLİTLENDİ: ${(trNames[lockedCounter] || lockedCounter).toUpperCase()}`;
+
+      if (anticipationPill && antVal && antMs) {
+        anticipationPill.classList.add("locked");
+        antVal.innerText = `🔒 ${trNames[lockedCounter] || lockedCounter} ${icons[lockedCounter] || ""}`;
+        antMs.innerText = `-${leadMs}ms`;
+        anticipationPill.classList.remove("hidden");
+      }
+
+      const lockBadge = $("stat-lock-badge");
+      if (lockBadge) {
+        lockBadge.className = "stat-badge-lock locked";
+        lockBadge.innerText = `🔒 KİLİTLENDİ (-${leadMs}ms)`;
+      }
+    } else {
+      if (rivalStateTag) rivalStateTag.innerText = `🔒 SEZDİ: ${lockedPred} PARMAK`;
+      const lockBadge = $("mindtwin-lead-badge");
+      if (lockBadge) lockBadge.innerText = `-${leadMs}ms ÖNCEDEN`;
+    }
+  },
+  onClash: (finalMove, earlyGuess, leadTimeMs, lockedCounter) => {
+    triggerClash(finalMove, earlyGuess, leadTimeMs, lockedCounter);
   },
   onReset: () => {
     if (hintMsg) {
       hintMsg.innerHTML = (activeGameMode === "mindtwin")
-        ? `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Bahsini seçip elini 1.. 2.. 3.. diye salla!`
+        ? `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Mekanik ikizine karşı elini 1.. 2.. 3.. diye salla!`
         : `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Elini yumruk yapıp 1.. 2.. 3.. diye salla!`;
     }
     if (rivalStateTag) rivalStateTag.innerText = "HAZIR";
-    if (anticipationPill) anticipationPill.classList.add("hidden");
+    if (anticipationPill) {
+      anticipationPill.classList.remove("locked");
+      anticipationPill.classList.add("hidden");
+    }
+    const lockBadge = $("stat-lock-badge");
+    if (lockBadge) {
+      lockBadge.className = "stat-badge-lock";
+      lockBadge.innerText = "KİLİT: BEKLENİYOR";
+    }
   }
 });
 window.swingEngine = swingEngine;
+window.triggerClash = triggerClash;
+window.analyst = analyst;
+window.setGameMode = setGameMode;
+window.resetEntireSeries = resetEntireSeries;
+window.setupWebcam = setupWebcam;
 
-function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50) {
+function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCounter = null) {
   if (isResolving) return;
   isResolving = true;
   sound.init();
   sound.playImpact();
 
-  if (anticipationPill) anticipationPill.classList.add("hidden");
+  if (anticipationPill) {
+    anticipationPill.classList.remove("locked");
+    anticipationPill.classList.add("hidden");
+  }
   if (beat4) beat4.classList.add("active");
   document.body.classList.add("shake-fx");
   setTimeout(() => document.body.classList.remove("shake-fx"), 250);
 
   if (activeGameMode === "rps") {
-    // ==================== RPS MODE CLASH ====================
+    // ==================== RPS MODE HONEST CLASH ====================
     const committedMove = (playerMove && playerMove !== "UNKNOWN") ? playerMove : currentDetectedGesture;
-    const counterMove = getWinningCounter(committedMove);
+    const finalBotCounter = lockedCounter || getWinningCounter(earlyGuess);
 
-    rivalHand.gesture = counterMove;
+    rivalHand.gesture = finalBotCounter;
 
-    p2SeriesScore++;
-    if (scoreP2) scoreP2.innerText = p2SeriesScore;
+    // Honest game theory clash check
+    let winner = "TIE";
+    if (committedMove === finalBotCounter) {
+      winner = "TIE";
+    } else if (
+      (finalBotCounter === "ROCK" && committedMove === "SCISSORS") ||
+      (finalBotCounter === "PAPER" && committedMove === "ROCK") ||
+      (finalBotCounter === "SCISSORS" && committedMove === "PAPER")
+    ) {
+      winner = "AI";
+    } else {
+      winner = "USER";
+    }
 
-    analyst.recordTurn(committedMove, counterMove, "BOT_WIN");
+    if (winner === "AI") {
+      p2SeriesScore++;
+      if (scoreP2) scoreP2.innerText = p2SeriesScore;
+    } else if (winner === "USER") {
+      p1SeriesScore++;
+      if (scoreP1) scoreP1.innerText = p1SeriesScore;
+    }
+
+    analyst.recordTurn(committedMove, finalBotCounter, winner === "AI" ? "BOT_WIN" : (winner === "USER" ? "USER_WIN" : "TIE"));
     seriesHistory.push({
       turn: currentSeriesTurn,
       playerMove: committedMove,
-      botMove: counterMove,
-      winner: "AI",
+      botMove: finalBotCounter,
+      winner,
       leadTimeMs
     });
 
     const currentPip = $(`pip-${currentSeriesTurn}`);
     if (currentPip) {
       currentPip.classList.remove("current");
-      currentPip.classList.add("ai-win");
+      if (winner === "AI") currentPip.classList.add("ai-win");
+      else if (winner === "USER") currentPip.classList.add("user-win");
+      else currentPip.classList.add("tie");
     }
 
     const trNames = { ROCK: "Taş", PAPER: "Kağıt", SCISSORS: "Makas" };
     const icons = { ROCK: "🪨", PAPER: "📄", SCISSORS: "✂️" };
 
-    sound.speak(trNames[counterMove]);
-
     const resWinner = $("result-winner");
-    if (resWinner) resWinner.innerText = "AI KAZANDI!";
+    if (resWinner) {
+      resWinner.className = `result-winner ${winner === "AI" ? "ai-win" : (winner === "USER" ? "user-win" : "tie")}`;
+      if (winner === "AI") resWinner.innerText = "AI KAZANDI!";
+      else if (winner === "USER") resWinner.innerText = "SEN KAZANDIN! AI ŞAŞIRTILDI! 🎉";
+      else resWinner.innerText = "BERABERE! 🤝";
+    }
 
-    if (clashP1Icon) clashP1Icon.innerText = icons[committedMove];
-    if (clashP1Text) clashP1Text.innerText = trNames[committedMove].toUpperCase();
-    if (clashP2Icon) clashP2Icon.innerText = icons[counterMove];
-    if (clashP2Text) clashP2Text.innerText = trNames[counterMove].toUpperCase();
+    if (clashP1Icon) clashP1Icon.innerText = icons[committedMove] || "❓";
+    if (clashP1Text) clashP1Text.innerText = (trNames[committedMove] || committedMove).toUpperCase();
+    if (clashP2Icon) clashP2Icon.innerText = icons[finalBotCounter] || "❓";
+    if (clashP2Text) clashP2Text.innerText = (trNames[finalBotCounter] || finalBotCounter).toUpperCase();
 
     if (mindEarlyGuess) {
-      mindEarlyGuess.innerText = `${trNames[earlyGuess] || earlyGuess} ${icons[earlyGuess] || ""} (-${leadTimeMs}ms)`;
+      mindEarlyGuess.innerText = `-${leadTimeMs}ms Önce (Havadayken)`;
+    }
+    const bioTrig = $("mind-bio-trigger");
+    if (bioTrig) {
+      const vA = (typeof liveAnalysis !== "undefined" && liveAnalysis) ? liveAnalysis.vAngle : "0.0";
+      const tV = (typeof liveAnalysis !== "undefined" && liveAnalysis) ? liveAnalysis.tendonVelocity : "0";
+      bioTrig.innerText = `V-Açısı: ${vA}°, Tendon Hızı: ${tV}°/s`;
+    }
+    const gtEl = $("mind-game-theory");
+    if (gtEl) {
+      const strat = (typeof liveAnalysis !== "undefined" && liveAnalysis) ? liveAnalysis.strategyLabel : "Markov & WSLS";
+      gtEl.innerText = strat;
     }
     if (mindFinalMove) {
-      const isMatch = earlyGuess === committedMove;
-      mindFinalMove.innerText = `${trNames[committedMove]} ${icons[committedMove]} (${isMatch ? "%100 Uyum" : "%98 Doğruluk"})`;
+      mindFinalMove.innerText = `${trNames[committedMove] || committedMove} ${icons[committedMove] || ""}`;
     }
     if (mindCounterMove) {
-      mindCounterMove.innerText = `${trNames[counterMove]} ${icons[counterMove]} (Antitezi)`;
+      mindCounterMove.innerText = `${trNames[finalBotCounter] || finalBotCounter} ${icons[finalBotCounter] || ""} (Kilitlenen Antitez)`;
     }
     if (clashAnalysis) {
-      clashAnalysis.innerText = `"Vuruş masaya varmadan ${leadTimeMs}ms önce parmak ivmesini okudum ve ${trNames[counterMove]} hamlesini kilitledim."`;
+      if (winner === "AI") {
+        clashAnalysis.innerText = `"Vuruş masaya varmadan ${leadTimeMs}ms önce parmak ivmeni ve Markov-2 modelini okudum; ${trNames[earlyGuess] || earlyGuess} tahmin edip ${trNames[finalBotCounter]} kilitledim."`;
+      } else if (winner === "USER") {
+        clashAnalysis.innerText = `"Havadayken ${trNames[earlyGuess] || earlyGuess} bekleyip ${trNames[finalBotCounter]} kilitledim; ancak son anda ${trNames[committedMove] || committedMove} yaparak yapay zekayı ters köşe yaptın!"`;
+      } else {
+        clashAnalysis.innerText = `"İkimiz de aynı anda ${trNames[committedMove] || committedMove} hamlesini kilitledik; tur berabere sonuçlandı."`;
+      }
     }
 
     if (resultBanner) resultBanner.classList.remove("hidden");
-    if (rivalStateTag) rivalStateTag.innerText = `VURDU: ${trNames[counterMove].toUpperCase()}`;
-    if (hintMsg) hintMsg.innerHTML = `⚡ <strong>Tur ${currentSeriesTurn} Tamamlandı:</strong> AI kazandı! Sonraki tur için hazırlan...`;
+    if (rivalStateTag) rivalStateTag.innerText = `KİLİTLENDİ: ${(trNames[finalBotCounter] || finalBotCounter).toUpperCase()}`;
+
+    if (hintMsg) {
+      if (winner === "AI") {
+        hintMsg.innerHTML = `⚡ <strong>Tur ${currentSeriesTurn} Tamamlandı:</strong> AI -${leadTimeMs}ms önceden tahmin ederek kazandı!`;
+      } else if (winner === "USER") {
+        hintMsg.innerHTML = `🎉 <strong>Tur ${currentSeriesTurn} Tamamlandı:</strong> Harika feint! AI'yı ters köşe yaptın ve kazandın!`;
+      } else {
+        hintMsg.innerHTML = `🤝 <strong>Tur ${currentSeriesTurn} Tamamlandı:</strong> Berabere! İki taraf da aynı hamleyi yaptı.`;
+      }
+    }
+
+    sound.speak(winner === "AI" ? (trNames[finalBotCounter] || "Yapay zeka") : (winner === "USER" ? "Tebrikler" : "Berabere"));
 
   } else {
     // ==================== MINDTWIN PREDICTIVE MOVEMENT CLASH ====================
@@ -1848,9 +2066,13 @@ function showSeriesChampionModal() {
       const row = document.createElement("div");
       row.className = "history-turn-row";
       if (activeGameMode === "rps") {
+        const isUser = (item.winner === "USER");
+        const isAi = (item.winner === "AI");
+        const winLabel = isUser ? "SEN KAZANDIN" : (isAi ? "AI KAZANDI" : "BERABERE");
+        const winClass = isUser ? "user" : (isAi ? "ai" : "tie");
         row.innerHTML = `
           <span><b>Tur ${item.turn}:</b> Sen (${icons[item.playerMove] || ''} ${trNames[item.playerMove] || item.playerMove}) vs AI (${icons[item.botMove] || ''} ${trNames[item.botMove] || item.botMove})</span>
-          <span class="ht-winner ai">AI KAZANDI (-${item.leadTimeMs}ms)</span>
+          <span class="ht-winner ${winClass}">${winLabel} (-${item.leadTimeMs}ms)</span>
         `;
       } else {
         const isAi = (item.winner === "AI");
@@ -1864,7 +2086,13 @@ function showSeriesChampionModal() {
   }
 
   seriesModal.classList.remove("hidden");
-  sound.speak("5 tur serisi tamamlandı. Yapay zeka tüm olasılıkları hesaplayarak kazandı.");
+  if (p1SeriesScore > p2SeriesScore) {
+    sound.speak("Tebrikler! 5 tur serisini kazandınız!");
+  } else if (p2SeriesScore > p1SeriesScore) {
+    sound.speak("5 tur serisi tamamlandı. Yapay zeka tüm olasılıkları hesaplayarak kazandı.");
+  } else {
+    sound.speak("5 tur serisi berabere sonuçlandı.");
+  }
 }
 
 function resetEntireSeries() {
@@ -1892,7 +2120,7 @@ function resetEntireSeries() {
   swingEngine.reset();
   if (hintMsg) {
     hintMsg.innerHTML = (activeGameMode === "mindtwin")
-      ? "🧠 <strong>Yeni MINDTWIN Serisi Başladı:</strong> Bahsini seç ve elini 1.. 2.. 3.. diye salla!"
+      ? "🧠 <strong>Yeni MINDTWIN Serisi Başladı:</strong> Mekanik ikizine odaklan ve elini 1.. 2.. 3.. diye salla!"
       : "👉 <strong>Yeni 5'li Seri Başladı:</strong> Tur 1/5 için elini 1.. 2.. 3.. diye salla!";
   }
 }
@@ -2043,7 +2271,13 @@ async function setupWebcam() {
   } catch (err) {
     console.warn("Kamera erişimi uyarısı:", err);
     if (hintMsg) {
-      hintMsg.innerHTML = "⚠️ <strong>Kamera Açılamadı:</strong> Lütfen adres çubuğundan kamera iznini onaylayın veya ekrana tıklayarak yeniden deneyin.";
+      if (err.name === "NotReadableError" || (err.message && err.message.includes("Device in use"))) {
+        hintMsg.innerHTML = "⚠️ <strong>Kamera Başka Bir Uygulama / Sekme Tarafından Kullanılıyor:</strong> Kamerayı kullanan diğer sekmeyi (örn. localhost:8080) veya uygulamaları (OBS, Zoom, Discord) kapatıp ekrana tıklayın!";
+      } else if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        hintMsg.innerHTML = "⚠️ <strong>Kamera İzni Reddedildi:</strong> Lütfen adres çubuğundaki kilit/kamera simgesine tıklayarak kamera iznini açın.";
+      } else {
+        hintMsg.innerHTML = `⚠️ <strong>Kamera Açılamadı:</strong> ${err.message || err.name}. Ekrana tıklayarak yeniden deneyin.`;
+      }
     }
     syncCanvasSizes();
   }
@@ -2228,6 +2462,16 @@ function mainRenderLoop() {
             if (statTendonVel) statTendonVel.innerText = `${liveAnalysis.tendonVelocity}°/s`;
             if (statPsych) statPsych.innerText = liveAnalysis.strategyLabel;
             if (markovTag) markovTag.innerText = `CANLI`;
+
+            const statAccel = $("stat-accel");
+            if (statAccel && swingEngine) {
+              const accel = Math.round((swingEngine.currentAccelY || 0) * 480);
+              statAccel.innerText = `${accel} px/s²`;
+            }
+            const statPred = $("stat-predictability");
+            if (statPred && liveAnalysis && liveAnalysis.predictabilityPct) {
+              statPred.innerText = `%${liveAnalysis.predictabilityPct}`;
+            }
           }
 
           if (camCtx && camCanvas) {

@@ -180,8 +180,13 @@
             </div>
             <div class="analyst-sub">
               <span>V-Açısı: <b id="stat-v-angle">0.0°</b></span>
-              <span>Tendon Hızı: <b id="stat-tendon-vel">0°/s</b></span>
+              <span>Tendon: <b id="stat-tendon-vel">0°/s</b></span>
               <span>Strateji: <b id="stat-psych">Nötr</b></span>
+            </div>
+            <div class="analyst-sub analyst-sub-2">
+              <span>İvme: <b id="stat-accel">0 px/s²</b></span>
+              <span>Belirlilik: <b id="stat-predictability">%33</b></span>
+              <span id="stat-lock-badge" class="stat-badge-lock">KİLİT: BEKLENİYOR</span>
             </div>
           </div>
 
@@ -245,18 +250,26 @@
             <!-- Transparent AI Decision Breakdown -->
             <div class="ai-mind-box">
               <div class="mind-row">
-                <span class="mind-lbl">⚡ Erken Sezgi:</span>
-                <span id="mind-early-guess" class="mind-val">MAKAS (-45ms)</span>
+                <span class="mind-lbl">🔒 Kilitlenme Zamanı:</span>
+                <span id="mind-early-guess" class="mind-val">-210ms Önce</span>
               </div>
               <div class="mind-row">
-                <span class="mind-lbl">🎯 Gerçekleşen:</span>
-                <span id="mind-final-move" class="mind-val">MAKAS (%100 Uyum)</span>
+                <span class="mind-lbl">⚡ Biyomekanik Tetik:</span>
+                <span id="mind-bio-trigger" class="mind-val">Tendon İvmesi & V-Açısı</span>
               </div>
               <div class="mind-row">
-                <span class="mind-lbl">🤖 İkiz Aksiyonu:</span>
-                <span id="mind-counter-move" class="mind-val">MAKAS</span>
+                <span class="mind-lbl">🧠 Karar Modeli:</span>
+                <span id="mind-game-theory" class="mind-val">Markov-2 + WSLS Hipotezi</span>
               </div>
-              <p id="clash-analysis" class="clash-analysis">"Tendonların açılma ivmesini hareket bitmeden okudum."</p>
+              <div class="mind-row">
+                <span class="mind-lbl">🎯 Senin Hamlen:</span>
+                <span id="mind-final-move" class="mind-val">MAKAS</span>
+              </div>
+              <div class="mind-row">
+                <span class="mind-lbl">🤖 Kilitlenen Antitez:</span>
+                <span id="mind-counter-move" class="mind-val">TAŞ</span>
+              </div>
+              <p id="clash-analysis" class="clash-analysis">"Vuruş masaya varmadan önce parmak ivmesini okudum ve antitezi kilitledim."</p>
             </div>
           </div>
 
