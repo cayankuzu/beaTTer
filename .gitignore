@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Live Debug Telemetry & Captures
+debug_live/
+*.log
+
+# Temp & Screenshot files
+web_screenshot_fixed.png
+
+# Vercel & Node
+.vercel/
+node_modules/
+npm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db

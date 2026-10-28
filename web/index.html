@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>beaTTer // Professional AI Hand Tracking Arena</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- TOP STATUS & SCORE BAR -->
+    <header class="app-topbar">
+      <div class="score-card p1">
+        <span class="p-label">SEN</span>
+        <span id="score-p1" class="score-number">0</span>
+      </div>
+
+      <!-- 5-Turn Match Series Tracker -->
+      <div class="series-badge">
+        <span class="series-title">5 TUR SERİSİ:</span>
+        <div class="series-pips">
+          <div class="turn-pip current" id="pip-1">1</div>
+          <div class="turn-pip" id="pip-2">2</div>
+          <div class="turn-pip" id="pip-3">3</div>
+          <div class="turn-pip" id="pip-4">4</div>
+          <div class="turn-pip" id="pip-5">5</div>
+        </div>
+        <span id="turn-indicator" class="turn-label">TUR 1/5</span>
+      </div>
+
+      <!-- Center 4-Step Rhythm Beats -->
+      <div class="beats-wrapper">
+        <div class="beat-item" id="beat-1">
+          <span class="beat-idx">1</span>
+          <span class="beat-name">TAŞ</span>
+        </div>
+        <div class="beat-sep">›</div>
+        <div class="beat-item" id="beat-2">
+          <span class="beat-idx">2</span>
+          <span class="beat-name">KAĞIT</span>
+        </div>
+        <div class="beat-sep">›</div>
+        <div class="beat-item" id="beat-3">
+          <span class="beat-idx">3</span>
+          <span class="beat-name">MAKAS</span>
+        </div>
+        <div class="beat-sep">›</div>
+        <div class="beat-item clash" id="beat-4">
+          <span class="beat-idx">4</span>
+          <span class="beat-name">VUR!</span>
+        </div>
+      </div>
+
+      <div class="score-card p2">
+        <span id="score-p2" class="score-number gold">0</span>
+        <span class="p-label gold">YAPAY ZEKA</span>
+      </div>
+    </header>
+
+    <!-- 50 / 50 MAIN BATTLE ARENA -->
+    <main class="arena-split">
+      
+      <!-- LEFT: PLAYER CAMERA FEED & MULTI-MODEL DETECTION -->
+      <section class="arena-box player-box">
+        <div class="box-top">
+          <div class="status-live">
+            <span class="live-blink"></span>
+            <span>KAMERA // DERİN SİNİR AĞI + 3D KİNEMATİK</span>
+          </div>
+          <span id="telemetry-status" class="mono-badge green">📡 CANLI İZLEME AKTİF</span>
+          <span id="fps-counter" class="mono-badge">60 FPS</span>
+        </div>
+
+        <div class="video-stage">
+          <!-- Mirrored Container: Video and Canvas align 100% pixel-for-pixel -->
+          <div class="mirror-view">
+            <video id="webcam" autoplay playsinline muted></video>
+            <canvas id="camera-canvas"></canvas>
+          </div>
+
+          <!-- Big Center Swing Rhythm Indicator -->
+          <div id="swing-popup" class="swing-popup hidden">
+            <span id="swing-popup-text">1. TAŞ!</span>
+          </div>
+
+          <!-- Real-Time Fingertip State HUD (Live Green/Red Diagnostics) -->
+          <div class="fingers-hud">
+            <div class="finger-chip" id="chip-thumb"><span class="chip-dot"></span>BAŞ: <b class="chip-val">KAPALI</b></div>
+            <div class="finger-chip" id="chip-index"><span class="chip-dot"></span>İŞARET: <b class="chip-val">KAPALI</b></div>
+            <div class="finger-chip" id="chip-mid"><span class="chip-dot"></span>ORTA: <b class="chip-val">KAPALI</b></div>
+            <div class="finger-chip" id="chip-ring"><span class="chip-dot"></span>YÜZÜK: <b class="chip-val">KAPALI</b></div>
+            <div class="finger-chip" id="chip-pinky"><span class="chip-dot"></span>SERÇE: <b class="chip-val">KAPALI</b></div>
+          </div>
+
+          <!-- Real-Time Early Anticipation HUD Pill -->
+          <div id="anticipation-pill" class="anticipation-pill hidden">
+            <span class="ant-icon">⚡</span>
+            <span class="ant-lbl">ERKEN TAHMİN:</span>
+            <span id="ant-val" class="ant-val">MAKAS ✂️</span>
+            <span id="ant-ms" class="ant-ms">-45ms</span>
+          </div>
+
+          <!-- Live Gesture Decision Pill -->
+          <div id="gesture-pill" class="decision-pill">
+            <span class="pill-label">ANLIK HAMLE:</span>
+            <span id="gesture-title" class="pill-title">TAŞ 🪨</span>
+            <span id="gesture-conf" class="pill-conf">%99</span>
+          </div>
+
+          <!-- Kinetic Wave Energy Bar (Tracks Real-Time Swing Power) -->
+          <div class="kinetic-dock">
+            <span class="dock-lbl">SALINIM HIZI & HAREKET GÜCÜ</span>
+            <div class="dock-track">
+              <div id="kinetic-fill" class="dock-fill" style="width: 15%;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: LIFE-SIZED SYNCHRONIZED OPPONENT HAND -->
+      <section class="arena-box rival-box">
+        <div class="box-top">
+          <span>YAPAY ZEKA RAKİP // ANLIK SENKRONİZASYON</span>
+          <span id="rival-state-tag" class="mono-badge gold">HAZIR</span>
+        </div>
+
+        <div class="rival-stage">
+          <canvas id="rival-canvas"></canvas>
+
+          <!-- Live AI Grandmaster Probability & Markov Matrix -->
+          <div class="analyst-dock">
+            <div class="analyst-head">
+              <span>🧠 BİYOMEKANİK & MARKOV ANALİZİ</span>
+              <span id="markov-tag" class="analyst-badge">HAZIR</span>
+            </div>
+            <div class="prob-bars">
+              <div class="prob-row">
+                <span class="prob-lbl">🪨 TAŞ</span>
+                <div class="prob-track"><div id="prob-bar-rock" class="prob-fill rock" style="width: 33%"></div></div>
+                <span id="prob-val-rock" class="prob-pct">%33</span>
+              </div>
+              <div class="prob-row">
+                <span class="prob-lbl">📄 KAĞIT</span>
+                <div class="prob-track"><div id="prob-bar-paper" class="prob-fill paper" style="width: 33%"></div></div>
+                <span id="prob-val-paper" class="prob-pct">%33</span>
+              </div>
+              <div class="prob-row">
+                <span class="prob-lbl">✂️ MAKAS</span>
+                <div class="prob-track"><div id="prob-bar-scissors" class="prob-fill scissors" style="width: 34%"></div></div>
+                <span id="prob-val-scissors" class="prob-pct">%34</span>
+              </div>
+            </div>
+            <div class="analyst-sub">
+              <span>V-Açısı: <b id="stat-v-angle">0.0°</b></span>
+              <span>Tendon Hızı: <b id="stat-tendon-vel">0°/s</b></span>
+              <span>Strateji: <b id="stat-psych">Nötr</b></span>
+            </div>
+          </div>
+
+          <!-- Clash Resolution Result Banner -->
+          <div id="result-banner" class="result-banner hidden">
+            <div id="result-winner" class="result-winner">AI KAZANDI!</div>
+            <div class="result-clash">
+              <div class="clash-side">
+                <span class="clash-tag">SENİN ELİN</span>
+                <span id="clash-p1-icon" class="clash-emoji">✂️</span>
+                <span id="clash-p1-text" class="clash-name">MAKAS</span>
+              </div>
+              <div class="clash-vs-sign">VS</div>
+              <div class="clash-side">
+                <span class="clash-tag">RAKİP</span>
+                <span id="clash-p2-icon" class="clash-emoji gold">🪨</span>
+                <span id="clash-p2-text" class="clash-name gold">TAŞ</span>
+              </div>
+            </div>
+            <!-- Transparent AI Decision Breakdown -->
+            <div class="ai-mind-box">
+              <div class="mind-row">
+                <span class="mind-lbl">⚡ 3->4 Erken Sezgi:</span>
+                <span id="mind-early-guess" class="mind-val gold">MAKAS ✂️ (-52ms)</span>
+              </div>
+              <div class="mind-row">
+                <span class="mind-lbl">🎯 Nihai Hamlen:</span>
+                <span id="mind-final-move" class="mind-val cyan">MAKAS ✂️ (%100 Uyum)</span>
+              </div>
+              <div class="mind-row">
+                <span class="mind-lbl">🤖 AI Karşı Kararı:</span>
+                <span id="mind-counter-move" class="mind-val green">TAŞ 🪨 (Kazanma Stratejisi)</span>
+              </div>
+              <p id="clash-analysis" class="clash-analysis">"Tendonların açılma ivmesini elin masaya çarpmadan önce okudum."</p>
+            </div>
+          </div>
+
+          <!-- 5-Turn Series Champion Summary Modal -->
+          <div id="series-modal" class="series-modal hidden">
+            <div class="series-modal-content">
+              <div class="series-modal-header">
+                <span class="series-trophy">🏆</span>
+                <h2 id="series-modal-title">5 TUR SERİSİ BİTTİ!</h2>
+                <p id="series-modal-subtitle">Yapay zeka tüm olasılıkları hesaplayarak seriyi kazandı.</p>
+              </div>
+              <div class="series-modal-score">
+                <div class="modal-p1"><span class="mp-label">SEN</span><b id="series-p1-score">0</b></div>
+                <div class="modal-vs">:</div>
+                <div class="modal-p2"><b id="series-p2-score">5</b><span class="mp-label gold">AI</span></div>
+              </div>
+              <div class="series-history-list" id="series-history-list">
+                <!-- Dynamically populated turn-by-turn history -->
+              </div>
+              <button id="btn-new-series" class="btn primary full">🔥 Yeni 5'li Seri Başlat</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- FOOTER CONTROLS & FINE-TUNING PANEL TRIGGER -->
+    <footer class="app-footer">
+      <div id="hint-msg" class="hint-msg">
+        💡 <strong>Nasıl Oynanır:</strong> Elini yumruk (Taş) yap ve kameranın karşısında <strong>1.. 2.. 3..</strong> diye salla, 4. vuruşta elini aç!
+      </div>
+
+      <div class="footer-btns">
+        <button id="btn-toggle-settings" class="btn">⚙️ Hassasiyet & İnce Ayarlar</button>
+        <button id="btn-sound" class="btn">🔊 Ses Açık</button>
+        <button id="btn-reset-match" class="btn">🔄 Sıfırla</button>
+        <button id="btn-instant-shoot" class="btn primary">⚡ Şimdi Vur! (SPACE)</button>
+      </div>
+    </footer>
+
+    <!-- REAL-TIME FINE-TUNING & CALIBRATION DRAWER -->
+    <div id="settings-drawer" class="settings-drawer hidden">
+      <div class="drawer-header">
+        <h3>⚙️ GELİŞMİŞ HAREKET & AÇI KALİBRASYON PANELİ</h3>
+        <button id="btn-close-settings" class="btn-x">✕</button>
+      </div>
+
+      <div class="drawer-body">
+        <!-- 1. Salınım Hassasiyeti -->
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>Salınım Hassasiyeti (Hareket Algılama)</span>
+            <span id="val-sensitivity" class="setting-val">Orta (Dinamik)</span>
+          </div>
+          <input type="range" id="range-sensitivity" min="1" max="5" value="3" step="1">
+          <small>Hızlı veya küçük el sallamalarını algılama hassasiyeti.</small>
+        </div>
+
+        <!-- 2. Parmak Açılma Eşiği -->
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>Parmak Bükülme Toleransı (3D Açı)</span>
+            <span id="val-flexion" class="setting-val">%42</span>
+          </div>
+          <input type="range" id="range-flexion" min="20" max="65" value="42" step="1">
+          <small>Elin kameraya eğik dururken parmakların açık/kapalı sayılma eşiği.</small>
+        </div>
+
+        <!-- 3. Makas Başparmak Modu -->
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>Makas Başparmak Toleransı</span>
+            <span id="val-scissors-mode" class="setting-val">Geniş (2 veya 3 Parmak)</span>
+          </div>
+          <select id="select-scissors-mode">
+            <option value="permissive" selected>Geniş: Başparmak açık veya kapalı olsa da Makas tanı</option>
+            <option value="strict">Katı: Sadece klasik kapalı başparmaklı Makas</option>
+          </select>
+          <small>Bazı oyuncular makas yaparken başparmağını dışarı açar; bunu otomatik tolere eder.</small>
+        </div>
+
+        <!-- 4. Oyun Akış Modu -->
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>Oyun Modu</span>
+          </div>
+          <select id="select-game-mode">
+            <option value="rhythm4" selected>Klasik 4'lü Ritim: 1. Taş • 2. Kağıt • 3. Makas • 4. Vur!</option>
+            <option value="quick1">Hızlı Mod: Tek sallamada anında vur!</option>
+            <option value="spaceOnly">Manuel Mod: Sadece Space / Buton ile vur</option>
+          </select>
+        </div>
+
+        <!-- Otomatik Kalibrasyon Butonu -->
+        <div class="drawer-actions">
+          <button id="btn-auto-calibrate" class="btn primary full">🎯 Kameramı Otomatik Kalibre Et</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
