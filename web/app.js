@@ -2566,10 +2566,15 @@ if (playerStage) {
     if (!video || !video.srcObject || video.paused) {
       setupWebcam();
     }
+    if (!gestureRecognizer) {
+      initRecognizer();
+    }
   });
 }
 
 (async () => {
-  await setupWebcam();
-  await initRecognizer();
+  await Promise.all([
+    setupWebcam(),
+    initRecognizer()
+  ]);
 })();
