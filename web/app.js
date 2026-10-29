@@ -1547,9 +1547,22 @@ class MindTwinEngine {
   }
 }
 // ==================== 6. APPLICATION CONTROLLER & 5-TURN SERIES STATE ====================
+const config = {
+  flexionThreshold: 0.42,
+  sensitivityLevel: 3,
+  gameMode: "rhythm4"
+};
+
 const sound = new SoundFX();
 const mindTwinEngine = new MindTwinEngine();
 const analyst = new RPSPsychologicalAnalyst();
+const rpsPredictiveEngine = (typeof RPSPredictiveEngine !== "undefined")
+  ? new RPSPredictiveEngine({ mode: config.gameMode, sensitivityLevel: config.sensitivityLevel })
+  : ((typeof window !== "undefined" && window.RPSPredictiveEngine) ? new window.RPSPredictiveEngine({ mode: config.gameMode, sensitivityLevel: config.sensitivityLevel }) : null);
+
+if (typeof window !== "undefined") {
+  window.rpsPredictiveEngine = rpsPredictiveEngine;
+}
 
 let activeGameMode = "rps"; // "rps" or "mindtwin"
 let playerParityBet = "EVEN"; // "EVEN" or "ODD" 
@@ -1573,12 +1586,6 @@ let lastTrackedTime = 0;
 // Derivative Tracker
 let prevFingerScores = null;
 let prevFrameTime = performance.now();
-
-const config = {
-  flexionThreshold: 0.42,
-  sensitivityLevel: 3,
-  gameMode: "rhythm4"
-};
 
 const recentDecisions = [];
 const $ = (id) => document.getElementById(id);
@@ -1813,7 +1820,98 @@ window.setGameMode = setGameMode;
 window.resetEntireSeries = resetEntireSeries;
 window.setupWebcam = setupWebcam;
 
-function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCounter = null) {
+function handleRpsEngineEvents(events) {
+  if (!events || !events.length) return;
+
+  const trNames = { ROCK: "Taş", PAPER: "Kağıt", SCISSORS: "Makas" };
+  const icons = { ROCK: "🪨", PAPER: "📄", SCISSORS: "✂️" };
+
+  for (const ev of events) {
+    if (ev.type === "turnStart") {
+      document.querySelectorAll(".rhythm-chip").forEach(el => el.classList.remove("active"));
+      if (rivalStateTag) rivalStateTag.innerText = "HAZIR";
+    } else if (ev.type === "beat") {
+      sound.init();
+      const beatLabels = ["", "Taş", "Kağıt", "Makas", "Vur"];
+      const bText = beatLabels[ev.n] || "";
+      sound.speak(bText);
+      sound.playBeat(500 + ev.n * 130);
+
+      document.querySelectorAll(".rhythm-chip").forEach(el => el.classList.remove("active"));
+      const bEl = $(`beat-${ev.n}`);
+      if (bEl) bEl.classList.add("active");
+
+      const popup = $("swing-popup");
+      const popupTxt = $("swing-popup-text");
+      if (popup && popupTxt) {
+        popupTxt.innerText = `${ev.n}. ${bText.toUpperCase()}!`;
+        popup.className = `swing-popup ${ev.n === 4 ? "clash" : ""}`;
+        popup.classList.remove("hidden");
+        clearTimeout(window._popupTimer);
+        window._popupTimer = setTimeout(() => popup.classList.add("hidden"), 420);
+      }
+
+      if (hintMsg) hintMsg.innerHTML = `🔥 <strong>Tur ${currentSeriesTurn}/5:</strong> ${ev.n}. ${bText}!`;
+      rivalHand.gesture = "ROCK";
+      if (rivalStateTag) rivalStateTag.innerText = `SALLANIYOR (${bText.toUpperCase()})`;
+
+    } else if (ev.type === "watch") {
+      if (rivalStateTag) rivalStateTag.innerText = "⚡ NİYET OKUNUYOR...";
+    } else if (ev.type === "onset") {
+      if (hintMsg) hintMsg.innerHTML = `⚡ <strong>Tendon Açılması Sezildi:</strong> İniş ivmesi okunuyor...`;
+    } else if (ev.type === "lock") {
+      sound.init();
+      sound.playLock();
+      const l = ev.lock;
+      rivalHand.gesture = l.counter;
+      if (rivalStateTag) rivalStateTag.innerText = `🔒 KİLİTLENDİ: ${(trNames[l.counter] || l.counter).toUpperCase()}`;
+
+      if (anticipationPill && antVal && antMs) {
+        anticipationPill.classList.add("locked");
+        antVal.innerText = `🔒 ${trNames[l.counter] || l.counter} #${l.seal}`;
+        antMs.innerText = `-${Math.round(l.expectedLeadMs || 210)}ms`;
+        anticipationPill.classList.remove("hidden");
+      }
+
+      const lockBadge = $("stat-lock-badge");
+      if (lockBadge) {
+        lockBadge.className = "stat-badge-lock locked";
+        lockBadge.innerText = `🔒 #${l.seal} (-${Math.round(l.expectedLeadMs || 210)}ms)`;
+      }
+
+      if (hintMsg) {
+        hintMsg.innerHTML = `🔒 <strong>Karar Mühürlendi (#${l.seal}):</strong> AI havadayken ${trNames[l.counter]} kilitledi! Ters köşe yapabilirsin!`;
+      }
+
+    } else if (ev.type === "impact") {
+      sound.playImpact();
+      document.querySelectorAll(".rhythm-chip").forEach(el => el.classList.remove("active"));
+      if (beat4) beat4.classList.add("active");
+      document.body.classList.add("shake-fx");
+      setTimeout(() => document.body.classList.remove("shake-fx"), 250);
+
+    } else if (ev.type === "reveal") {
+      const res = ev.result;
+      triggerClash(res.final, res.pred, res.leadImpactMs, res.ai, res.seal, res.sealOk);
+
+    } else if (ev.type === "abort") {
+      document.querySelectorAll(".rhythm-chip").forEach(el => el.classList.remove("active"));
+      if (anticipationPill) {
+        anticipationPill.classList.remove("locked");
+        anticipationPill.classList.add("hidden");
+      }
+      const lockBadge = $("stat-lock-badge");
+      if (lockBadge) {
+        lockBadge.className = "stat-badge-lock";
+        lockBadge.innerText = "KİLİT: BEKLENİYOR";
+      }
+      if (rivalStateTag) rivalStateTag.innerText = "HAZIR";
+    }
+  }
+}
+window.handleRpsEngineEvents = handleRpsEngineEvents;
+
+function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCounter = null, seal = null, sealOk = true) {
   if (isResolving) return;
   isResolving = true;
   sound.init();
@@ -1891,6 +1989,12 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
 
     if (mindEarlyGuess) {
       mindEarlyGuess.innerText = `-${leadTimeMs}ms Önce (Havadayken)`;
+    }
+    const mindSeal = $("mind-seal");
+    if (mindSeal) {
+      const activeSeal = seal || (typeof fnv1a === "function" ? fnv1a(`T${currentSeriesTurn}|${earlyGuess}|${finalBotCounter}|${leadTimeMs}`) : "BEAT8821");
+      mindSeal.innerText = `MÜHÜR #${activeSeal} (${sealOk ? "✓ DOĞRULANDI" : "GEÇERSİZ"})`;
+      mindSeal.className = `mind-val mono-seal ${sealOk ? "verified" : "invalid"}`;
     }
     const bioTrig = $("mind-bio-trigger");
     if (bioTrig) {
@@ -2045,6 +2149,9 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
           ? `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Elini kameranın karşısında salla, parmaklarını aç!`
           : `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Elini yumruk yapıp 1.. 2.. 3.. diye salla, 4'te vur!`;
       }
+      if (typeof rpsPredictiveEngine !== "undefined" && rpsPredictiveEngine) {
+        rpsPredictiveEngine.nextTurn();
+      }
       isResolving = false;
     } else {
       showSeriesChampionModal();
@@ -2118,6 +2225,9 @@ function resetEntireSeries() {
   if (resultBanner) resultBanner.classList.add("hidden");
   isResolving = false;
   swingEngine.reset();
+  if (typeof rpsPredictiveEngine !== "undefined" && rpsPredictiveEngine) {
+    rpsPredictiveEngine.resetModel();
+  }
   if (hintMsg) {
     hintMsg.innerHTML = (activeGameMode === "mindtwin")
       ? "🧠 <strong>Yeni MINDTWIN Serisi Başladı:</strong> Mekanik ikizine odaklan ve elini 1.. 2.. 3.. diye salla!"
@@ -2514,7 +2624,17 @@ function mainRenderLoop() {
           if (gestureConf) gestureConf.innerText = `%${(finalConfidence * 100).toFixed(1)}`;
 
           if (!isResolving) {
-            swingEngine.process(activeLms, finalGesture, currentKinematic.scores, liveAnalysis);
+            if (typeof rpsPredictiveEngine !== "undefined" && rpsPredictiveEngine) {
+              const evs = rpsPredictiveEngine.update({
+                t: now,
+                world: activeWorldLms,
+                image: activeLms,
+                gesture: finalGesture
+              });
+              handleRpsEngineEvents(evs);
+            } else {
+              swingEngine.process(activeLms, finalGesture, currentKinematic.scores, liveAnalysis);
+            }
           }
 
         } else {

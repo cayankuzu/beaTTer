@@ -47,7 +47,7 @@ def test_browser():
         print("Testing Honest Clash in RPS mode...")
         # Simulate AI locking PAPER, Player throwing SCISSORS -> Player wins!
         page.evaluate("""() => {
-            triggerClash('SCISSORS', 'ROCK', 215, 'PAPER');
+            window.triggerClash('SCISSORS', 'ROCK', 215, 'PAPER', 'A1B2C3D4', true);
         }""")
         time.sleep(0.5)
 
@@ -63,6 +63,12 @@ def test_browser():
         early_guess = page.inner_text("#mind-early-guess")
         print(f"Breakdown lock lead time: {early_guess}")
         assert "-215ms" in early_guess
+
+        # Check seal row
+        seal_text = page.inner_text("#mind-seal")
+        print(f"Cryptographic seal text: {seal_text}")
+        assert "MÜHÜR #" in seal_text
+        assert "DOĞRULANDI" in seal_text
 
         screenshot_rps = os.path.join(artifacts_dir, "screen_rps_honest_prelock.png")
         page.screenshot(path=screenshot_rps)
@@ -82,8 +88,8 @@ def test_browser():
 
         # Simulate MindTwin clash
         page.evaluate("""() => {
-            mindTwinEngine.currentPredictedCount = 3;
-            triggerClash(3, 3, 190);
+            window.mindTwinEngine.currentPredictedCount = 3;
+            window.triggerClash(3, 3, 190);
         }""")
         time.sleep(0.5)
 

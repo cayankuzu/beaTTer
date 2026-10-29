@@ -122,7 +122,7 @@ const elementIds = [
   "fdot-thumb", "fdot-index", "fdot-mid", "fdot-ring", "fdot-pinky",
   "kinetic-fill", "result-winner", "clash-p1-icon", "clash-p1-text", "clash-p2-icon", "clash-p2-text",
   "mind-early-guess", "mind-final-move", "mind-counter-move", "clash-analysis",
-  "mindtwin-lead-badge", "mindtwin-sub-strategy", "stat-v-angle", "stat-tendon-vel", "stat-psych", "stat-accel", "stat-predictability", "stat-lock-badge", "mind-bio-trigger", "mind-game-theory"
+  "mindtwin-lead-badge", "mindtwin-sub-strategy", "stat-v-angle", "stat-tendon-vel", "stat-psych", "stat-accel", "stat-predictability", "stat-lock-badge", "mind-bio-trigger", "mind-game-theory", "mind-seal"
 ];
 for (let i = 1; i <= 5; i++) elementIds.push(`pip-${i}`);
 elementIds.forEach(id => getOrCreateElement(id));
@@ -246,10 +246,12 @@ assert("5 turns recorded", app.p2SeriesScore() >= 5);
 app.resetEntireSeries();
 app.setGameMode("rps");
 // AI locked PAPER (predicting ROCK), but player unexpectedly threw SCISSORS!
-app.triggerClash("SCISSORS", "ROCK", 210, "PAPER");
+app.triggerClash("SCISSORS", "ROCK", 210, "PAPER", "A1B2C3D4", true);
 assert("Player score incremented on successful RPS feint", app.p1SeriesScore() === 1);
 assert("AI score remains 0", app.p2SeriesScore() === 0);
 assert("Winner banner says SEN KAZANDIN! AI ŞAŞIRTILDI!", getOrCreateElement("result-winner").innerText.includes("SEN KAZANDIN"));
+assert("Cryptographic seal displayed in banner", getOrCreateElement("mind-seal").innerText.includes("MÜHÜR #A1B2C3D4"));
+assert("Cryptographic seal verified", getOrCreateElement("mind-seal").innerText.includes("DOĞRULANDI"));
 
 // TEST 11: RPS Tie (Both throw same move)
 app.resetIsResolving();

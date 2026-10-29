@@ -1100,3 +1100,28 @@ body {
 .ht-winner.tie {
   color: #f59e0b;
 }
+
+
+/* Cryptographic Lock Seal Styling */
+.mono-seal {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: #06b6d4;
+  font-weight: 700;
+}
+
+.mono-seal.verified {
+  color: #10b981;
+}
+
+.mono-seal.invalid {
+  color: #ef4444;
+}
+
+.seal-row {
+  background: rgba(6, 182, 212, 0.08);
+  padding: 3px 6px;
+  border-radius: 4px;
+  border-left: 2px solid #06b6d4;
+}
