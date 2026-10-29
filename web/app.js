@@ -560,8 +560,8 @@ class KineticSurgeEngine {
         }
       }
 
-      // If the 4th strike is falling through the air and we haven't locked our move yet:
-      if (this.swing4Phase === "DESCENDING" && !this.isLocked) {
+      // If the 4th strike is falling through the air:
+      if (this.swing4Phase === "DESCENDING") {
         const dropDist = cy - this.swing4ApexY;
         const dropProgress = dropDist / Math.max(0.06, amp);
         const descentMs = now - this.swing4DescentStartT;
@@ -605,30 +605,31 @@ class KineticSurgeEngine {
             recognized = "PAPER";
           }
           // 3. ROCK in mid-air (hand is descending, confirmed clench)
+          // CRITICAL: Never declare Rock before human has physical time to uncurl fingers!
           else if (
-            (dropProgress >= 0.32 || cy >= midY || descentMs >= 80) &&
-            (sAll <= 0.34 && sFront <= 0.36 && deltaScissors < 0.15 && (!kin.openCount || kin.openCount === 0))
+            (dropProgress >= 0.48 && descentMs >= 140) &&
+            (sAll <= 0.34 && sFront <= 0.36 && deltaScissors < 0.15 && neuralG !== "SCISSORS" && neuralG !== "PAPER" && (!kin.openCount || kin.openCount === 0))
           ) {
             recognized = "ROCK";
           }
           else if (
-            (dropProgress >= 0.26 || descentMs >= 65) &&
-            (neuralG === "ROCK" && neuralS >= 0.65 && sAll <= 0.36)
+            (dropProgress >= 0.45 && descentMs >= 130) &&
+            (neuralG === "ROCK" && neuralS >= 0.70 && sAll <= 0.32)
           ) {
             recognized = "ROCK";
           }
-          // 4. Fail-safe at 50% descent or 135ms of downward motion
-          else if (dropProgress >= 0.50 || cy >= midY + 0.015 || descentMs >= 135) {
-            if (deltaScissors >= 0.15 || ((scores.index || 0) > 0.40 && (scores.middle || 0) > 0.40)) {
+          // 4. Fail-safe before strike bottom (at 60% descent or 170ms)
+          else if (dropProgress >= 0.60 || cy >= midY + 0.020 || descentMs >= 170) {
+            if (deltaScissors >= 0.15 || ((scores.index || 0) > 0.40 && (scores.middle || 0) > 0.40 && (scores.ring || 0) <= 0.38)) {
               recognized = "SCISSORS";
-            } else if (sAll >= 0.40 || sBack >= 0.35) {
+            } else if (sAll >= 0.40 || sBack >= 0.35 || neuralG === "PAPER") {
               recognized = "PAPER";
             } else {
               recognized = "ROCK";
             }
           }
 
-          if (recognized) {
+          if (recognized && !this.isLocked) {
             const leadMs = Math.max(90, Math.min(320, Math.round(now - this.anticipationStartTime)));
             this._executePreLock(gesture, fingerScores, liveProbs, now, {
               predictedMove: recognized,
@@ -636,6 +637,25 @@ class KineticSurgeEngine {
               dropProgress,
               descentMs
             });
+          } else if (this.isLocked && this.lockedPrediction === "ROCK" && dropProgress < 0.88) {
+            // Late snap reflex: if player kept fist closed early but snapped open late
+            if ((neuralG === "SCISSORS" && neuralS >= 0.55) || (deltaScissors >= 0.18 && sFront >= 0.38)) {
+              this._executePreLock(gesture, fingerScores, liveProbs, now, {
+                predictedMove: "SCISSORS",
+                leadTimeMs: Math.max(70, Math.round(now - this.anticipationStartTime)),
+                dropProgress,
+                descentMs,
+                isLateOverride: true
+              });
+            } else if ((neuralG === "PAPER" && neuralS >= 0.55) || (sAll >= 0.42 && sBack >= 0.36)) {
+              this._executePreLock(gesture, fingerScores, liveProbs, now, {
+                predictedMove: "PAPER",
+                leadTimeMs: Math.max(70, Math.round(now - this.anticipationStartTime)),
+                dropProgress,
+                descentMs,
+                isLateOverride: true
+              });
+            }
           }
         }
       }
@@ -2303,26 +2323,70 @@ function syncCanvasSizes() {
 }
 window.addEventListener("resize", syncCanvasSizes);
 
-async function setupWebcam() {
+async function requestCameraStream(selectedDeviceId = null) {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    throw new Error("Tarayıcınız kamera API'sini (getUserMedia) desteklemiyor.");
+  }
+  const constraintList = [];
+  if (selectedDeviceId) {
+    constraintList.push({ video: { deviceId: { exact: selectedDeviceId }, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    constraintList.push({ video: { deviceId: { exact: selectedDeviceId } }, audio: false });
+  }
+  constraintList.push({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+  constraintList.push({ video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+  constraintList.push({ video: true, audio: false });
+
+  let lastErr = null;
+  for (const c of constraintList) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(c);
+      if (stream) return stream;
+    } catch (e) {
+      lastErr = e;
+      if (e.name === "NotReadableError") {
+        break;
+      }
+    }
+  }
+  throw lastErr;
+}
+
+async function populateCameraDevices() {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(d => d.kind === "videoinput");
+    const select = $("select-camera-device");
+    if (select && videoDevices.length > 1) {
+      select.innerHTML = "";
+      videoDevices.forEach((dev, idx) => {
+        const opt = document.createElement("option");
+        opt.value = dev.deviceId;
+        opt.innerText = dev.label || `Kamera ${idx + 1}`;
+        select.appendChild(opt);
+      });
+      select.classList.remove("hidden");
+      select.onchange = () => setupWebcam(select.value);
+    }
+  } catch (e) {}
+}
+
+async function setupWebcam(selectedDeviceId = null) {
   if (!video) return;
+  const overlay = $("camera-error-overlay");
+  const titleEl = $("cam-err-title");
+  const descEl = $("cam-err-desc");
+
   try {
     if (hintMsg) {
       hintMsg.innerHTML = "📷 <strong>Kamera Başlatılıyor:</strong> Lütfen tarayıcınızın kamera erişim isteğine izin verin...";
     }
-    const constraints = {
-      video: {
-        facingMode: "user",
-        width: { ideal: 640 },
-        height: { ideal: 480 }
-      },
-      audio: false
-    };
     // Stop any existing streams
     if (video.srcObject && typeof video.srcObject.getTracks === "function") {
       video.srcObject.getTracks().forEach(t => { try { t.stop(); } catch(e){} });
       video.srcObject = null;
     }
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const stream = await requestCameraStream(selectedDeviceId);
     video.srcObject = stream;
     video.setAttribute("playsinline", "true");
     video.setAttribute("autoplay", "true");
@@ -2338,21 +2402,33 @@ async function setupWebcam() {
     });
     try { await video.play(); } catch (e) { console.warn("video.play() exception:", e); }
 
+    if (overlay) overlay.classList.add("hidden");
     syncCanvasSizes();
+    populateCameraDevices();
+
     if (hintMsg) {
       hintMsg.innerHTML = (activeGameMode === "mindtwin")
-        ? "🤖 <strong>MINDTWIN Aktif:</strong> Elini göster — 3D Mekanik İkiz avuç yönünü, eklemlerini ve hareket niyetini anında simüle ediyor!"
+        ? "🤖 <strong>MINDTWIN Aktif:</strong> Elini göster — Mekanik İkiz parmaklarını anında senkronize ediyor!"
         : "👊 <strong>Oyun Hazır:</strong> Tur 1/5 için elini 1.. 2.. 3.. diye salla!";
     }
   } catch (err) {
     console.warn("Kamera erişimi uyarısı:", err);
+    if (overlay) overlay.classList.remove("hidden");
+    populateCameraDevices();
+
     if (hintMsg) {
-      if (err.name === "NotReadableError" || (err.message && err.message.includes("Device in use"))) {
-        hintMsg.innerHTML = "⚠️ <strong>Kamera Başka Bir Uygulama / Sekme Tarafından Kullanılıyor:</strong> Kamerayı kullanan diğer sekmeyi (örn. localhost:8080) veya uygulamaları (OBS, Zoom, Discord) kapatıp ekrana tıklayın!";
-      } else if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+      if (err && (err.name === "NotReadableError" || (err.message && err.message.includes("Device in use")))) {
+        if (titleEl) titleEl.innerText = "Kamera Başka Bir Yerde Kullanılıyor";
+        if (descEl) descEl.innerText = "Kamera başka bir sekmede (örn. localhost:8080) veya uygulamada (OBS, Discord, Zoom) açık. Lütfen o sekmeyi/uygulamayı kapatıp 'Yeniden Dene' butonuna tıklayın.";
+        hintMsg.innerHTML = "⚠️ <strong>Kamera Başka Bir Uygulama / Sekme Tarafından Kullanılıyor:</strong> Diğer uygulamayı kapatıp ekrandaki butona tıklayın!";
+      } else if (err && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError")) {
+        if (titleEl) titleEl.innerText = "Kamera İzni Gerekli";
+        if (descEl) descEl.innerText = "Adres çubuğundaki kilit veya kamera simgesine tıklayarak kamera erişimini 'İzin Ver' yapın ve butona tıklayın.";
         hintMsg.innerHTML = "⚠️ <strong>Kamera İzni Reddedildi:</strong> Lütfen adres çubuğundaki kilit/kamera simgesine tıklayarak kamera iznini açın.";
       } else {
-        hintMsg.innerHTML = `⚠️ <strong>Kamera Açılamadı:</strong> ${err.message || err.name}. Ekrana tıklayarak yeniden deneyin.`;
+        if (titleEl) titleEl.innerText = "Kamera Başlatılamadı";
+        if (descEl) descEl.innerText = `${(err && err.message) || (err && err.name) || 'Bilinmeyen hata'}. Lütfen kameranızı kontrol edip butona tıklayın.`;
+        hintMsg.innerHTML = `⚠️ <strong>Kamera Açılamadı:</strong> ${(err && err.message) || (err && err.name)}. Ekrana tıklayarak yeniden deneyin.`;
       }
     }
     syncCanvasSizes();
@@ -2889,6 +2965,28 @@ window.addEventListener("keydown", (e) => {
       sound.init();
       triggerClash(currentDetectedGesture, currentDetectedGesture, 45);
     }
+  }
+});
+
+// Camera Recovery Overlay Button & Stream Cleanup
+const btnRetryCam = $("btn-retry-camera");
+if (btnRetryCam) {
+  btnRetryCam.addEventListener("click", (e) => {
+    e.stopPropagation();
+    sound.init();
+    setupWebcam();
+  });
+}
+
+// Global user interaction unlock for Web Audio & Speech Synthesis
+window.addEventListener("pointerdown", () => {
+  sound.init();
+}, { once: true });
+
+// Release camera hardware lock immediately on page hide or navigation
+window.addEventListener("pagehide", () => {
+  if (video && video.srcObject && typeof video.srcObject.getTracks === "function") {
+    video.srcObject.getTracks().forEach(t => { try { t.stop(); } catch(e){} });
   }
 });
 

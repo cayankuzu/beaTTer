@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>beaTTer // Minimalist AI Hand Tracking & Digital Twin Arena</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="alternate icon" href="favicon.ico">
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -96,6 +98,19 @@
           <div class="mirror-view">
             <video id="webcam" autoplay playsinline muted></video>
             <canvas id="camera-canvas"></canvas>
+          </div>
+
+          <!-- Camera Error & Recovery Overlay -->
+          <div id="camera-error-overlay" class="camera-error-overlay hidden">
+            <div class="camera-error-card">
+              <span class="cam-err-icon">📷</span>
+              <h3 id="cam-err-title">Kamera Bağlantısı Bekleniyor</h3>
+              <p id="cam-err-desc">El hareketlerini algılamak için kameraya izin verin veya kamerayı kullanan diğer uygulamaları kapatın.</p>
+              <div class="cam-err-actions">
+                <button id="btn-retry-camera" class="btn primary">🔄 Kamerayı Başlat / Yeniden Dene</button>
+                <select id="select-camera-device" class="cam-device-select hidden"></select>
+              </div>
+            </div>
           </div>
 
           <!-- Center Swing Rhythm Popup -->

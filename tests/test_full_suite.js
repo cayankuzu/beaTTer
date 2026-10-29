@@ -405,7 +405,45 @@ const mockKinematicRock = {
 rockEngine.process(Array(21).fill(0).map(() => ({ x: 0.5, y: 0.48 })), "ROCK", mockKinematicRock.scores, null, mockKinematicRock, "ROCK", 0.96);
 assert("In-Air Rock confirmed clench locked counter PAPER", rockLock !== null && rockLock.counter === "PAPER");
 
-// TEST 19: CanvasRivalHand thrustAnimation exists and scales up
+// TEST 19: Late Snap Feint Override (Player snaps Scissors in flight after initial clench)
+let snapLock = null;
+const snapEngine = new app.KineticSurgeEngine({
+  onBeat: () => {},
+  onAnticipate: () => {},
+  onPreLock: (pred, counter, leadMs, opts) => { snapLock = { pred, counter, leadMs, opts }; },
+  onClash: () => {},
+  onReset: () => {}
+});
+const tSnap = global.performance.now();
+snapEngine.step = 3;
+snapEngine.anticipationActive = true;
+snapEngine.swing4Phase = "DESCENDING";
+snapEngine.swing4ApexY = 0.20;
+snapEngine.swing4DescentStartT = tSnap - 150;
+snapEngine.lastBeatTime = tSnap - 200;
+snapEngine.isLocked = true;
+snapEngine.lockedPrediction = "ROCK";
+snapEngine.lockedCounter = "PAPER";
+snapEngine.history = [
+  { x: 0.5, y: 0.18, t: tSnap - 200 },
+  { x: 0.5, y: 0.20, t: tSnap - 150 },
+  { x: 0.5, y: 0.28, t: tSnap - 110 },
+  { x: 0.5, y: 0.35, t: tSnap - 60 },
+  { x: 0.5, y: 0.45, t: tSnap - 10 }
+];
+// Player suddenly bursts open Scissors at y=0.35 (dropProgress ~ 0.55):
+snapEngine.process(
+  Array(21).fill(0).map(() => ({ x: 0.5, y: 0.35 })),
+  "SCISSORS",
+  mockKinematicScissors.scores,
+  null,
+  mockKinematicScissors,
+  "SCISSORS",
+  0.92
+);
+assert("Late snap override counters with ROCK", snapLock !== null && snapLock.counter === "ROCK" && snapLock.opts.isLateOverride === true);
+
+// TEST 20: CanvasRivalHand thrustAnimation exists and scales up
 const rHand = new app.CanvasRivalHand();
 assert("CanvasRivalHand has thrustAnimation", typeof rHand.thrustAnimation === "function");
 rHand.thrustAnimation("SCISSORS");
