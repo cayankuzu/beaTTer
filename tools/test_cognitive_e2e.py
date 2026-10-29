@@ -50,17 +50,28 @@ def run_tests():
         # Verify Cognitive HUD elements
         player_tag = page_desk.inner_text("#player-cognitive-tag")
         ai_badge = page_desk.inner_text("#ai-learning-badge")
+        cloud_badge = page_desk.inner_text("#cloud-sync-badge")
+        sanitizer_badge = page_desk.inner_text("#data-sanitizer-badge")
+        live_thought = page_desk.inner_text("#live-ai-thought")
         print(f"  Desktop Player Tag: '{player_tag}'")
         print(f"  Desktop AI Learning Badge: '{ai_badge}'")
+        print(f"  Desktop Cloud Status: '{cloud_badge}'")
+        print(f"  Desktop Sanitizer Badge: '{sanitizer_badge}'")
+        print(f"  Desktop Live Machine Thought: '{live_thought}'")
         assert "OYUNCU #" in player_tag.upper(), f"Expected OYUNCU # in tag, got {player_tag}"
         assert "%" in ai_badge, f"Expected % in learning badge, got {ai_badge}"
+        assert "HAFIZA" in cloud_badge, "Expected memory in cloud badge"
+        assert len(live_thought) > 10, "Expected live machine thought stream"
 
         # Trigger a clash
         page_desk.evaluate("() => window.triggerClash('ROCK', 'ROCK', 180, 'PAPER')")
         page_desk.wait_for_timeout(500)
         lesson_text = page_desk.inner_text("#mind-cognitive-lesson")
+        valid_status = page_desk.inner_text("#mind-validation-status")
         print(f"  Extracted Cognitive Lesson: '{lesson_text}'")
+        print(f"  Data Validation Status: '{valid_status}'")
         assert len(lesson_text) > 10, "Expected lesson to be populated"
+        assert "TEMİZ VERİ" in valid_status, "Expected clean data validation status"
 
         # Check footer button synchronization
         shoot_btn_text = page_desk.inner_text("#btn-instant-shoot")

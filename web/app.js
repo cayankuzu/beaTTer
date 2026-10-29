@@ -2049,6 +2049,9 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
     if (typeof window.CognitiveBrain !== "undefined" && window.CognitiveBrain) {
       const vA = (typeof liveAnalysis !== "undefined" && liveAnalysis) ? liveAnalysis.vAngle : 0;
       const tV = (typeof liveAnalysis !== "undefined" && liveAnalysis) ? liveAnalysis.tendonVelocity : 0;
+      const isHandPresent = (typeof activeLms !== "undefined" && !!activeLms) || 
+                            (typeof lastTrackedLms !== "undefined" && !!lastTrackedLms) || 
+                            (committedMove && committedMove !== "UNKNOWN");
       const cogRes = window.CognitiveBrain.onRoundFinished({
         roundNumber: currentSeriesTurn,
         playerMove: committedMove,
@@ -2059,12 +2062,25 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
         vAngle: vA,
         tendonVelocity: tV,
         confidence: (typeof finalConfidence !== "undefined") ? finalConfidence : 0.95,
-        sealHash: activeSeal
+        sealHash: activeSeal,
+        handDetected: isHandPresent,
+        isSpamTrigger: !isHandPresent
       });
 
       const mindLesson = $("mind-cognitive-lesson");
       if (mindLesson && cogRes && cogRes.lesson) {
         mindLesson.innerText = cogRes.lesson;
+      }
+
+      const mindValid = $("mind-validation-status");
+      if (mindValid && cogRes && cogRes.validation) {
+        if (cogRes.validation.isValid) {
+          mindValid.className = "mind-val valid-status";
+          mindValid.innerText = "✓ TEMİZ VERİ ONAYLANDI (Model Güncellendi)";
+        } else {
+          mindValid.className = "mind-val valid-status filtered";
+          mindValid.innerText = "⚠️ " + cogRes.validation.code + " (Model Korundu)";
+        }
       }
       updateCognitiveHUD();
     }
@@ -2799,6 +2815,20 @@ function mainRenderLoop() {
             swingEngine.process(activeLms, finalGesture, currentKinematic.scores, liveAnalysis, currentKinematic, currentNeuralGesture, currentNeuralScore);
           }
 
+          const thoughtEl = $("live-ai-thought");
+          if (thoughtEl && window.CognitiveBrain) {
+            thoughtEl.innerText = window.CognitiveBrain.getLiveThought({
+              step: swingEngine.step,
+              liveAnalysis,
+              currentKinematic,
+              lockedCounter: swingEngine.lockedCounter,
+              lockedPrediction: swingEngine.lockedPrediction,
+              antiFeintActive: !!(swingEngine.activeCognitiveDecision && swingEngine.activeCognitiveDecision.antiFeintActive),
+              isLocked: swingEngine.isLocked,
+              leadTimeMs: swingEngine.lockedLeadTimeMs
+            });
+          }
+
         } else {
           // ==================== MINDTWIN PRE-COGNITIVE PIPELINE ====================
           intent = mindTwinEngine.process(activeWorldLms || activeLms, dtSec);
@@ -2867,6 +2897,17 @@ function mainRenderLoop() {
     if (!activeLms) {
       if (gestureTitle) gestureTitle.innerText = "EL BEKLENİYOR...";
       if (gestureConf) gestureConf.innerText = "--";
+      const thoughtEl = $("live-ai-thought");
+      if (thoughtEl && window.CognitiveBrain) {
+        thoughtEl.innerText = "Kamera taranıyor... Biyomekanik el pozu bekleniyor.";
+      }
+      if (swingEngine && swingEngine.step > 0 && (now - lastTrackedTime > 450)) {
+        swingEngine.reset();
+        document.querySelectorAll(".rhythm-chip").forEach(el => el.classList.remove("active"));
+        if (hintMsg) {
+          hintMsg.innerHTML = "📷 <strong>El Kadrajdan Çıktı:</strong> Ritim sıfırlandı. Lütfen elinizi kameraya gösterin.";
+        }
+      }
       if (anticipationPill) anticipationPill.classList.add("hidden");
       if (fdotThumb) fdotThumb.className = "f-dot";
       if (fdotIndex) fdotIndex.className = "f-dot";
@@ -3159,6 +3200,29 @@ function updateCognitiveHUD() {
     if (metrics.feintCount > 0) {
       aiBadge.title = `Bilişsel Öğrenme: ${metrics.learningLevel} • Feint Direnci: ${metrics.feintResistance}`;
       aiBadge.classList.add("feint-active");
+    }
+  }
+
+  const cloudSyncBadge = $("cloud-sync-badge");
+  const cloudSyncText = $("cloud-sync-text");
+  if (cloudSyncBadge && cloudSyncText) {
+    if (metrics.supabaseConnected) {
+      cloudSyncBadge.className = "cloud-pill online";
+      cloudSyncText.innerText = "🟢 BULUT HAFIZA // AKTİF";
+    } else {
+      cloudSyncBadge.className = "cloud-pill offline";
+      cloudSyncText.innerText = "⚡ YEREL BİLİŞSEL HAFIZA // AKTİF";
+    }
+  }
+
+  const sanitizerBadge = $("data-sanitizer-badge");
+  if (sanitizerBadge && metrics.lastSanitization) {
+    if (metrics.lastSanitization.isValid) {
+      sanitizerBadge.className = "sanitizer-pill clean";
+      sanitizerBadge.innerText = "🛡️ TEMİZ VERİ FİLTRESİ";
+    } else {
+      sanitizerBadge.className = "sanitizer-pill warning";
+      sanitizerBadge.innerText = "⚠️ ÇÖP VERİ ENGELLENDİ";
     }
   }
 }

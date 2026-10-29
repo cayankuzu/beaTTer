@@ -88,9 +88,34 @@ console.log("  PASS: Anti-Feint Trap triggered! Countered with:", antiFeintDec.c
 assert(engine.profile.q_weights.AFTER_LOSS, "Q-weights must exist for AFTER_LOSS");
 console.log("  PASS: Q-weights updated after loss penalty:", engine.profile.q_weights.AFTER_LOSS);
 
-// 7. Dynamic Mastery Level
+// 7. Data Sanitization & Garbage Data Rejection
+const spamResult = engine.onRoundFinished({
+  roundNumber: 4,
+  playerMove: "UNKNOWN",
+  aiMove: "ROCK",
+  outcome: "AI",
+  handDetected: false,
+  confidence: 0.20,
+  isSpamTrigger: true
+});
+assert.strictEqual(spamResult.isValid, false, "Spam turn must be rejected");
+assert(spamResult.validation.code === "NO_HAND_DETECTED", "Must reject as NO_HAND_DETECTED");
+assert.strictEqual(engine.profile.total_games, 2, "Garbage data must NOT increment total_games");
+console.log("  PASS: Data Sanitizer successfully rejected spam & protected model:", spamResult.validation.alertMsg);
+
+// 8. Live Machine Thought Stream
+const thought1 = engine.getLiveThought({ step: 1 });
+const thought3 = engine.getLiveThought({
+  step: 3,
+  liveAnalysis: { vAngle: "24.5", tendonVelocity: "140" }
+});
+assert(thought1.includes("1. Ritim"), "Step 1 thought must describe beat 1");
+assert(thought3.includes("24.5°"), "Step 3 thought must describe live kinematics");
+console.log("  PASS: Live Machine Thought Stream generated:", thought3);
+
+// 9. Dynamic Mastery Level
 const updatedMetrics = engine.getHUDMetrics();
 assert(parseFloat(updatedMetrics.learningLevel.replace("%", "")) > parseFloat(initMetrics.learningLevel.replace("%", "")), "Learning level must increase as rounds are played");
 console.log("  PASS: Evolved Cognitive Mastery:", updatedMetrics.learningLevel, "| Feint Resistance:", updatedMetrics.feintResistance);
 
-console.log("\nALL COGNITIVE BRAIN UNIT TESTS PASSED SUCCESSFULLY! (7/7)");
+console.log("\nALL COGNITIVE BRAIN UNIT TESTS PASSED SUCCESSFULLY! (9/9)");
