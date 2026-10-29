@@ -745,7 +745,23 @@ class KineticSurgeEngine {
           pred = "ROCK";
         }
       }
-      const counter = getWinningCounter(pred);
+      let counter = getWinningCounter(pred);
+      let cognitiveDecision = null;
+      if (typeof window.CognitiveBrain !== "undefined" && window.CognitiveBrain && !isTwin) {
+        cognitiveDecision = window.CognitiveBrain.evaluateDecision({
+          kinematicGesture: pred,
+          kinematicConfidence: (liveProbs && liveProbs.predictabilityPct) ? (liveProbs.predictabilityPct / 100) : 0.65,
+          roundNum: (typeof currentSeriesTurn !== "undefined") ? currentSeriesTurn : 1,
+          leadTimeMs: options.leadTimeMs || 320,
+          vAngle: (liveProbs && liveProbs.vAngle) || 0,
+          tendonVelocity: (liveProbs && liveProbs.tendonVelocity) || 0
+        });
+        if (cognitiveDecision && cognitiveDecision.counterMove) {
+          counter = cognitiveDecision.counterMove;
+          this.activeCognitiveDecision = cognitiveDecision;
+        }
+      }
+
       this.lockedPrediction = pred;
       this.lockedCounter = counter;
       this.lockedLeadTimeMs = options.leadTimeMs || Math.max(120, Math.min(320, Math.round(now - this.anticipationStartTime)));
@@ -756,6 +772,7 @@ class KineticSurgeEngine {
           ay: this.currentAccelY,
           tendonVel: (liveProbs && liveProbs.tendonVelocity) || 0,
           vAngle: (liveProbs && liveProbs.vAngle) || "0.0",
+          antiFeintActive: !!(cognitiveDecision && cognitiveDecision.antiFeintActive),
           ...options
         });
       }
@@ -1995,9 +2012,9 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
     if (mindEarlyGuess) {
       mindEarlyGuess.innerText = `-${leadTimeMs}ms Önce (Havadayken)`;
     }
+    const activeSeal = seal || (typeof fnv1a === "function" ? fnv1a(`T${currentSeriesTurn}|${earlyGuess}|${finalBotCounter}|${leadTimeMs}`) : "BEAT8821");
     const mindSeal = $("mind-seal");
     if (mindSeal) {
-      const activeSeal = seal || (typeof fnv1a === "function" ? fnv1a(`T${currentSeriesTurn}|${earlyGuess}|${finalBotCounter}|${leadTimeMs}`) : "BEAT8821");
       mindSeal.innerText = `MÜHÜR #${activeSeal} (${sealOk ? "✓ DOĞRULANDI" : "GEÇERSİZ"})`;
       mindSeal.className = `mind-val mono-seal ${sealOk ? "verified" : "invalid"}`;
     }
@@ -2026,6 +2043,30 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
       } else {
         clashAnalysis.innerText = `"İkimiz de aynı anda ${trNames[committedMove] || committedMove} hamlesini kilitledik; tur berabere sonuçlandı."`;
       }
+    }
+
+    // Cognitive Brain Learning & Lessons Dispatch
+    if (typeof window.CognitiveBrain !== "undefined" && window.CognitiveBrain) {
+      const vA = (typeof liveAnalysis !== "undefined" && liveAnalysis) ? liveAnalysis.vAngle : 0;
+      const tV = (typeof liveAnalysis !== "undefined" && liveAnalysis) ? liveAnalysis.tendonVelocity : 0;
+      const cogRes = window.CognitiveBrain.onRoundFinished({
+        roundNumber: currentSeriesTurn,
+        playerMove: committedMove,
+        aiMove: finalBotCounter,
+        outcome: winner,
+        earlyGuess,
+        leadTimeMs,
+        vAngle: vA,
+        tendonVelocity: tV,
+        confidence: (typeof finalConfidence !== "undefined") ? finalConfidence : 0.95,
+        sealHash: activeSeal
+      });
+
+      const mindLesson = $("mind-cognitive-lesson");
+      if (mindLesson && cogRes && cogRes.lesson) {
+        mindLesson.innerText = cogRes.lesson;
+      }
+      updateCognitiveHUD();
     }
 
     if (resultBanner) {
@@ -2149,12 +2190,14 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
   if (currentSeriesTurn < MAX_SERIES_TURNS) {
     if (nextTurnBtnText) nextTurnBtnText.innerText = `Sonraki Tura Geç (Tur ${currentSeriesTurn + 1}/5) ▶`;
     if (btnInstantShoot) {
-      btnInstantShoot.innerHTML = `<span class="btn-icon">▶</span><span class="btn-text">Sonraki Tur (${currentSeriesTurn + 1}/5) <small class="kbd-hint">(SPACE)</small></span>`;
+      btnInstantShoot.innerHTML = `<span class="btn-icon">▶</span><span class="btn-text">Sonraki Tura Geç (${currentSeriesTurn + 1}/5)</span>`;
+      btnInstantShoot.classList.add("highlight-next-turn");
     }
   } else {
     if (nextTurnBtnText) nextTurnBtnText.innerText = `5 Tur Şampiyonunu Gör 🏆`;
     if (btnInstantShoot) {
-      btnInstantShoot.innerHTML = `<span class="btn-icon">🏆</span><span class="btn-text">Seriyi Bitir <small class="kbd-hint">(SPACE)</small></span>`;
+      btnInstantShoot.innerHTML = `<span class="btn-icon">🏆</span><span class="btn-text">Seriyi Bitir</span>`;
+      btnInstantShoot.classList.add("highlight-next-turn");
     }
   }
 }
@@ -2171,6 +2214,7 @@ function advanceAfterClash() {
   if (resultBanner) resultBanner.classList.add("hidden");
   if (btnInstantShoot) {
     btnInstantShoot.innerHTML = `<span class="btn-icon">⚡</span><span class="btn-text">Şimdi Vur! <small class="kbd-hint">(SPACE)</small></span>`;
+    btnInstantShoot.classList.remove("highlight-next-turn");
   }
   document.querySelectorAll(".rhythm-chip").forEach(el => el.classList.remove("active"));
   if (typeof rivalHand !== "undefined" && rivalHand) rivalHand.gesture = "ROCK";
@@ -2270,6 +2314,7 @@ function resetEntireSeries() {
   if (resultBanner) resultBanner.classList.add("hidden");
   if (btnInstantShoot) {
     btnInstantShoot.innerHTML = `<span class="btn-icon">⚡</span><span class="btn-text">Şimdi Vur! <small class="kbd-hint">(SPACE)</small></span>`;
+    btnInstantShoot.classList.remove("highlight-next-turn");
   }
 
   // Reset rhythm chips and rival robot hand state
@@ -2844,7 +2889,7 @@ function mainRenderLoop() {
         gameMode: activeGameMode,
         handDetected: !!activeLms,
         gesture: (activeGameMode === "rps") ? finalGesture : `${mindTwinEngine.currentPredictedCount} Parmak`,
-        confidence: finalConfidence,
+        confidence: (typeof finalConfidence !== "undefined") ? finalConfidence : 0.95,
         swingStep: swingEngine.step,
         earlyPrediction: swingEngine.earlyPrediction,
         earlyLeadTimeMs: swingEngine.earlyLeadTimeMs,
@@ -3103,7 +3148,24 @@ window.addEventListener("pagehide", () => {
   }
 });
 
+function updateCognitiveHUD() {
+  if (typeof window.CognitiveBrain === "undefined" || !window.CognitiveBrain) return;
+  const metrics = window.CognitiveBrain.getHUDMetrics();
+  const playerTagEl = $("player-cognitive-tag");
+  if (playerTagEl) playerTagEl.innerText = metrics.playerTag;
+  const aiBadge = $("ai-learning-badge");
+  if (aiBadge) {
+    aiBadge.innerText = metrics.learningLevel;
+    if (metrics.feintCount > 0) {
+      aiBadge.title = `Bilişsel Öğrenme: ${metrics.learningLevel} • Feint Direnci: ${metrics.feintResistance}`;
+      aiBadge.classList.add("feint-active");
+    }
+  }
+}
+window.updateCognitiveHUD = updateCognitiveHUD;
+
 // ==================== 12. SYSTEM BOOT ====================
+updateCognitiveHUD();
 requestAnimationFrame(mainRenderLoop);
 
 const playerStage = document.querySelector(".video-stage");

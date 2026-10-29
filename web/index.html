@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <script src="rps_engine.js"></script>
+  <script src="cognitive_brain.js"></script>
 </head>
 <body class="game-mode-rps">
 
@@ -23,7 +24,7 @@
       <div class="player-hud-card p1">
         <span class="player-avatar">🧑</span>
         <div class="player-meta">
-          <span class="player-tag">OYUNCU</span>
+          <span class="player-tag" id="player-cognitive-tag">OYUNCU</span>
           <span id="score-p1" class="score-display">0</span>
         </div>
       </div>
@@ -75,7 +76,10 @@
       <!-- AI Opponent Profile Card (Right) -->
       <div class="player-hud-card p2">
         <div class="player-meta right">
-          <span class="player-tag">YAPAY ZEKA</span>
+          <div class="player-tag-row">
+            <span class="player-tag" id="ai-cognitive-tag">YAPAY ZEKA</span>
+            <span class="badge-cognitive-pill" id="ai-learning-badge" title="Bilişsel Öğrenme Seviyesi">%96</span>
+          </div>
           <span id="score-p2" class="score-display">0</span>
         </div>
         <span class="player-avatar">🤖</span>
@@ -288,6 +292,10 @@
               <div class="mind-row mind-row-moves">
                 <span class="mind-lbl">🤖 Kilitlenen Antitez:</span>
                 <span id="mind-counter-move" class="mind-val">TAŞ</span>
+              </div>
+              <div class="mind-row mind-row-lesson">
+                <span class="mind-lbl">💡 Bilişsel Çıkarım:</span>
+                <span id="mind-cognitive-lesson" class="mind-val lesson-text">"Patern ve feint analizi güncelleniyor..."</span>
               </div>
               <p id="clash-analysis" class="clash-analysis">"Vuruş masaya varmadan önce parmak ivmesini okudum ve antitezi kilitledim."</p>
             </div>
