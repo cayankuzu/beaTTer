@@ -2010,7 +2010,10 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
       }
     }
 
-    if (resultBanner) resultBanner.classList.remove("hidden");
+    if (resultBanner) {
+      resultBanner.classList.remove("hidden");
+      document.body.classList.add("clash-active");
+    }
     if (rivalStateTag) rivalStateTag.innerText = `KİLİTLENDİ: ${(trNames[finalBotCounter] || finalBotCounter).toUpperCase()}`;
 
     if (hintMsg) {
@@ -2115,7 +2118,10 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
       mindCounterMove.innerText = `İkiz Sezgisi: ${fingerNames[earlyFingers]}`;
     }
 
-    if (resultBanner) resultBanner.classList.remove("hidden");
+    if (resultBanner) {
+      resultBanner.classList.remove("hidden");
+      document.body.classList.add("clash-active");
+    }
     if (rivalStateTag) rivalStateTag.innerText = `SEZDİ: ${fingerNames[earlyFingers]}`;
     if (hintMsg) hintMsg.innerHTML = `🧠 <strong>Tur ${currentSeriesTurn} Tamamlandı:</strong> ${aiPredictedRight ? "AI zihnini okudu!" : "AI'yı şaşırttın!"}`;
   }
@@ -2127,6 +2133,7 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
     if (rivalStateTag) rivalStateTag.innerText = "HAZIR";
 
     if (currentSeriesTurn < MAX_SERIES_TURNS) {
+      document.body.classList.remove("clash-active");
       currentSeriesTurn++;
       if (turnIndicator) turnIndicator.innerText = `TUR ${currentSeriesTurn}/5`;
       const nextPip = $(`pip-${currentSeriesTurn}`);
@@ -2179,6 +2186,7 @@ function showSeriesChampionModal() {
     });
   }
 
+  document.body.classList.add("clash-active");
   seriesModal.classList.remove("hidden");
   if (p1SeriesScore > p2SeriesScore) {
     sound.speak("Tebrikler! 5 tur serisini kazandınız!");
@@ -2208,6 +2216,7 @@ function resetEntireSeries() {
     }
   }
 
+  document.body.classList.remove("clash-active");
   if (seriesModal) seriesModal.classList.add("hidden");
   if (resultBanner) resultBanner.classList.add("hidden");
   isResolving = false;

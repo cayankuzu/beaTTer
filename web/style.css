@@ -778,18 +778,36 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(10, 14, 23, 0.95);
+  background: rgba(10, 14, 23, 0.96);
   border: 1px solid var(--accent-primary);
   border-radius: 12px;
-  padding: 16px 24px;
-  min-width: 300px;
-  max-width: 90%;
+  padding: 14px 20px;
+  min-width: 280px;
+  max-width: 92%;
+  max-height: calc(100% - 14px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  z-index: 20;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+  gap: 10px;
+  z-index: 25;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Hide analyst dock when clash banner or victory modal is active */
+body.clash-active .analyst-dock {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(8px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.analyst-dock {
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
 .result-winner {
@@ -877,30 +895,37 @@ body {
 
 /* ==================== 5-TURN SERIES MODAL ==================== */
 .series-modal {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(5, 7, 12, 0.85);
-  backdrop-filter: blur(6px);
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  width: 100dvw;
+  height: 100vh;
+  height: 100dvh;
+  background: rgba(5, 7, 12, 0.90);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 30;
+  z-index: 100;
+  padding: 12px;
+  box-sizing: border-box;
 }
 
 .series-modal-content {
   background: var(--card-bg);
-  border: 1px solid var(--card-border);
+  border: 1px solid var(--accent-primary);
   border-radius: 14px;
-  padding: 24px;
+  padding: 20px 24px;
   max-width: 420px;
-  width: 90%;
+  width: 100%;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.7);
 }
 
 .series-trophy {
@@ -1404,8 +1429,24 @@ body {
     gap: 4px;
   }
 
-  .analyst-sub-2 {
-    display: none !important;
+  .analyst-sub, .analyst-sub-2 {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.54rem;
+    padding-top: 1px;
+    gap: 2px;
+    white-space: nowrap;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  .stat-badge-lock {
+    font-size: 0.50rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    font-weight: 700;
   }
 
   /* MindTwin Matrix on Mobile */
@@ -1501,29 +1542,145 @@ body {
     padding: 10px;
   }
 
-  /* Result Banner on Mobile */
+  /* Result Banner on Mobile: Sleek, compact & zero-overflow */
   .result-banner {
-    min-width: 260px;
-    max-width: 92%;
-    padding: 12px 14px;
-    gap: 8px;
+    width: calc(100% - 12px);
+    max-width: 380px;
+    max-height: calc(100% - 10px);
+    padding: 8px 10px;
+    gap: 5px;
+    border-radius: 10px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
   }
 
   .result-winner {
-    font-size: 1.0rem;
+    font-size: 0.88rem;
+    font-weight: 800;
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .result-clash {
+    gap: 10px;
+    padding: 1px 0;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .clash-side {
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .clash-tag {
+    display: none;
   }
 
   .clash-emoji {
-    font-size: 1.3rem;
+    font-size: 1.15rem;
+  }
+
+  .clash-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .clash-vs-sign {
+    font-size: 0.70rem;
+    font-weight: 800;
+    color: var(--accent-primary);
   }
 
   .ai-mind-box {
-    padding: 6px 8px;
-    gap: 2px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px 6px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .mind-row {
-    font-size: 0.62rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    font-size: 0.60rem;
+  }
+
+  .mind-lbl {
+    font-size: 0.54rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .mind-val {
+    font-size: 0.60rem;
+    font-weight: 700;
+    color: var(--text-main);
+    word-break: break-word;
+  }
+
+  .mind-row-moves {
+    display: none !important;
+  }
+
+  .clash-analysis {
+    grid-column: 1 / -1;
+    font-size: 0.56rem;
+    line-height: 1.25;
+    margin-top: 2px;
+    padding-top: 2px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Series Modal on Mobile */
+  .series-modal-content {
+    padding: 12px 14px;
+    gap: 6px;
+    max-width: 330px;
+  }
+
+  .series-trophy {
+    font-size: 1.4rem;
+  }
+
+  .series-modal-header h2 {
+    font-size: 0.90rem;
+    margin: 0;
+  }
+
+  .series-modal-header p {
+    font-size: 0.64rem;
+    margin: 1px 0 0;
+  }
+
+  .series-modal-score {
+    font-size: 1.3rem;
+    gap: 12px;
+  }
+
+  .mp-label {
+    font-size: 0.58rem;
+  }
+
+  .series-modal-history {
+    max-height: 85px;
+    gap: 3px;
+  }
+
+  .history-turn-row {
+    padding: 3px 6px;
+    font-size: 0.58rem;
+  }
+
+  .modal-btn {
+    padding: 7px 12px;
+    font-size: 0.78rem;
+    margin-top: 4px;
   }
 }
 
@@ -1651,8 +1808,117 @@ body {
     height: 3px;
   }
 
-  .analyst-sub-2 {
+  .analyst-sub, .analyst-sub-2 {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.50rem;
+    padding-top: 1px;
+    gap: 2px;
+    white-space: nowrap;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  /* Result Banner on Mobile Landscape */
+  .result-banner {
+    width: calc(100% - 10px);
+    max-width: 380px;
+    max-height: calc(100% - 8px);
+    padding: 5px 8px;
+    gap: 3px;
+    border-radius: 8px;
+    overflow-y: auto;
+  }
+
+  .result-winner {
+    font-size: 0.80rem;
+    line-height: 1.1;
+  }
+
+  .result-clash {
+    gap: 8px;
+    padding: 0;
+  }
+
+  .clash-side {
+    flex-direction: row;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .clash-tag {
+    display: none;
+  }
+
+  .clash-emoji {
+    font-size: 1.05rem;
+  }
+
+  .clash-name {
+    font-size: 0.68rem;
+  }
+
+  .ai-mind-box {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 3px 6px;
+    gap: 2px 4px;
+  }
+
+  .mind-row {
+    font-size: 0.54rem;
+  }
+
+  .mind-row-moves {
     display: none !important;
+  }
+
+  .clash-analysis {
+    font-size: 0.52rem;
+    line-height: 1.15;
+  }
+
+  /* Series Modal on Landscape */
+  .series-modal-content {
+    max-width: 320px;
+    max-height: calc(100% - 12px);
+    padding: 8px 12px;
+    gap: 4px;
+  }
+
+  .series-trophy {
+    font-size: 1.2rem;
+  }
+
+  .series-modal-header h2 {
+    font-size: 0.85rem;
+    margin: 0;
+  }
+
+  .series-modal-header p {
+    font-size: 0.60rem;
+    margin: 1px 0 0;
+  }
+
+  .series-modal-score {
+    font-size: 1.15rem;
+    gap: 8px;
+  }
+
+  .series-modal-history {
+    max-height: 60px;
+    gap: 2px;
+  }
+
+  .history-turn-row {
+    padding: 2px 5px;
+    font-size: 0.54rem;
+  }
+
+  .modal-btn {
+    padding: 5px 10px;
+    font-size: 0.72rem;
+    margin-top: 2px;
   }
 
   .player-status-dock {
