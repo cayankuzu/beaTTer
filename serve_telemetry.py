@@ -85,11 +85,11 @@ class LiveTelemetryHandler(http.server.SimpleHTTPRequestHandler):
                     json.dump(data, f_tel, indent=2)
 
                 # Check for gesture or step change to log event
-                curr_g = data.get("gesture")
-                curr_s = data.get("swingStep")
-                curr_neural = data.get("neuralGesture")
-                fingers = data.get("fingerStates", {})
-                scores = data.get("fingerScores", {})
+                curr_g = str(data.get("gesture") or "NONE")
+                curr_s = data.get("swingStep", 0)
+                curr_neural = str(data.get("neuralGesture") or "UNKNOWN")
+                fingers = data.get("fingerStates") or {}
+                scores = data.get("fingerScores") or {}
 
                 f_str = f"T:{'A' if fingers.get('thumb') else 'K'} " \
                         f"I:{'A' if fingers.get('index') else 'K'} " \
@@ -98,12 +98,16 @@ class LiveTelemetryHandler(http.server.SimpleHTTPRequestHandler):
                         f"P:{'A' if fingers.get('pinky') else 'K'}"
 
                 if curr_g != last_logged_gesture or curr_s != last_logged_step or frame_counter % 20 == 0:
+                    idx_s = float(scores.get('index', 0) or 0)
+                    mid_s = float(scores.get('middle', 0) or 0)
+                    rng_s = float(scores.get('ring', 0) or 0)
+                    pnk_s = float(scores.get('pinky', 0) or 0)
                     event_line = f"[{time.strftime('%H:%M:%S')}] #{frame_counter:04d} | " \
                                  f"HAMLE: {curr_g:8s} (Neural: {curr_neural:8s}) | " \
                                  f"Parmaklar: [{f_str}] | " \
                                  f"Ritim Adımı: {curr_s} | " \
-                                 f"Skorlar: Idx={scores.get('index',0):.2f} Mid={scores.get('middle',0):.2f} " \
-                                 f"Rng={scores.get('ring',0):.2f} Pnk={scores.get('pinky',0):.2f}"
+                                 f"Skorlar: Idx={idx_s:.2f} Mid={mid_s:.2f} " \
+                                 f"Rng={rng_s:.2f} Pnk={pnk_s:.2f}"
                     print(event_line, flush=True)
 
                     with open(EVENTS_FILE, "a", encoding="utf-8") as f_ev:

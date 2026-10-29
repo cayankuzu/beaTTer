@@ -789,596 +789,400 @@ class HandLandmarkStabilizer {
 
 const landmarkStabilizer = new HandLandmarkStabilizer();
 
-class Twin3DHandEngine {
-  constructor(canvas) {
-    this.canvas = canvas;
-    this.isWebGL = false;
-    this.mode = "rps"; // "rps" or "mindtwin"
-    this._gesture = "ROCK"; // for RPS
-    this.targetY = 0.5;
+// ==================== 5A. 2D CYBERNETIC RIVAL HAND (CANVAS VECTOR) ====================
+class CanvasRivalHand {
+  constructor() {
+    this.gesture = "ROCK";
     this.currentY = 0.5;
-    this.pulsePhase = 0;
-    this.lastW = 0;
-    this.lastH = 0;
+    this.targetY = 0.5;
+  }
 
-    // Continuous analog curls (0.0 = fully open, 1.0 = curled into fist)
-    this.targetFingers = { thumb: 0.0, index: 0.0, middle: 0.0, ring: 0.0, pinky: 0.0 };
-    this.currentCurls = { thumb: 0.5, index: 0.5, middle: 0.5, ring: 0.5, pinky: 0.5 };
+  update(playerY) {
+    this.targetY = playerY;
+    this.currentY = this.currentY * 0.65 + this.targetY * 0.35;
+  }
+
+  draw(ctx, width, height) {
+    const cx = width * 0.5;
+    const cy = height * this.currentY;
+    const scale = Math.min(width, height) / 520.0;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    if (this.gesture === "ROCK") {
+      this._drawFist(ctx, scale);
+    } else if (this.gesture === "PAPER") {
+      this._drawPalm(ctx, scale);
+    } else if (this.gesture === "SCISSORS") {
+      this._drawScissors(ctx, scale);
+    }
+
+    ctx.restore();
+  }
+
+  _drawFist(ctx, s) {
+    ctx.fillStyle = "#1e293b";
+    ctx.strokeStyle = "#ffb703";
+    ctx.lineWidth = 4 * s;
+    ctx.beginPath();
+    ctx.roundRect(-45 * s, 45 * s, 90 * s, 115 * s, 8 * s);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#334155";
+    ctx.beginPath();
+    ctx.roundRect(-62 * s, -45 * s, 124 * s, 95 * s, 18 * s);
+    ctx.fill();
+    ctx.stroke();
+
+    [-42, -14, 14, 42].forEach(kx => {
+      ctx.fillStyle = "#475569";
+      ctx.strokeStyle = "#ffb703";
+      ctx.lineWidth = 3.5 * s;
+      ctx.beginPath();
+      ctx.roundRect(kx * s - 11 * s, -65 * s, 22 * s, 42 * s, 6 * s);
+      ctx.fill();
+      ctx.stroke();
+    });
+
+    ctx.fillStyle = "#64748b";
+    ctx.beginPath();
+    ctx.roundRect(-58 * s, -12 * s, 90 * s, 30 * s, 8 * s);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  _drawPalm(ctx, s) {
+    ctx.fillStyle = "#1e293b";
+    ctx.strokeStyle = "#10b981";
+    ctx.lineWidth = 4 * s;
+    ctx.beginPath();
+    ctx.roundRect(-45 * s, 55 * s, 90 * s, 115 * s, 8 * s);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#334155";
+    ctx.beginPath();
+    ctx.roundRect(-60 * s, -20 * s, 120 * s, 85 * s, 16 * s);
+    ctx.fill();
+    ctx.stroke();
+
+    const fingers = [
+      { x: -44, len: 105, a: -0.16 },
+      { x: -15, len: 118, a: -0.05 },
+      { x: 15, len: 115, a: 0.05 },
+      { x: 44, len: 94, a: 0.16 }
+    ];
+
+    fingers.forEach(f => {
+      ctx.save();
+      ctx.translate(f.x * s, -20 * s);
+      ctx.rotate(f.a);
+      ctx.fillStyle = "#475569";
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 3.5 * s;
+      ctx.beginPath();
+      ctx.roundRect(-11 * s, -f.len * s, 22 * s, f.len * s, 8 * s);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    ctx.save();
+    ctx.translate(-52 * s, 18 * s);
+    ctx.rotate(-0.75);
+    ctx.fillStyle = "#64748b";
+    ctx.strokeStyle = "#10b981";
+    ctx.lineWidth = 3.5 * s;
+    ctx.beginPath();
+    ctx.roundRect(-11 * s, -70 * s, 22 * s, 70 * s, 8 * s);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  _drawScissors(ctx, s) {
+    ctx.fillStyle = "#1e293b";
+    ctx.strokeStyle = "#00e1ff";
+    ctx.lineWidth = 4 * s;
+    ctx.beginPath();
+    ctx.roundRect(-45 * s, 55 * s, 90 * s, 115 * s, 8 * s);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#334155";
+    ctx.beginPath();
+    ctx.roundRect(-60 * s, -20 * s, 120 * s, 85 * s, 16 * s);
+    ctx.fill();
+    ctx.stroke();
+
+    [-12, 16].forEach(kx => {
+      ctx.fillStyle = "#475569";
+      ctx.beginPath();
+      ctx.roundRect(kx * s + 15 * s, -20 * s, 22 * s, 32 * s, 6 * s);
+      ctx.fill();
+      ctx.stroke();
+    });
+
+    const scis = [
+      { x: -30, len: 120, a: -0.32 },
+      { x: 6, len: 122, a: 0.28 }
+    ];
+
+    scis.forEach(f => {
+      ctx.save();
+      ctx.translate(f.x * s, -20 * s);
+      ctx.rotate(f.a);
+      ctx.fillStyle = "#64748b";
+      ctx.strokeStyle = "#00e1ff";
+      ctx.lineWidth = 3.5 * s;
+      ctx.beginPath();
+      ctx.roundRect(-12 * s, -f.len * s, 24 * s, f.len * s, 10 * s);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+}
+
+// ==================== 5B. MINDTWIN CYBERNETIC MECHANICAL DIGITAL TWIN ====================
+class CyberTwinHand {
+  constructor() {
+    this.currentY = 0.5;
+    this.targetY = 0.5;
+    this.pulsePhase = 0;
+    this.fingers = { thumb: 0.0, index: 1.0, middle: 1.0, ring: 0.0, pinky: 0.0 };
+    this.targetFingers = { thumb: 0.0, index: 1.0, middle: 1.0, ring: 0.0, pinky: 0.0 };
     this.predictedCount = 2;
     this.leadTimeMs = 180;
-    this.confidence = 0.99;
-
-    this.init();
+    this.confidence = 0.992;
+    this.mirrored = true;
   }
 
-  get gesture() {
-    return this._gesture;
-  }
-  set gesture(g) {
-    this._gesture = g;
-  }
-
-  setPredictedState(states, count, leadTimeMs = 180, conf = 0.99) {
+  setPredictedState(states, count, leadTimeMs = 180, conf = 0.992) {
     if (states) {
-      this.targetFingers.thumb = (typeof states.thumb === "number") ? states.thumb : (states.thumb ? 1.0 : 0.0);
-      this.targetFingers.index = (typeof states.index === "number") ? states.index : (states.index ? 1.0 : 0.0);
-      this.targetFingers.middle = (typeof states.middle === "number") ? states.middle : (states.middle ? 1.0 : 0.0);
-      this.targetFingers.ring = (typeof states.ring === "number") ? states.ring : (states.ring ? 1.0 : 0.0);
-      this.targetFingers.pinky = (typeof states.pinky === "number") ? states.pinky : (states.pinky ? 1.0 : 0.0);
+      this.targetFingers.thumb = states.thumb ? 1.0 : 0.0;
+      this.targetFingers.index = states.index ? 1.0 : 0.0;
+      this.targetFingers.middle = states.middle ? 1.0 : 0.0;
+      this.targetFingers.ring = states.ring ? 1.0 : 0.0;
+      this.targetFingers.pinky = states.pinky ? 1.0 : 0.0;
     }
     this.predictedCount = count;
     this.leadTimeMs = leadTimeMs;
     this.confidence = conf;
   }
 
-  init() {
-    if (typeof THREE === "undefined" || !this.canvas) {
-      this.isWebGL = false;
-      return;
-    }
+  update(playerY) {
+    this.targetY = playerY;
+    this.currentY = this.currentY * 0.65 + this.targetY * 0.35;
+    this.pulsePhase += 0.06;
 
-    try {
-      this.scene = new THREE.Scene();
-
-      const stage = (typeof document !== "undefined") ? document.querySelector(".rival-stage") : null;
-      const w = Math.round((stage && stage.clientWidth > 50) ? stage.clientWidth : (this.canvas.clientWidth || this.canvas.width || 640));
-      const h = Math.round((stage && stage.clientHeight > 50) ? stage.clientHeight : (this.canvas.clientHeight || this.canvas.height || 480));
-      this.lastW = w;
-      this.lastH = h;
-
-      this.camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 50);
-      this.camera.position.set(0, 0.22, 3.25);
-      this.camera.lookAt(0, 0.05, 0);
-
-      this.renderer = new THREE.WebGLRenderer({
-        canvas: this.canvas,
-        antialias: true,
-        alpha: true,
-        powerPreference: "high-performance"
-      });
-      this.renderer.setSize(w, h, false);
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-      if (THREE.ACESFilmicToneMapping) {
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.35;
-      }
-
-      this.setupLights();
-      this.buildModel();
-      this.isWebGL = true;
-
-      // Immediate render on frame 0
-      this.renderer.render(this.scene, this.camera);
-      console.log("3D Digital Twin Hand Engine (Three.js WebGL) initialized successfully.");
-    } catch (err) {
-      console.warn("WebGL 3D Hand initialization warning, running fallback:", err);
-      this.isWebGL = false;
+    const servoSpeed = 0.34;
+    for (const k of Object.keys(this.fingers)) {
+      this.fingers[k] += (this.targetFingers[k] - this.fingers[k]) * servoSpeed;
     }
   }
 
-  setupLights() {
-    // 360-degree illumination ensuring both Palmar (front) and Dorsal (back) surfaces are vivid
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
-    this.scene.add(this.ambientLight);
+  draw(ctx, width, height) {
+    const cx = width * 0.5;
+    const cy = height * this.currentY;
+    const s = Math.min(width, height) / 530.0;
 
-    // Key Light (Front-Top Right)
-    this.keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
-    this.keyLight.position.set(2.5, 4.5, 3.5);
-    this.scene.add(this.keyLight);
+    ctx.save();
+    ctx.translate(cx, cy);
 
-    // Fill Light (Front-Left)
-    this.fillLight = new THREE.DirectionalLight(0x93c5fd, 1.3);
-    this.fillLight.position.set(-3.0, 2.0, 2.5);
-    this.scene.add(this.fillLight);
-
-    // Back / Dorsal Light (Illuminates back of hand brilliantly when flipped)
-    this.dorsalLight = new THREE.DirectionalLight(0xf8fafc, 1.9);
-    this.dorsalLight.position.set(0, 2.5, -4.0);
-    this.scene.add(this.dorsalLight);
-
-    const accentHex = (this.mode === "mindtwin") ? 0x818cf8 : 0x38bdf8;
-    this.rimLight = new THREE.DirectionalLight(accentHex, 2.8);
-    this.rimLight.position.set(0, -2.5, -3.0);
-    this.scene.add(this.rimLight);
-
-    this.corePointLight = new THREE.PointLight(accentHex, 3.5, 5.0);
-    this.corePointLight.position.set(0, 0.22, 0.35);
-    this.scene.add(this.corePointLight);
-  }
-
-  setTheme(mode) {
-    this.mode = mode;
-    const accentHex = (mode === "mindtwin") ? 0x818cf8 : 0x38bdf8;
-    if (this.coreMaterial) {
-      this.coreMaterial.color.setHex(accentHex);
-      this.coreMaterial.emissive.setHex(accentHex);
+    ctx.save();
+    if (this.mirrored) {
+      ctx.scale(-1, 1);
     }
-    if (this.dorsalMaterial) {
-      this.dorsalMaterial.color.setHex(accentHex);
-      this.dorsalMaterial.emissive.setHex(accentHex);
+
+    // 1. Background Cyber Reticle & Hologram Target Rings
+    ctx.save();
+    ctx.strokeStyle = "rgba(0, 225, 255, 0.16)";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8, 8]);
+    ctx.beginPath();
+    ctx.arc(0, 0, 155 * s, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(255, 183, 3, 0.12)";
+    ctx.setLineDash([4, 12]);
+    ctx.beginPath();
+    ctx.arc(0, 0, 195 * s, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // 2. Forearm Carbon Armor & Hydraulic Piston Assembly
+    ctx.fillStyle = "#0a0f1d";
+    ctx.strokeStyle = "rgba(0, 225, 255, 0.55)";
+    ctx.lineWidth = 3.5 * s;
+    ctx.beginPath();
+    ctx.roundRect(-48 * s, 65 * s, 96 * s, 115 * s, 10 * s);
+    ctx.fill();
+    ctx.stroke();
+
+    // Dual Hydraulic Shock Absorbers
+    [-28, 28].forEach(hx => {
+      ctx.fillStyle = "#1e293b";
+      ctx.strokeStyle = "#ffb703";
+      ctx.lineWidth = 2 * s;
+      ctx.beginPath();
+      ctx.roundRect((hx - 6) * s, 78 * s, 12 * s, 72 * s, 4 * s);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#00e1ff";
+      ctx.beginPath();
+      ctx.roundRect((hx - 3) * s, 42 * s, 6 * s, 44 * s, 2 * s);
+      ctx.fill();
+    });
+
+    // 3. Futuristic Mechanical Palm Chassis
+    ctx.fillStyle = "#111827";
+    ctx.strokeStyle = "#00e1ff";
+    ctx.lineWidth = 3.5 * s;
+    ctx.shadowColor = "#00e1ff";
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.roundRect(-64 * s, -28 * s, 128 * s, 95 * s, 16 * s);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Glowing Core Arc Reactor in Palm
+    const glow = (Math.sin(this.pulsePhase) + 1.0) * 0.5;
+    const coreGrad = ctx.createRadialGradient(0, 20 * s, 2 * s, 0, 20 * s, 32 * s);
+    coreGrad.addColorStop(0, `rgba(0, 225, 255, ${0.75 + glow * 0.25})`);
+    coreGrad.addColorStop(0.5, `rgba(0, 225, 255, ${0.25 + glow * 0.2})`);
+    coreGrad.addColorStop(1, "rgba(0, 225, 255, 0)");
+    ctx.fillStyle = coreGrad;
+    ctx.beginPath();
+    ctx.arc(0, 20 * s, 32 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hexagonal Core Frame
+    ctx.strokeStyle = "rgba(0, 225, 255, 0.85)";
+    ctx.lineWidth = 2 * s;
+    ctx.beginPath();
+    for (let a = 0; a < 6; a++) {
+      const ang = (a * 60) * (Math.PI / 180);
+      const hx = Math.cos(ang) * 15 * s;
+      const hy = 20 * s + Math.sin(ang) * 15 * s;
+      if (a === 0) ctx.moveTo(hx, hy);
+      else ctx.lineTo(hx, hy);
     }
-    if (this.rimLight) {
-      this.rimLight.color.setHex(accentHex);
-    }
-    if (this.corePointLight) {
-      this.corePointLight.color.setHex(accentHex);
-    }
-  }
+    ctx.closePath();
+    ctx.stroke();
 
-  buildModel() {
-    this.handGroup = new THREE.Group();
-    this.scene.add(this.handGroup);
-
-    // High-visibility metallic PBR materials
-    this.armorMaterial = new THREE.MeshStandardMaterial({
-      color: 0x475569, // Clean metallic slate gray
-      metalness: 0.72,
-      roughness: 0.26
-    });
-
-    this.chromeMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf8fafc, // Bright chrome
-      metalness: 0.98,
-      roughness: 0.08
-    });
-
-    this.darkJointMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1e293b,
-      metalness: 0.85,
-      roughness: 0.32
-    });
-
-    this.musclePadMaterial = new THREE.MeshStandardMaterial({
-      color: 0x334155, // Anatomical Thenar/Hypothenar muscle pads
-      metalness: 0.40,
-      roughness: 0.60
-    });
-
-    const accentHex = (this.mode === "mindtwin") ? 0x818cf8 : 0x38bdf8;
-    this.coreMaterial = new THREE.MeshStandardMaterial({
-      color: accentHex,
-      emissive: accentHex,
-      emissiveIntensity: 2.2,
-      roughness: 0.2
-    });
-
-    this.dorsalMaterial = new THREE.MeshStandardMaterial({
-      color: accentHex,
-      emissive: accentHex,
-      emissiveIntensity: 1.9,
-      roughness: 0.2
-    });
-
-    // 1. Forearm Carbon Cylinder & Chrome Hydraulics
-    const forearmGeo = new THREE.CylinderGeometry(0.24, 0.20, 0.85, 16);
-    this.forearmMesh = new THREE.Mesh(forearmGeo, this.armorMaterial);
-    this.forearmMesh.position.y = -0.72;
-    this.handGroup.add(this.forearmMesh);
-
-    // Dual Hydraulic Tendon Pistons on Forearm
-    [-0.15, 0.15].forEach(x => {
-      const pistonGeo = new THREE.CylinderGeometry(0.034, 0.034, 0.65, 12);
-      const piston = new THREE.Mesh(pistonGeo, this.chromeMaterial);
-      piston.position.set(x, -0.65, 0.14);
-      this.handGroup.add(piston);
-
-      const dorsalPiston = new THREE.Mesh(pistonGeo, this.chromeMaterial);
-      dorsalPiston.position.set(x, -0.65, -0.14);
-      this.handGroup.add(dorsalPiston);
-    });
-
-    // 2. Anatomical Wrist Joint Gimbal (Carpals)
-    const wristGeo = new THREE.SphereGeometry(0.19, 16, 16);
-    this.wristMesh = new THREE.Mesh(wristGeo, this.darkJointMaterial);
-    this.wristMesh.position.y = -0.22;
-    this.handGroup.add(this.wristMesh);
-
-    const wristRingGeo = new THREE.TorusGeometry(0.21, 0.024, 12, 24);
-    const wristRing = new THREE.Mesh(wristRingGeo, this.chromeMaterial);
-    wristRing.rotation.x = Math.PI * 0.5;
-    wristRing.position.y = -0.22;
-    this.handGroup.add(wristRing);
-
-    // 3. Ergonomic Sculpted Cyber Palm Chassis (Carpals & Metacarpals)
-    const palmGeo = new THREE.BoxGeometry(0.68, 0.70, 0.18);
-    this.palmMesh = new THREE.Mesh(palmGeo, this.armorMaterial);
-    this.palmMesh.position.set(0, 0.22, 0);
-    this.handGroup.add(this.palmMesh);
-
-    // Smooth Ergonomic Thenar Contour (Base of Thumb on Palmar side +Z)
-    const thenarGeo = new THREE.CylinderGeometry(0.11, 0.07, 0.38, 16);
-    const thenarMesh = new THREE.Mesh(thenarGeo, this.musclePadMaterial);
-    thenarMesh.position.set(-0.19, 0.15, 0.09);
-    thenarMesh.rotation.set(0.12, 0, 0.32);
-    this.handGroup.add(thenarMesh);
-
-    // Smooth Ergonomic Hypothenar Contour (Pinky edge on Palmar side +Z)
-    const hypoGeo = new THREE.CylinderGeometry(0.09, 0.06, 0.40, 16);
-    const hypoMesh = new THREE.Mesh(hypoGeo, this.musclePadMaterial);
-    hypoMesh.position.set(0.19, 0.17, 0.09);
-    hypoMesh.rotation.set(0.10, 0, -0.22);
-    this.handGroup.add(hypoMesh);
-
-    // Recessed Glowing Arc Reactor in Palm Center (Palmar +Z)
-    const coreGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.04, 24);
-    this.coreMesh = new THREE.Mesh(coreGeo, this.coreMaterial);
-    this.coreMesh.rotation.x = Math.PI * 0.5;
-    this.coreMesh.position.set(0, 0.22, 0.09);
-    this.handGroup.add(this.coreMesh);
-
-    // Polished Chrome Bezel Ring
-    const frameGeo = new THREE.TorusGeometry(0.145, 0.022, 12, 24);
-    const frameMesh = new THREE.Mesh(frameGeo, this.chromeMaterial);
-    frameMesh.position.set(0, 0.22, 0.095);
-    this.handGroup.add(frameMesh);
-
-    // Palmar Energy Traces to 5 Knuckles
-    [-0.20, -0.10, 0.0, 0.10, 0.20].forEach((kx) => {
-      const conduitGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.28, 8);
-      const conduit = new THREE.Mesh(conduitGeo, this.coreMaterial);
-      conduit.position.set(kx * 0.55, 0.37, 0.09);
-      conduit.rotation.z = -kx * 0.55;
-      this.handGroup.add(conduit);
-    });
-
-    // Dorsal Armor Plate & 5 Luminescent Fiber-Optic Tendons (Dorsal -Z)
-    const dorsalPlateGeo = new THREE.BoxGeometry(0.56, 0.42, 0.03);
-    const dorsalPlate = new THREE.Mesh(dorsalPlateGeo, this.darkJointMaterial);
-    dorsalPlate.position.set(0, 0.20, -0.095);
-    this.handGroup.add(dorsalPlate);
-
-    [-0.21, -0.10, 0.0, 0.10, 0.21].forEach(x => {
-      const dorsalTendonGeo = new THREE.BoxGeometry(0.020, 0.62, 0.02);
-      const dorsalTendon = new THREE.Mesh(dorsalTendonGeo, this.dorsalMaterial);
-      dorsalTendon.position.set(x, 0.22, -0.10);
-      this.handGroup.add(dorsalTendon);
-    });
-
-    // 4. 5 Articulated Anatomical Robotic Digits
-    this.fingers = {};
-    const fingerConfigs = [
-      { id: "thumb",  x: -0.32, y: 0.12,  z: 0.04, baseRotZ:  0.65, baseRotY:  0.45, len1: 0.22, len2: 0.20, len3: 0.16, r: 0.062 },
-      { id: "index",  x: -0.21, y: 0.58,  z: 0.02, baseRotZ: -0.10, baseRotY:  0.02, len1: 0.28, len2: 0.22, len3: 0.18, r: 0.056 },
-      { id: "middle", x:  0.00, y: 0.60,  z: 0.03, baseRotZ:  0.00, baseRotY:  0.00, len1: 0.32, len2: 0.24, len3: 0.18, r: 0.058 },
-      { id: "ring",   x:  0.20, y: 0.57,  z: 0.02, baseRotZ:  0.10, baseRotY: -0.02, len1: 0.28, len2: 0.22, len3: 0.18, r: 0.055 },
-      { id: "pinky",  x:  0.36, y: 0.52,  z: 0.00, baseRotZ:  0.22, baseRotY: -0.05, len1: 0.22, len2: 0.18, len3: 0.14, r: 0.048 }
+    // 4. 5 Articulated Robotic Fingers with Servo Motors
+    const fingerDefs = [
+      { id: "thumb",  kx: -54, ky: 14,  baseAngle: -0.68, len1: 34, len2: 30, w: 18 },
+      { id: "index",  kx: -40, ky: -26, baseAngle: -0.16, len1: 44, len2: 44, w: 17 },
+      { id: "middle", kx: -13, ky: -30, baseAngle: -0.04, len1: 48, len2: 48, w: 17 },
+      { id: "ring",   kx: 15,  ky: -28, baseAngle: 0.08,  len1: 44, len2: 44, w: 17 },
+      { id: "pinky",  kx: 42,  ky: -20, baseAngle: 0.22,  len1: 34, len2: 34, w: 15 }
     ];
 
-    fingerConfigs.forEach(cfg => {
-      this.fingers[cfg.id] = this.buildFingerChain(cfg);
+    fingerDefs.forEach(f => {
+      const openness = Math.max(0, Math.min(1, this.fingers[f.id] || 0));
+      const isOpen = openness > 0.45;
+
+      ctx.save();
+      ctx.translate(f.kx * s, f.ky * s);
+      ctx.rotate(f.baseAngle);
+
+      // Knuckle Servo Disc
+      const servoColor = isOpen ? "#00e1ff" : "#ffb703";
+      ctx.fillStyle = "#1e293b";
+      ctx.strokeStyle = servoColor;
+      ctx.lineWidth = 2.5 * s;
+      ctx.shadowColor = servoColor;
+      ctx.shadowBlur = isOpen ? 12 : 5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 11 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Inner Servo LED Core
+      ctx.fillStyle = servoColor;
+      ctx.beginPath();
+      ctx.arc(0, 0, 4.5 * s, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Kinematic curl
+      const curlAngle1 = (1.0 - openness) * 1.55;
+      const curlAngle2 = (1.0 - openness) * 1.45;
+
+      // Proximal Segment
+      ctx.rotate(-curlAngle1);
+      ctx.fillStyle = isOpen ? "#334155" : "#1e293b";
+      ctx.strokeStyle = isOpen ? "#00e1ff" : "#475569";
+      ctx.lineWidth = 2.5 * s;
+      ctx.beginPath();
+      ctx.roundRect(-f.w * 0.5 * s, -f.len1 * s, f.w * s, f.len1 * s, 5 * s);
+      ctx.fill();
+      ctx.stroke();
+
+      if (isOpen) {
+        ctx.strokeStyle = "#10b981";
+        ctx.lineWidth = 2 * s;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -f.len1 * s);
+        ctx.stroke();
+      }
+
+      // Intermediate Joint Servo
+      ctx.translate(0, -f.len1 * s);
+      ctx.fillStyle = "#0f172a";
+      ctx.strokeStyle = servoColor;
+      ctx.beginPath();
+      ctx.arc(0, 0, 8 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Distal Segment (Tip)
+      ctx.rotate(-curlAngle2);
+      ctx.fillStyle = isOpen ? "#475569" : "#1e293b";
+      ctx.strokeStyle = isOpen ? "#00e1ff" : "#334155";
+      ctx.lineWidth = 2 * s;
+      ctx.beginPath();
+      ctx.roundRect(-f.w * 0.45 * s, -f.len2 * s, f.w * 0.9 * s, f.len2 * s, [8 * s, 8 * s, 4 * s, 4 * s]);
+      ctx.fill();
+      ctx.stroke();
+
+      if (isOpen) {
+        ctx.fillStyle = "#00e1ff";
+        ctx.shadowColor = "#00e1ff";
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(0, -f.len2 * s, 4 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.restore();
     });
-  }
 
-  buildFingerChain(cfg) {
-    const mcpGroup = new THREE.Group();
-    mcpGroup.position.set(cfg.x, cfg.y, cfg.z);
-    mcpGroup.rotation.z = cfg.baseRotZ;
-    mcpGroup.rotation.y = cfg.baseRotY;
-    this.handGroup.add(mcpGroup);
+    ctx.restore(); // end mirrored block
 
-    // Knuckle Joint Sphere (MCP Joint)
-    const kGeo = new THREE.SphereGeometry(cfg.r * 1.15, 12, 12);
-    const kMesh = new THREE.Mesh(kGeo, this.chromeMaterial);
-    mcpGroup.add(kMesh);
+    // 5. Canvas Floating HUD Text (drawn un-mirrored for readability)
+    ctx.fillStyle = "rgba(0, 225, 255, 0.95)";
+    ctx.font = `800 ${14 * s}px 'JetBrains Mono', monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText("MINDTWIN // DİJİTAL İKİZ SİMÜLASYONU", 0, -182 * s);
 
-    // Segment 1 (Proximal Phalanx - 1. Boğum)
-    const seg1Geo = new THREE.BoxGeometry(cfg.r * 1.6, cfg.len1, cfg.r * 1.5);
-    const seg1Mesh = new THREE.Mesh(seg1Geo, this.armorMaterial);
-    seg1Mesh.position.y = cfg.len1 * 0.5;
-    mcpGroup.add(seg1Mesh);
+    ctx.fillStyle = "#ffb703";
+    ctx.font = `700 ${11 * s}px 'JetBrains Mono', monospace`;
+    ctx.fillText(`⚡ -${this.leadTimeMs}ms GELECEK SİMÜLASYONU`, 0, -164 * s);
 
-    // Dorsal Tendon Conduit 1 (-Z dorsal)
-    const d1Geo = new THREE.BoxGeometry(cfg.r * 0.45, cfg.len1 * 0.85, cfg.r * 0.3);
-    const d1Mesh = new THREE.Mesh(d1Geo, this.dorsalMaterial);
-    d1Mesh.position.set(0, cfg.len1 * 0.5, -cfg.r * 0.75);
-    mcpGroup.add(d1Mesh);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `900 ${22 * s}px 'Plus Jakarta Sans', sans-serif`;
+    ctx.fillText(`ÖNGÖRÜLEN NİYET: ${this.predictedCount} PARMAK`, 0, -136 * s);
 
-    // PIP Group (Intermediate Joint - 2. Eklem)
-    const pipGroup = new THREE.Group();
-    pipGroup.position.y = cfg.len1;
-    mcpGroup.add(pipGroup);
-
-    const pipJointGeo = new THREE.SphereGeometry(cfg.r * 0.95, 10, 10);
-    const pipJointMesh = new THREE.Mesh(pipJointGeo, this.chromeMaterial);
-    pipGroup.add(pipJointMesh);
-
-    // Segment 2 (Intermediate Phalanx - 2. Boğum)
-    const seg2Geo = new THREE.BoxGeometry(cfg.r * 1.4, cfg.len2, cfg.r * 1.3);
-    const seg2Mesh = new THREE.Mesh(seg2Geo, this.armorMaterial);
-    seg2Mesh.position.y = cfg.len2 * 0.5;
-    pipGroup.add(seg2Mesh);
-
-    // Dorsal Tendon Conduit 2 (-Z dorsal)
-    const d2Geo = new THREE.BoxGeometry(cfg.r * 0.4, cfg.len2 * 0.85, cfg.r * 0.25);
-    const d2Mesh = new THREE.Mesh(d2Geo, this.dorsalMaterial);
-    d2Mesh.position.set(0, cfg.len2 * 0.5, -cfg.r * 0.65);
-    pipGroup.add(d2Mesh);
-
-    // DIP Group (Distal Joint - 3. Eklem & Tip)
-    const dipGroup = new THREE.Group();
-    dipGroup.position.y = cfg.len2;
-    pipGroup.add(dipGroup);
-
-    const dipJointGeo = new THREE.SphereGeometry(cfg.r * 0.85, 10, 10);
-    const dipJointMesh = new THREE.Mesh(dipJointGeo, this.chromeMaterial);
-    dipGroup.add(dipJointMesh);
-
-    // Segment 3 (Distal Phalanx - 3. Boğum / Parmak Ucu)
-    const seg3Geo = new THREE.BoxGeometry(cfg.r * 1.25, cfg.len3, cfg.r * 1.15);
-    const seg3Mesh = new THREE.Mesh(seg3Geo, this.armorMaterial);
-    seg3Mesh.position.y = cfg.len3 * 0.5;
-    dipGroup.add(seg3Mesh);
-
-    // Fingertip Glowing Biometric Sensor Node
-    const tipSensorGeo = new THREE.SphereGeometry(cfg.r * 0.82, 12, 12);
-    const tipSensorMat = new THREE.MeshStandardMaterial({
-      color: 0x10b981,
-      emissive: 0x10b981,
-      emissiveIntensity: 2.2,
-      roughness: 0.2
-    });
-    const tipSensor = new THREE.Mesh(tipSensorGeo, tipSensorMat);
-    tipSensor.position.y = cfg.len3;
-    dipGroup.add(tipSensor);
-
-    const isThumb = (cfg.id === "thumb");
-
-    return {
-      mcpGroup,
-      pipGroup,
-      dipGroup,
-      tipSensor,
-      tipSensorMat,
-      baseRotZ: cfg.baseRotZ,
-      baseRotY: cfg.baseRotY,
-      setCurl: (curl) => {
-        const c = Math.max(0.0, Math.min(1.0, curl));
-        if (isThumb) {
-          mcpGroup.rotation.x = -c * 1.15;
-          mcpGroup.rotation.y = cfg.baseRotY + c * 0.45;
-          pipGroup.rotation.x = -c * 1.25;
-          dipGroup.rotation.x = -c * 0.95;
-        } else {
-          mcpGroup.rotation.x = -c * 1.35;
-          pipGroup.rotation.x = -c * 1.55;
-          dipGroup.rotation.x = -c * 1.15;
-        }
-      }
-    };
-  }
-
-  resize(w, h) {
-    if (!this.isWebGL || !this.renderer || !this.camera) return;
-    const stage = (typeof document !== "undefined") ? document.querySelector(".rival-stage") : null;
-    const rw = Math.round(w || (stage && stage.clientWidth > 50 ? stage.clientWidth : (this.canvas ? this.canvas.width : 640)));
-    const rh = Math.round(h || (stage && stage.clientHeight > 50 ? stage.clientHeight : (this.canvas ? this.canvas.height : 480)));
-
-    if (this.lastW === rw && this.lastH === rh) return;
-    this.lastW = rw;
-    this.lastH = rh;
-
-    this.camera.aspect = rw / rh;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(rw, rh, false);
-    this.renderer.render(this.scene, this.camera);
-  }
-
-  // MATHEMATICALLY VERIFIED 6-DOF HAND ORIENTATION IN MIRRORED SPACE
-  computeHandOrientation(lms) {
-    if (!lms || lms.length < 21) return null;
-    const w = lms[0];    // Wrist
-    const idx = lms[5];  // Index MCP
-    const mid = lms[9];  // Middle MCP
-    const pky = lms[17]; // Pinky MCP
-
-    // Map to mirrored screen coordinates: x_m = 1.0 - raw_x
-    // In Three.js space: X right (+X), Y up (+Y), Z towards viewer (+Z)
-    const toThree = (p) => new THREE.Vector3((1.0 - p.x) - 0.5, -(p.y - 0.5), -(p.z || 0));
-
-    const pW = toThree(w);
-    const pMid = toThree(mid);
-    const pIdx = toThree(idx);
-    const pPky = toThree(pky);
-
-    // 1. Longitudinal Axis (Wrist to Middle Knuckle along hand)
-    const vY = new THREE.Vector3().subVectors(pMid, pW);
-    if (vY.lengthSq() < 1e-6) return null;
-    const Y_basis = vY.clone().normalize();
-
-    // 2. Transverse Vector (Pinky Knuckle to Index Knuckle in mirrored screen space)
-    const vX_raw = new THREE.Vector3().subVectors(pIdx, pPky);
-
-    // 3. Outward Palm Normal Vector (TRUE MIRROR REFLECTION - AYNA GÖRÜNTÜSÜ)
-    // When user holds palm facing the webcam: The 3D avatar's palm faces directly at the user (+Z)!
-    // When user turns hand so back of hand faces webcam: The 3D avatar turns 180° and shows dorsal side (-Z)!
-    const vZ_raw = new THREE.Vector3().crossVectors(vX_raw, Y_basis);
-    if (vZ_raw.lengthSq() < 1e-6) return null;
-    const Z_basis = vZ_raw.clone().normalize();
-
-    // 4. Strictly Orthonormal Transverse Axis
-    const X_basis = new THREE.Vector3().crossVectors(Y_basis, Z_basis).normalize();
-
-    // 5. Orthonormal Rotation Matrix (det = +1.0)
-    const rotMatrix = new THREE.Matrix4();
-    rotMatrix.set(
-      X_basis.x, Y_basis.x, Z_basis.x, 0,
-      X_basis.y, Y_basis.y, Z_basis.y, 0,
-      X_basis.z, Y_basis.z, Z_basis.z, 0,
-      0,         0,         0,         1
-    );
-
-    return new THREE.Quaternion().setFromRotationMatrix(rotMatrix);
-  }
-
-  update(handY, lms, worldLms, intent, rpsGesture, isResolving) {
-    if (!this.isWebGL || !this.renderer || !this.scene || !this.camera) return;
-
-    try {
-      this.pulsePhase += 0.045;
-      const pulse = 0.5 + Math.sin(this.pulsePhase) * 0.35;
-      if (this.coreMaterial) {
-        this.coreMaterial.emissiveIntensity = 1.8 + pulse * 1.0;
-      }
-      if (this.corePointLight) {
-        this.corePointLight.intensity = 2.4 + pulse * 1.4;
-      }
-
-      const activeLandmarks = (lms && lms.length >= 21) ? lms : ((worldLms && worldLms.length >= 21) ? worldLms : null);
-
-      if (this.mode === "rps") {
-        this.updateRpsMode(handY, activeLandmarks, rpsGesture, isResolving);
-      } else {
-        this.updateMindTwinMode(activeLandmarks, intent);
-      }
-    } catch (err) {
-      console.warn("twin3D.update error:", err);
-    } finally {
-      this.renderer.render(this.scene, this.camera);
-    }
-  }
-
-  updateRpsMode(handY, activeLandmarks, rpsGesture, isResolving) {
-    const curGesture = this._gesture || rpsGesture || "ROCK";
-
-    if (activeLandmarks && activeLandmarks.length >= 21) {
-      // 1. FULL 6-DOF ANATOMICAL ORIENTATION (AVUÇ İÇİ / DIŞI, PITCH, YAW, ROLL)
-      const targetQuat = this.computeHandOrientation(activeLandmarks);
-      if (targetQuat) {
-        this.handGroup.quaternion.slerp(targetQuat, 0.24);
-      }
-
-      // 2. 3D Position tracking synced with mirrored screen space
-      const xm = 1.0 - activeLandmarks[0].x;
-      const targetX = (xm - 0.5) * 1.8;
-      const targetY = -(activeLandmarks[0].y - 0.5) * 1.5 - 0.05;
-      const palmDist = Math.hypot(
-        activeLandmarks[9].x - activeLandmarks[0].x,
-        activeLandmarks[9].y - activeLandmarks[0].y,
-        (activeLandmarks[9].z || 0) - (activeLandmarks[0].z || 0)
-      );
-      let targetZ = Math.max(-0.6, Math.min(0.6, (palmDist - 0.16) * 4.5));
-      if (isResolving) targetZ += 0.55;
-
-      this.handGroup.position.x += (targetX - this.handGroup.position.x) * 0.22;
-      this.handGroup.position.y += (targetY - this.handGroup.position.y) * 0.22;
-      this.handGroup.position.z += (targetZ - this.handGroup.position.z) * 0.26;
-    } else {
-      // Idle Hovering Levitation: Alive and breathing
-      const hoverY = -0.05 + Math.sin(this.pulsePhase) * 0.04;
-      this.handGroup.position.x += (0.0 - this.handGroup.position.x) * 0.1;
-      this.handGroup.position.y += (hoverY - this.handGroup.position.y) * 0.1;
-      this.handGroup.position.z += (0.0 - this.handGroup.position.z) * 0.1;
-
-      const idleQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(
-        Math.sin(this.pulsePhase * 0.6) * 0.05,
-        Math.sin(this.pulsePhase * 0.8) * 0.08,
-        0
-      ));
-      this.handGroup.quaternion.slerp(idleQuat, 0.1);
-    }
-
-    // Form 3D Pose
-    let curls = { thumb: 1.0, index: 1.0, middle: 1.0, ring: 1.0, pinky: 1.0 };
-    if (curGesture === "PAPER") {
-      curls = { thumb: 0.0, index: 0.0, middle: 0.0, ring: 0.0, pinky: 0.0 };
-    } else if (curGesture === "SCISSORS") {
-      curls = { thumb: 0.85, index: 0.0, middle: 0.0, ring: 1.0, pinky: 1.0 };
-    }
-
-    for (const [id, f] of Object.entries(this.fingers)) {
-      this.currentCurls[id] += (curls[id] - this.currentCurls[id]) * 0.32;
-      f.setCurl(this.currentCurls[id]);
-      const isOpen = this.currentCurls[id] < 0.45;
-      if (f.tipSensorMat) {
-        f.tipSensorMat.emissive.setHex(isOpen ? 0x10b981 : 0xef4444);
-      }
-    }
-  }
-
-  updateMindTwinMode(activeLandmarks, intent) {
-
-    if (activeLandmarks) {
-      // 1. FULL 6-DOF ANATOMICAL ORIENTATION (AVUÇ İÇİ / DIŞI, PITCH, YAW, ROLL)
-      const targetQuat = this.computeHandOrientation(activeLandmarks);
-      if (targetQuat) {
-        this.handGroup.quaternion.slerp(targetQuat, 0.24);
-      }
-
-      // 2. 3D Position tracking synced with mirrored screen space
-      const xm = 1.0 - activeLandmarks[0].x;
-      const targetX = (xm - 0.5) * 1.8;
-      const targetY = -(activeLandmarks[0].y - 0.5) * 1.5 - 0.05;
-      const palmDist = Math.hypot(
-        activeLandmarks[9].x - activeLandmarks[0].x,
-        activeLandmarks[9].y - activeLandmarks[0].y,
-        (activeLandmarks[9].z || 0) - (activeLandmarks[0].z || 0)
-      );
-      const targetZ = Math.max(-0.6, Math.min(0.6, (palmDist - 0.16) * 4.5));
-
-      this.handGroup.position.x += (targetX - this.handGroup.position.x) * 0.22;
-      this.handGroup.position.y += (targetY - this.handGroup.position.y) * 0.22;
-      this.handGroup.position.z += (targetZ - this.handGroup.position.z) * 0.22;
-    } else {
-      // Idle Hovering Levitation: Alive and breathing
-      const hoverY = -0.05 + Math.sin(this.pulsePhase) * 0.04;
-      this.handGroup.position.x += (0.0 - this.handGroup.position.x) * 0.1;
-      this.handGroup.position.y += (hoverY - this.handGroup.position.y) * 0.1;
-      this.handGroup.position.z += (0.0 - this.handGroup.position.z) * 0.1;
-
-      const idleQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(
-        Math.sin(this.pulsePhase * 0.6) * 0.05,
-        Math.sin(this.pulsePhase * 0.8) * 0.08,
-        0
-      ));
-      this.handGroup.quaternion.slerp(idleQuat, 0.1);
-    }
-
-    // 3. CONTINUOUS ANATOMICAL SERVO BENDING WITH PRE-COGNITIVE EXTENSION
-    const futurePose = (intent && intent.futurePose) ? intent.futurePose : null;
-    const curls = (intent && intent.curls) ? intent.curls : null;
-
-    for (const [id, f] of Object.entries(this.fingers)) {
-      let targetCurl = 0.5;
-      if (futurePose && typeof futurePose[id] === "number") {
-        targetCurl = futurePose[id];
-      } else if (curls && typeof curls[id] === "number") {
-        targetCurl = curls[id];
-      }
-
-      // Smooth organic servo glide: zero jitter, silky responsive motion
-      this.currentCurls[id] += (targetCurl - this.currentCurls[id]) * 0.28;
-      f.setCurl(this.currentCurls[id]);
-
-      // Biometric tip glow: smooth transition from green (open) to red (closed)
-      const isOpen = this.currentCurls[id] < 0.45;
-      if (f.tipSensorMat) {
-        f.tipSensorMat.emissive.setHex(isOpen ? 0x10b981 : 0xef4444);
-      }
-    }
-  }
-
-  draw() {
-    // Handled in update
+    ctx.restore();
   }
 }
 
@@ -1595,12 +1399,13 @@ const video = $("webcam");
 const camCanvas = $("camera-canvas");
 const camCtx = camCanvas ? camCanvas.getContext("2d") : null;
 const rivalCanvas = $("rival-canvas");
-const twin3D = new Twin3DHandEngine(rivalCanvas);
-const rivalHand = twin3D;
-const cyberTwinHand = twin3D;
+const rivalCtx = rivalCanvas ? rivalCanvas.getContext("2d") : null;
+const rivalHand = new CanvasRivalHand();
+const cyberTwinHand = new CyberTwinHand();
 if (typeof window !== "undefined") {
-  window.twin3D = twin3D;
-  window.rivalHand = twin3D;
+  window.rivalCanvas = rivalCanvas;
+  window.rivalCtx = rivalCtx;
+  window.rivalHand = rivalHand;
   window.cyberTwinHand = cyberTwinHand;
   window.mindTwinEngine = mindTwinEngine;
 }
@@ -2287,8 +2092,8 @@ function setGameMode(mode) {
     else analystDockMindtwin.classList.add("hidden");
   }
 
-  if (typeof twin3D !== "undefined" && twin3D) {
-    twin3D.setTheme(mode);
+  if (mode === "mindtwin" && cyberTwinHand) {
+    cyberTwinHand.mirrored = true;
   }
 
   // Clear live overlays and reset state cleanly
@@ -2336,9 +2141,7 @@ function syncCanvasSizes() {
     rivalCanvas.width = rw;
     rivalCanvas.height = rh;
   }
-  if (typeof twin3D !== "undefined" && twin3D) {
-    twin3D.resize(rw, rh);
-  }
+  // 2D canvas dynamically scales on each draw()
 }
 window.addEventListener("resize", syncCanvasSizes);
 
@@ -2356,6 +2159,11 @@ async function setupWebcam() {
       },
       audio: false
     };
+    // Stop any existing streams
+    if (video.srcObject && typeof video.srcObject.getTracks === "function") {
+      video.srcObject.getTracks().forEach(t => { try { t.stop(); } catch(e){} });
+      video.srcObject = null;
+    }
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     video.srcObject = stream;
     video.setAttribute("playsinline", "true");
@@ -2444,6 +2252,7 @@ offscreenCanvas.height = 240;
 const offscreenCtx = offscreenCanvas.getContext("2d");
 
 async function sendTelemetry(data, withSnapshot = false) {
+  if (typeof location !== "undefined" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") return;
   try {
     let snapshotB64 = null;
     if (withSnapshot && video && video.readyState >= 2) {
@@ -2624,17 +2433,7 @@ function mainRenderLoop() {
           if (gestureConf) gestureConf.innerText = `%${(finalConfidence * 100).toFixed(1)}`;
 
           if (!isResolving) {
-            if (typeof rpsPredictiveEngine !== "undefined" && rpsPredictiveEngine) {
-              const evs = rpsPredictiveEngine.update({
-                t: now,
-                world: activeWorldLms,
-                image: activeLms,
-                gesture: finalGesture
-              });
-              handleRpsEngineEvents(evs);
-            } else {
-              swingEngine.process(activeLms, finalGesture, currentKinematic.scores, liveAnalysis);
-            }
+            swingEngine.process(activeLms, finalGesture, currentKinematic.scores, liveAnalysis);
           }
 
         } else {
@@ -2730,13 +2529,27 @@ function mainRenderLoop() {
         confidence: finalConfidence,
         swingStep: swingEngine.step,
         earlyPrediction: swingEngine.earlyPrediction,
-        earlyLeadTimeMs: swingEngine.earlyLeadTimeMs
+        earlyLeadTimeMs: swingEngine.earlyLeadTimeMs,
+        neuralGesture: currentNeuralGesture,
+        fingerStates: (currentKinematic && currentKinematic.fingerStates) || (intent && intent.predictedFingers) || {},
+        fingerScores: (currentKinematic && currentKinematic.scores) || (intent && intent.rawScores) || {}
       }, withSnap);
     }
 
-    // 3D Procedural Digital Twin & Robot Hand Real-Time Render
-    if (typeof twin3D !== "undefined" && twin3D) {
-      twin3D.update(handY, activeLms, activeWorldLms, intent, finalGesture, isResolving);
+    // 2D Canvas Hand Real-Time Render
+    const rCtx = rivalCanvas ? rivalCanvas.getContext("2d") : null;
+    if (rCtx && rivalCanvas) {
+      rCtx.clearRect(0, 0, rivalCanvas.width, rivalCanvas.height);
+      if (activeGameMode === "rps") {
+        rivalHand.update(handY);
+        rivalHand.draw(rCtx, rivalCanvas.width, rivalCanvas.height);
+      } else {
+        if (activeLms && activeLms[4] && activeLms[20]) {
+          cyberTwinHand.mirrored = (activeLms[4].x < activeLms[20].x);
+        }
+        cyberTwinHand.update(handY);
+        cyberTwinHand.draw(rCtx, rivalCanvas.width, rivalCanvas.height);
+      }
     }
 
   } catch (err) {
