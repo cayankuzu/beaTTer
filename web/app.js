@@ -1554,6 +1554,24 @@ let p1SeriesScore = 0;
 let p2SeriesScore = 0;
 const seriesHistory = [];
 
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "currentSeriesTurn", {
+    get: () => currentSeriesTurn,
+    set: (v) => { currentSeriesTurn = v; },
+    configurable: true
+  });
+  Object.defineProperty(window, "p1SeriesScore", {
+    get: () => p1SeriesScore,
+    set: (v) => { p1SeriesScore = v; },
+    configurable: true
+  });
+  Object.defineProperty(window, "p2SeriesScore", {
+    get: () => p2SeriesScore,
+    set: (v) => { p2SeriesScore = v; },
+    configurable: true
+  });
+}
+
 // Persistence Buffer through Fast Swings
 let lastTrackedLms = null;
 let lastTrackedWorldLms = null;
@@ -1636,7 +1654,7 @@ const seriesModalSubtitle = $("series-modal-subtitle");
 const seriesP1Score = $("series-p1-score");
 const seriesP2Score = $("series-p2-score");
 const seriesHistoryList = $("series-history-list");
-const btnNewSeries = $("btn-new-series");
+const btnNewSeries = $("btn-restart-series") || $("btn-new-series");
 
 const btnSound = $("btn-sound");
 const btnResetMatch = $("btn-reset-match");
@@ -2196,6 +2214,7 @@ function showSeriesChampionModal() {
     sound.speak("5 tur serisi berabere sonuçlandı.");
   }
 }
+window.showSeriesChampionModal = showSeriesChampionModal;
 
 function resetEntireSeries() {
   currentSeriesTurn = 1;
@@ -2219,8 +2238,15 @@ function resetEntireSeries() {
   document.body.classList.remove("clash-active");
   if (seriesModal) seriesModal.classList.add("hidden");
   if (resultBanner) resultBanner.classList.add("hidden");
+
+  // Reset rhythm chips and rival robot hand state
+  document.querySelectorAll(".rhythm-chip").forEach(el => el.classList.remove("active"));
+  if (typeof rivalHand !== "undefined" && rivalHand) rivalHand.gesture = "ROCK";
+  if (typeof cyberTwin !== "undefined" && cyberTwin && cyberTwin.reset) cyberTwin.reset();
+  if (rivalStateTag) rivalStateTag.innerText = "HAZIR";
+
   isResolving = false;
-  swingEngine.reset();
+  if (swingEngine) swingEngine.reset();
   if (typeof rpsPredictiveEngine !== "undefined" && rpsPredictiveEngine) {
     rpsPredictiveEngine.resetModel();
   }
@@ -2229,6 +2255,7 @@ function resetEntireSeries() {
       ? "🧠 <strong>Yeni MINDTWIN Serisi Başladı:</strong> Mekanik ikizine odaklan ve elini 1.. 2.. 3.. diye salla!"
       : "👉 <strong>Yeni 5'li Seri Başladı:</strong> Tur 1/5 için elini 1.. 2.. 3.. diye salla!";
   }
+  sound.speak("Yeni seri başlatıldı. Tur bir.");
 }
 
 // ==================== 6B. GAME MODE CONTROLLER ====================
@@ -2930,13 +2957,15 @@ btnSound?.addEventListener("click", () => {
   if (!sText && btnSound) btnSound.innerText = sound.voiceEnabled ? "🔊 Ses Açık" : "🔇 Ses Kapalı";
 });
 
-btnResetMatch?.addEventListener("click", () => {
+const handleNewSeries = () => {
+  sound.init();
   resetEntireSeries();
-});
+};
 
-btnNewSeries?.addEventListener("click", () => {
-  resetEntireSeries();
-});
+btnResetMatch?.addEventListener("click", handleNewSeries);
+btnNewSeries?.addEventListener("click", handleNewSeries);
+document.getElementById("btn-restart-series")?.addEventListener("click", handleNewSeries);
+document.getElementById("btn-new-series")?.addEventListener("click", handleNewSeries);
 
 btnInstantShoot?.addEventListener("click", () => {
   sound.init();

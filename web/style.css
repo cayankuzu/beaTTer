@@ -911,6 +911,10 @@ body.clash-active .analyst-dock {
   box-sizing: border-box;
 }
 
+.series-modal.hidden {
+  display: none !important;
+}
+
 .series-modal-content {
   background: var(--card-bg);
   border: 1px solid var(--accent-primary);
