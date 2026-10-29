@@ -2144,32 +2144,55 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
     if (hintMsg) hintMsg.innerHTML = `🧠 <strong>Tur ${currentSeriesTurn} Tamamlandı:</strong> ${aiPredictedRight ? "AI zihnini okudu!" : "AI'yı şaşırttın!"}`;
   }
 
-  setTimeout(() => {
-    if (resultBanner) resultBanner.classList.add("hidden");
-    document.querySelectorAll(".rhythm-chip").forEach(el => el.classList.remove("active"));
-    rivalHand.gesture = "ROCK";
-    if (rivalStateTag) rivalStateTag.innerText = "HAZIR";
+  const timerFill = $("banner-timer-fill");
+  if (timerFill) {
+    timerFill.style.animation = "none";
+    void timerFill.offsetWidth;
+    timerFill.style.animation = "bannerCountdown 4.6s linear forwards";
+  }
 
-    if (currentSeriesTurn < MAX_SERIES_TURNS) {
-      document.body.classList.remove("clash-active");
-      currentSeriesTurn++;
-      if (turnIndicator) turnIndicator.innerText = `TUR ${currentSeriesTurn}/5`;
-      const nextPip = $(`pip-${currentSeriesTurn}`);
-      if (nextPip) nextPip.classList.add("current");
-      if (hintMsg) {
-        hintMsg.innerHTML = (activeGameMode === "mindtwin")
-          ? `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Elini kameranın karşısında salla, parmaklarını aç!`
-          : `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Elini yumruk yapıp 1.. 2.. 3.. diye salla, 4'te vur!`;
-      }
-      if (typeof rpsPredictiveEngine !== "undefined" && rpsPredictiveEngine) {
-        rpsPredictiveEngine.nextTurn();
-      }
-      isResolving = false;
-    } else {
-      showSeriesChampionModal();
-    }
-  }, 2200);
+  if (clashResolutionTimer) {
+    clearTimeout(clashResolutionTimer);
+  }
+  clashResolutionTimer = setTimeout(() => {
+    advanceAfterClash();
+  }, 4600);
 }
+
+let clashResolutionTimer = null;
+
+function advanceAfterClash() {
+  if (clashResolutionTimer) {
+    clearTimeout(clashResolutionTimer);
+    clashResolutionTimer = null;
+  }
+  if (!isResolving) return;
+
+  if (resultBanner) resultBanner.classList.add("hidden");
+  document.querySelectorAll(".rhythm-chip").forEach(el => el.classList.remove("active"));
+  if (typeof rivalHand !== "undefined" && rivalHand) rivalHand.gesture = "ROCK";
+  if (rivalStateTag) rivalStateTag.innerText = "HAZIR";
+
+  if (currentSeriesTurn < MAX_SERIES_TURNS) {
+    document.body.classList.remove("clash-active");
+    currentSeriesTurn++;
+    if (turnIndicator) turnIndicator.innerText = `TUR ${currentSeriesTurn}/5`;
+    const nextPip = $(`pip-${currentSeriesTurn}`);
+    if (nextPip) nextPip.classList.add("current");
+    if (hintMsg) {
+      hintMsg.innerHTML = (activeGameMode === "mindtwin")
+        ? `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Elini kameranın karşısında salla, parmaklarını aç!`
+        : `👉 <strong>Tur ${currentSeriesTurn}/5:</strong> Elini yumruk yapıp 1.. 2.. 3.. diye salla, 4'te vur!`;
+    }
+    if (typeof rpsPredictiveEngine !== "undefined" && rpsPredictiveEngine) {
+      rpsPredictiveEngine.nextTurn();
+    }
+    isResolving = false;
+  } else {
+    showSeriesChampionModal();
+  }
+}
+window.advanceAfterClash = advanceAfterClash;
 
 function showSeriesChampionModal() {
   if (!seriesModal) return;
@@ -2217,6 +2240,10 @@ function showSeriesChampionModal() {
 window.showSeriesChampionModal = showSeriesChampionModal;
 
 function resetEntireSeries() {
+  if (clashResolutionTimer) {
+    clearTimeout(clashResolutionTimer);
+    clashResolutionTimer = null;
+  }
   currentSeriesTurn = 1;
   p1SeriesScore = 0;
   p2SeriesScore = 0;
@@ -2969,7 +2996,17 @@ document.getElementById("btn-new-series")?.addEventListener("click", handleNewSe
 
 btnInstantShoot?.addEventListener("click", () => {
   sound.init();
+  if (isResolving && resultBanner && !resultBanner.classList.contains("hidden")) {
+    advanceAfterClash();
+    return;
+  }
   triggerClash(currentDetectedGesture, currentDetectedGesture, 45);
+});
+
+resultBanner?.addEventListener("click", () => {
+  if (isResolving && resultBanner && !resultBanner.classList.contains("hidden")) {
+    advanceAfterClash();
+  }
 });
 
 btnToggleSettings?.addEventListener("click", () => {
@@ -3018,6 +3055,10 @@ btnAutoCalibrate?.addEventListener("click", () => {
 window.addEventListener("keydown", (e) => {
   if (e.code === "Space") {
     e.preventDefault();
+    if (isResolving && resultBanner && !resultBanner.classList.contains("hidden")) {
+      advanceAfterClash();
+      return;
+    }
     if (!isResolving) {
       sound.init();
       triggerClash(currentDetectedGesture, currentDetectedGesture, 45);
