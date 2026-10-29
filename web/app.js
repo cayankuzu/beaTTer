@@ -2144,19 +2144,19 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
     if (hintMsg) hintMsg.innerHTML = `🧠 <strong>Tur ${currentSeriesTurn} Tamamlandı:</strong> ${aiPredictedRight ? "AI zihnini okudu!" : "AI'yı şaşırttın!"}`;
   }
 
-  const timerFill = $("banner-timer-fill");
-  if (timerFill) {
-    timerFill.style.animation = "none";
-    void timerFill.offsetWidth;
-    timerFill.style.animation = "bannerCountdown 4.6s linear forwards";
+  // Button-driven turn system: update next turn button and footer button labels
+  const nextTurnBtnText = $("next-turn-btn-text");
+  if (currentSeriesTurn < MAX_SERIES_TURNS) {
+    if (nextTurnBtnText) nextTurnBtnText.innerText = `Sonraki Tura Geç (Tur ${currentSeriesTurn + 1}/5) ▶`;
+    if (btnInstantShoot) {
+      btnInstantShoot.innerHTML = `<span class="btn-icon">▶</span><span class="btn-text">Sonraki Tur (${currentSeriesTurn + 1}/5) <small class="kbd-hint">(SPACE)</small></span>`;
+    }
+  } else {
+    if (nextTurnBtnText) nextTurnBtnText.innerText = `5 Tur Şampiyonunu Gör 🏆`;
+    if (btnInstantShoot) {
+      btnInstantShoot.innerHTML = `<span class="btn-icon">🏆</span><span class="btn-text">Seriyi Bitir <small class="kbd-hint">(SPACE)</small></span>`;
+    }
   }
-
-  if (clashResolutionTimer) {
-    clearTimeout(clashResolutionTimer);
-  }
-  clashResolutionTimer = setTimeout(() => {
-    advanceAfterClash();
-  }, 4600);
 }
 
 let clashResolutionTimer = null;
@@ -2169,6 +2169,9 @@ function advanceAfterClash() {
   if (!isResolving) return;
 
   if (resultBanner) resultBanner.classList.add("hidden");
+  if (btnInstantShoot) {
+    btnInstantShoot.innerHTML = `<span class="btn-icon">⚡</span><span class="btn-text">Şimdi Vur! <small class="kbd-hint">(SPACE)</small></span>`;
+  }
   document.querySelectorAll(".rhythm-chip").forEach(el => el.classList.remove("active"));
   if (typeof rivalHand !== "undefined" && rivalHand) rivalHand.gesture = "ROCK";
   if (rivalStateTag) rivalStateTag.innerText = "HAZIR";
@@ -2265,6 +2268,9 @@ function resetEntireSeries() {
   document.body.classList.remove("clash-active");
   if (seriesModal) seriesModal.classList.add("hidden");
   if (resultBanner) resultBanner.classList.add("hidden");
+  if (btnInstantShoot) {
+    btnInstantShoot.innerHTML = `<span class="btn-icon">⚡</span><span class="btn-text">Şimdi Vur! <small class="kbd-hint">(SPACE)</small></span>`;
+  }
 
   // Reset rhythm chips and rival robot hand state
   document.querySelectorAll(".rhythm-chip").forEach(el => el.classList.remove("active"));
@@ -3003,8 +3009,17 @@ btnInstantShoot?.addEventListener("click", () => {
   triggerClash(currentDetectedGesture, currentDetectedGesture, 45);
 });
 
-resultBanner?.addEventListener("click", () => {
+const btnNextTurn = $("btn-next-turn");
+btnNextTurn?.addEventListener("click", () => {
+  sound.init();
   if (isResolving && resultBanner && !resultBanner.classList.contains("hidden")) {
+    advanceAfterClash();
+  }
+});
+
+resultBanner?.addEventListener("click", (e) => {
+  if (isResolving && resultBanner && !resultBanner.classList.contains("hidden")) {
+    // Only advance if clicked outside of text selection
     advanceAfterClash();
   }
 });
