@@ -122,7 +122,8 @@ const elementIds = [
   "fdot-thumb", "fdot-index", "fdot-mid", "fdot-ring", "fdot-pinky",
   "kinetic-fill", "result-winner", "clash-p1-icon", "clash-p1-text", "clash-p2-icon", "clash-p2-text",
   "mind-early-guess", "mind-final-move", "mind-counter-move", "clash-analysis",
-  "mindtwin-lead-badge", "mindtwin-sub-strategy", "stat-v-angle", "stat-tendon-vel", "stat-psych", "stat-accel", "stat-predictability", "stat-lock-badge", "mind-bio-trigger", "mind-game-theory", "mind-seal"
+  "mindtwin-lead-badge", "mindtwin-sub-strategy", "stat-v-angle", "stat-tendon-vel", "stat-psych", "stat-accel", "stat-predictability", "stat-lock-badge", "mind-bio-trigger", "mind-game-theory", "mind-seal",
+  "face-privacy-shield", "btn-toggle-privacy", "select-face-blur", "val-face-blur"
 ];
 for (let i = 1; i <= 5; i++) elementIds.push(`pip-${i}`);
 elementIds.forEach(id => getOrCreateElement(id));
@@ -151,7 +152,8 @@ const sandbox = new Function(code + `
     RPSPsychologicalAnalyst,
     KineticSurgeEngine,
     CanvasRivalHand,
-    sound
+    sound,
+    setFacePrivacyShield
   };
 `);
 
@@ -450,6 +452,22 @@ rHand.thrustAnimation("SCISSORS");
 assert("thrustAnimation sets gesture to SCISSORS", rHand.gesture === "SCISSORS");
 assert("thrustAnimation sets thrustScale > 1.0", rHand.thrustScale > 1.2);
 assert("thrustAnimation sets thrustGlow > 0.5", rHand.thrustGlow >= 0.9);
+
+// TEST 21: Face Privacy Shield (Frosted Glass Anonymizer)
+const shieldEl = getOrCreateElement("face-privacy-shield");
+const toggleBtnEl = getOrCreateElement("btn-toggle-privacy");
+const selectBlurEl = getOrCreateElement("select-face-blur");
+
+assert("setFacePrivacyShield is defined", typeof app.setFacePrivacyShield === "function");
+app.setFacePrivacyShield("blur");
+assert("Face shield visible when enabled", !shieldEl.classList.contains("hidden"));
+assert("Toggle button reflects active privacy shield", toggleBtnEl.innerText.includes("Gizlilik: Açık"));
+assert("Select dropdown set to blur", selectBlurEl.value === "blur");
+
+app.setFacePrivacyShield("off");
+assert("Face shield hidden when disabled", shieldEl.classList.contains("hidden"));
+assert("Toggle button reflects disabled privacy shield", toggleBtnEl.innerText.includes("Gizlilik: Kapalı"));
+assert("Select dropdown set to off", selectBlurEl.value === "off");
 
 console.log(`\nTest Summary: ${passed} passed, ${failed} failed.`);
 if (failed > 0) {

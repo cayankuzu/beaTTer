@@ -114,6 +114,7 @@
           <div class="status-live">
             <span class="live-dot"></span>
             <span id="player-box-title">CANLI KAMERA & İSKELET</span>
+            <button id="btn-toggle-privacy" class="btn-privacy-icon" title="Yüz Gizlilik Kalkanını Aç/Kapat">🛡️ Gizlilik: Açık</button>
           </div>
           <span id="fps-counter" class="mono-badge">60 FPS</span>
         </div>
@@ -122,6 +123,15 @@
           <div class="mirror-view">
             <video id="webcam" autoplay playsinline muted></video>
             <canvas id="camera-canvas"></canvas>
+          </div>
+
+          <!-- Face Privacy Shield (Frosted Glass Anon Shield) -->
+          <div id="face-privacy-shield" class="face-privacy-shield">
+            <div class="shield-scan-bar"></div>
+            <div class="shield-tag-pill">
+              <span class="shield-dot"></span>
+              <span>GİZLİLİK KALKANI // YÜZ KORUMASI AKTİF</span>
+            </div>
           </div>
 
           <!-- Camera Error & Recovery Overlay -->
@@ -372,6 +382,18 @@
       </div>
 
       <div class="drawer-body">
+        <div class="setting-item">
+          <div class="setting-label">
+            <span>🛡️ Yüz Gizlilik Kalkanı (Anonim Mod)</span>
+            <span id="val-face-blur" class="setting-val">Açık (Önerilen)</span>
+          </div>
+          <select id="select-face-blur">
+            <option value="blur" selected>🛡️ Açık: Yüzü buzlu cam kalkanı ile gizle</option>
+            <option value="off">👁️ Kapalı: Yüzü doğrudan göster</option>
+          </select>
+          <small>Kameradaki yüzü bulanıklaştırarak kimliği gizler ve dikkati tamamen el hareketlerine odaklar.</small>
+        </div>
+
         <div class="setting-item">
           <div class="setting-label">
             <span>Salınım Hassasiyeti (Hareket Algılama)</span>

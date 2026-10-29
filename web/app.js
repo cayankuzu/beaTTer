@@ -1727,6 +1727,11 @@ const valFlexion = $("val-flexion");
 const selectGameMode = $("select-game-mode");
 const btnAutoCalibrate = $("btn-auto-calibrate");
 
+const facePrivacyShield = $("face-privacy-shield");
+const btnTogglePrivacy = $("btn-toggle-privacy");
+const selectFaceBlur = $("select-face-blur");
+const valFaceBlur = $("val-face-blur");
+
 function getWinningCounter(playerMove) {
   if (playerMove === "ROCK") return "PAPER";
   if (playerMove === "PAPER") return "SCISSORS";
@@ -3153,6 +3158,47 @@ btnAutoCalibrate?.addEventListener("click", () => {
   }, 1000);
 });
 
+// Face Privacy Shield (Frosted Glass Anonymizer)
+function setFacePrivacyShield(mode) {
+  const isEnabled = mode === "blur" || mode === true || mode === "true";
+  if (facePrivacyShield) {
+    if (isEnabled) {
+      facePrivacyShield.classList.remove("hidden");
+    } else {
+      facePrivacyShield.classList.add("hidden");
+    }
+  }
+  if (btnTogglePrivacy) {
+    const label = isEnabled ? "🛡️ Gizlilik: Açık" : "👁️ Gizlilik: Kapalı";
+    btnTogglePrivacy.innerHTML = label;
+    btnTogglePrivacy.innerText = label;
+    btnTogglePrivacy.className = `btn-privacy-icon ${isEnabled ? "" : "off"}`;
+    btnTogglePrivacy.title = isEnabled ? "Yüz Gizlilik Kalkanı Açık (Tıkla ve Kapat)" : "Yüz Gizlilik Kalkanı Kapalı (Tıkla ve Aç)";
+  }
+  if (selectFaceBlur) {
+    selectFaceBlur.value = isEnabled ? "blur" : "off";
+  }
+  if (valFaceBlur) {
+    valFaceBlur.innerText = isEnabled ? "Açık (Önerilen)" : "Kapalı";
+  }
+  try {
+    localStorage.setItem("beatter_face_blur", isEnabled ? "blur" : "off");
+  } catch (e) {}
+}
+window.setFacePrivacyShield = setFacePrivacyShield;
+
+btnTogglePrivacy?.addEventListener("click", () => {
+  const currentSetting = localStorage.getItem("beatter_face_blur") || "blur";
+  const newMode = currentSetting === "blur" ? "off" : "blur";
+  setFacePrivacyShield(newMode);
+  if (sound) sound.playBeat(newMode === "blur" ? 640 : 420);
+});
+
+selectFaceBlur?.addEventListener("change", (e) => {
+  setFacePrivacyShield(e.target.value);
+  if (sound) sound.playBeat(e.target.value === "blur" ? 640 : 420);
+});
+
 window.addEventListener("keydown", (e) => {
   if (e.code === "Space") {
     e.preventDefault();
@@ -3229,6 +3275,11 @@ function updateCognitiveHUD() {
 window.updateCognitiveHUD = updateCognitiveHUD;
 
 // ==================== 12. SYSTEM BOOT ====================
+try {
+  const savedPrivacyMode = localStorage.getItem("beatter_face_blur") || "blur";
+  setFacePrivacyShield(savedPrivacyMode);
+} catch (e) {}
+
 updateCognitiveHUD();
 requestAnimationFrame(mainRenderLoop);
 
