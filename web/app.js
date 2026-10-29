@@ -959,8 +959,10 @@ class CanvasRivalHand {
 
   draw(ctx, width, height) {
     const cx = width * 0.5;
-    const cy = height * this.currentY;
-    const baseScale = Math.min(width, height) / 520.0;
+    const isCompact = height < 420;
+    const defaultCenterY = isCompact ? 0.38 : 0.50;
+    const cy = height * (this.currentY * 0.60 + defaultCenterY * 0.40);
+    const baseScale = Math.min(width, isCompact ? height * 1.35 : height) / 520.0;
     const scale = baseScale * (this.thrustScale || 1.0);
 
     ctx.save();
@@ -1154,8 +1156,10 @@ class CyberTwinHand {
 
   draw(ctx, width, height) {
     const cx = width * 0.5;
-    const cy = height * this.currentY;
-    const s = Math.min(width, height) / 530.0;
+    const isCompact = height < 420;
+    const defaultCenterY = isCompact ? 0.38 : 0.50;
+    const cy = height * (this.currentY * 0.60 + defaultCenterY * 0.40);
+    const s = Math.min(width, isCompact ? height * 1.35 : height) / 530.0;
 
     ctx.save();
     ctx.translate(cx, cy);
@@ -2322,6 +2326,17 @@ function syncCanvasSizes() {
   // 2D canvas dynamically scales on each draw()
 }
 window.addEventListener("resize", syncCanvasSizes);
+window.addEventListener("orientationchange", () => {
+  setTimeout(syncCanvasSizes, 100);
+});
+
+if (typeof ResizeObserver !== "undefined") {
+  const ro = new ResizeObserver(() => syncCanvasSizes());
+  const pStage = document.querySelector(".video-stage");
+  const rStage = document.querySelector(".rival-stage");
+  if (pStage) ro.observe(pStage);
+  if (rStage) ro.observe(rStage);
+}
 
 async function requestCameraStream(selectedDeviceId = null) {
   if (typeof navigator === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -2899,7 +2914,11 @@ function updateFingerChips(states) {
 // ==================== 11. UI EVENT LISTENERS & SETTINGS CONTROLLER ====================
 btnSound?.addEventListener("click", () => {
   sound.voiceEnabled = !sound.voiceEnabled;
-  btnSound.innerText = sound.voiceEnabled ? "🔊 Ses Açık" : "🔇 Ses Kapalı";
+  const sText = $("sound-text");
+  const sIcon = $("sound-icon");
+  if (sText) sText.innerText = sound.voiceEnabled ? "Ses Açık" : "Ses Kapalı";
+  if (sIcon) sIcon.innerText = sound.voiceEnabled ? "🔊" : "🔇";
+  if (!sText && btnSound) btnSound.innerText = sound.voiceEnabled ? "🔊 Ses Açık" : "🔇 Ses Kapalı";
 });
 
 btnResetMatch?.addEventListener("click", () => {
