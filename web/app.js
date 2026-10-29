@@ -19,6 +19,7 @@
 
 import {
   GestureRecognizer,
+  FaceDetector,
   FilesetResolver
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
 
@@ -1561,6 +1562,15 @@ let activeGameMode = "rps"; // "rps" or "mindtwin"
 let playerParityBet = "EVEN"; // "EVEN" or "ODD" 
 
 let gestureRecognizer = null;
+let faceDetector = null;
+let lastDetectedFaces = [];
+let smoothedFaceBox = null;
+let faceLostFrames = 0;
+let lastFaceTimestamp = 0;
+let isFacePrivacyEnabled = true;
+
+const faceBlurCanvas = (typeof document !== "undefined") ? document.createElement("canvas") : null;
+const faceBlurCtx = faceBlurCanvas ? faceBlurCanvas.getContext("2d") : null;
 let isResolving = false;
 let currentDetectedGesture = "ROCK";
 
@@ -2622,6 +2632,36 @@ async function initRecognizer() {
       window.gestureRecognizer = gestureRecognizer;
       console.log("[beaTTer] Google GestureRecognizer (GPU) yüklendi!");
     }
+
+    // Google BlazeFace FaceDetector (229 KB ultra-lightweight optical defocus model)
+    try {
+      faceDetector = await FaceDetector.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "./blaze_face_short_range.tflite",
+          delegate: "CPU"
+        },
+        runningMode: "VIDEO",
+        minDetectionConfidence: 0.25
+      });
+      window.faceDetector = faceDetector;
+      console.log("[beaTTer] Google BlazeFace FaceDetector yüklendi!");
+    } catch (faceErr) {
+      console.warn("[beaTTer] CPU FaceDetector açılamadı, GPU deneniyor:", faceErr);
+      try {
+        faceDetector = await FaceDetector.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "./blaze_face_short_range.tflite",
+            delegate: "GPU"
+          },
+          runningMode: "VIDEO",
+          minDetectionConfidence: 0.25
+        });
+        window.faceDetector = faceDetector;
+        console.log("[beaTTer] Google BlazeFace FaceDetector (GPU) yüklendi!");
+      } catch (gpuFaceErr) {
+        console.error("[beaTTer] FaceDetector yükleme hatası:", gpuFaceErr);
+      }
+    }
   } catch (err) {
     console.error("[beaTTer] GestureRecognizer yükleme hatası:", err);
   }
@@ -2681,6 +2721,9 @@ function mainRenderLoop() {
 
     if (camCtx && camCanvas) {
       camCtx.clearRect(0, 0, camCanvas.width, camCanvas.height);
+      if (isFacePrivacyEnabled) {
+        drawDynamicFacePrivacy(camCtx, video, camCanvas, lastDetectedFaces, true);
+      }
     }
 
     let handY = 0.5;
@@ -2720,6 +2763,19 @@ function mainRenderLoop() {
             recognizerErrorCount = 0;
             initRecognizer();
           }
+        }
+
+        // Real-time AI Face Detection (BlazeFace Short Range: 229 KB model)
+        if (faceDetector && isFacePrivacyEnabled) {
+          let faceNowMs = Math.round(now);
+          if (faceNowMs <= lastFaceTimestamp) faceNowMs = lastFaceTimestamp + 1;
+          lastFaceTimestamp = faceNowMs;
+          try {
+            const faceRes = faceDetector.detectForVideo(video, faceNowMs);
+            if (faceRes && faceRes.detections) {
+              lastDetectedFaces = faceRes.detections;
+            }
+          } catch (fErr) {}
         }
       }
 
@@ -2968,6 +3024,93 @@ function mainRenderLoop() {
   }
 }
 
+// Dynamic AI Camera Optical Defocus & Face Blur (Zero-Mask, Natural Feathered Bokeh)
+function drawDynamicFacePrivacy(ctx, videoEl, canvasEl, detections, isEnabled) {
+  if (!ctx || !canvasEl || !isEnabled || !faceBlurCtx || !faceBlurCanvas) return;
+  if (!videoEl || videoEl.readyState < 2 || videoEl.videoWidth <= 0 || videoEl.videoHeight <= 0) return;
+
+  if (detections && detections.length > 0) {
+    const targetBox = detections[0].boundingBox;
+    faceLostFrames = 0;
+    if (!smoothedFaceBox) {
+      smoothedFaceBox = { ...targetBox };
+    } else {
+      const alpha = 0.38;
+      smoothedFaceBox.originX += (targetBox.originX - smoothedFaceBox.originX) * alpha;
+      smoothedFaceBox.originY += (targetBox.originY - smoothedFaceBox.originY) * alpha;
+      smoothedFaceBox.width += (targetBox.width - smoothedFaceBox.width) * alpha;
+      smoothedFaceBox.height += (targetBox.height - smoothedFaceBox.height) * alpha;
+    }
+  } else {
+    faceLostFrames++;
+    if (faceLostFrames > 22) {
+      smoothedFaceBox = null;
+    }
+  }
+
+  if (!smoothedFaceBox) return;
+
+  const videoW = videoEl.videoWidth || 640;
+  const videoH = videoEl.videoHeight || 480;
+  const canvasW = canvasEl.width;
+  const canvasH = canvasEl.height;
+
+  const scale = Math.max(canvasW / videoW, canvasH / videoH);
+  const renderedW = videoW * scale;
+  const renderedH = videoH * scale;
+  const offsetX = (canvasW - renderedW) * 0.5;
+  const offsetY = (canvasH - renderedH) * 0.5;
+
+  const boxX = smoothedFaceBox.originX * scale + offsetX;
+  const boxY = smoothedFaceBox.originY * scale + offsetY;
+  const boxW = smoothedFaceBox.width * scale;
+  const boxH = smoothedFaceBox.height * scale;
+
+  const cx = boxX + boxW * 0.5;
+  const cy = boxY + boxH * 0.5;
+  const rx = (boxW * 0.5) * 1.55;
+  const ry = (boxH * 0.5) * 1.75;
+  const maxR = Math.max(rx, ry);
+
+  if (faceBlurCanvas.width !== canvasW || faceBlurCanvas.height !== canvasH) {
+    faceBlurCanvas.width = canvasW;
+    faceBlurCanvas.height = canvasH;
+  }
+
+  faceBlurCtx.clearRect(0, 0, faceBlurCanvas.width, faceBlurCanvas.height);
+
+  // 1. Heavy Gaussian optical defocus (natural camera bokeh)
+  faceBlurCtx.filter = "blur(46px) saturate(1.15) contrast(1.05)";
+  faceBlurCtx.drawImage(videoEl, offsetX, offsetY, renderedW, renderedH);
+
+  // 2. Subtle chromatic lens dispersion
+  faceBlurCtx.globalCompositeOperation = "screen";
+  faceBlurCtx.filter = "blur(32px)";
+  faceBlurCtx.drawImage(videoEl, offsetX + 2, offsetY - 1, renderedW, renderedH);
+  faceBlurCtx.globalCompositeOperation = "source-over";
+
+  // 3. Smooth feathered radial falloff (NO mask lines, seamless transition into background)
+  faceBlurCtx.save();
+  faceBlurCtx.globalCompositeOperation = "destination-in";
+  faceBlurCtx.translate(cx, cy);
+  faceBlurCtx.scale(rx / maxR, ry / maxR);
+  const grad = faceBlurCtx.createRadialGradient(0, 0, maxR * 0.2, 0, 0, maxR);
+  grad.addColorStop(0.0, "rgba(0, 0, 0, 1.0)");
+  grad.addColorStop(0.5, "rgba(0, 0, 0, 0.98)");
+  grad.addColorStop(0.75, "rgba(0, 0, 0, 0.70)");
+  grad.addColorStop(0.92, "rgba(0, 0, 0, 0.25)");
+  grad.addColorStop(1.0, "rgba(0, 0, 0, 0.0)");
+
+  faceBlurCtx.fillStyle = grad;
+  faceBlurCtx.beginPath();
+  faceBlurCtx.arc(0, 0, maxR, 0, Math.PI * 2);
+  faceBlurCtx.fill();
+  faceBlurCtx.restore();
+
+  // 4. Composite the natural optical blur over the camera canvas
+  ctx.drawImage(faceBlurCanvas, 0, 0);
+}
+
 // Precision Skeleton
 function drawPrecisionSkeleton(ctx, lms, w, h, states) {
   if (!lms || lms.length < 21) return;
@@ -3158,9 +3301,14 @@ btnAutoCalibrate?.addEventListener("click", () => {
   }, 1000);
 });
 
-// Face Privacy Shield (Frosted Glass Anonymizer)
+// Face Privacy Shield (Optical Camera Defocus & AI Face Anonymizer)
 function setFacePrivacyShield(mode) {
   const isEnabled = mode === "blur" || mode === true || mode === "true";
+  isFacePrivacyEnabled = isEnabled;
+  if (!isEnabled) {
+    smoothedFaceBox = null;
+    lastDetectedFaces = [];
+  }
   if (facePrivacyShield) {
     if (isEnabled) {
       facePrivacyShield.classList.remove("hidden");
@@ -3179,7 +3327,7 @@ function setFacePrivacyShield(mode) {
     selectFaceBlur.value = isEnabled ? "blur" : "off";
   }
   if (valFaceBlur) {
-    valFaceBlur.innerText = isEnabled ? "Açık (Önerilen)" : "Kapalı";
+    valFaceBlur.innerText = isEnabled ? "Açık (AI Kamera Defokus)" : "Kapalı";
   }
   try {
     localStorage.setItem("beatter_face_blur", isEnabled ? "blur" : "off");
