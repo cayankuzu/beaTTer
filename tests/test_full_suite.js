@@ -150,6 +150,7 @@ const sandbox = new Function(code + `
     analyst,
     RPSPsychologicalAnalyst,
     KineticSurgeEngine,
+    CanvasRivalHand,
     sound
   };
 `);
@@ -289,6 +290,128 @@ assert("Engine isLocked is true", engine.isLocked === true);
 
 // TEST 14: SoundFX playLock exists
 assert("SoundFX has playLock method", typeof app.sound.playLock === "function");
+
+// TEST 15: In-air 4th strike: no premature lock while hand is rising after beat 3
+let inAirLock = null;
+const airEngine = new app.KineticSurgeEngine({
+  onBeat: () => {},
+  onAnticipate: () => {},
+  onPreLock: (pred, counter, leadMs, opts) => { inAirLock = { pred, counter, leadMs, opts }; },
+  onClash: () => {},
+  onReset: () => {}
+});
+
+const t0 = global.performance.now();
+airEngine.step = 3;
+airEngine.anticipationActive = true;
+airEngine.swing4Phase = "WAIT_RISE";
+airEngine.swing4ApexY = 1.0;
+airEngine.lastBeatTime = t0 - 200;
+
+const lmsRise = Array(21).fill(0).map(() => ({ x: 0.5, y: 0.30 }));
+airEngine.history = [
+  { x: 0.5, y: 0.50, t: t0 - 150 },
+  { x: 0.5, y: 0.40, t: t0 - 100 },
+  { x: 0.5, y: 0.35, t: t0 - 50 },
+  { x: 0.5, y: 0.30, t: t0 - 10 }
+];
+airEngine.process(lmsRise, "ROCK", null, null);
+assert("No premature pre-lock while hand is rising after beat 3", airEngine.isLocked === false && inAirLock === null);
+assert("Engine transitioned to RISING phase", airEngine.swing4Phase === "RISING");
+
+// TEST 16: In-air 4th strike: SCISSORS onset recognized in flight -> counters with ROCK
+const t1 = global.performance.now();
+airEngine.swing4Phase = "DESCENDING";
+airEngine.swing4ApexY = 0.20;
+airEngine.swing4DescentStartT = t1 - 80;
+airEngine.history = [
+  { x: 0.5, y: 0.18, t: t1 - 100 },
+  { x: 0.5, y: 0.20, t: t1 - 80 },
+  { x: 0.5, y: 0.23, t: t1 - 60 },
+  { x: 0.5, y: 0.26, t: t1 - 40 },
+  { x: 0.5, y: 0.30, t: t1 - 5 }
+];
+
+const mockKinematicScissors = {
+  gesture: "SCISSORS",
+  scores: { index: 0.72, middle: 0.70, ring: 0.15, pinky: 0.12 },
+  metrics: { sFront: 0.71, sBack: 0.135, deltaScissors: 0.575, vSpreadAngle: 28.0 },
+  openCount: 2
+};
+airEngine.process(Array(21).fill(0).map(() => ({ x: 0.5, y: 0.30 })), "SCISSORS", mockKinematicScissors.scores, null, mockKinematicScissors, "SCISSORS", 0.95);
+assert("In-Air Scissors onset locked counter ROCK", inAirLock !== null && inAirLock.counter === "ROCK");
+
+// TEST 17: In-air 4th strike: PAPER onset recognized in flight -> counters with SCISSORS
+let paperLock = null;
+const paperEngine = new app.KineticSurgeEngine({
+  onBeat: () => {},
+  onAnticipate: () => {},
+  onPreLock: (pred, counter, leadMs, opts) => { paperLock = { pred, counter, leadMs, opts }; },
+  onClash: () => {},
+  onReset: () => {}
+});
+const t2 = global.performance.now();
+paperEngine.step = 3;
+paperEngine.anticipationActive = true;
+paperEngine.swing4Phase = "DESCENDING";
+paperEngine.swing4ApexY = 0.20;
+paperEngine.swing4DescentStartT = t2 - 80;
+paperEngine.lastBeatTime = t2 - 200;
+paperEngine.history = [
+  { x: 0.5, y: 0.18, t: t2 - 100 },
+  { x: 0.5, y: 0.20, t: t2 - 80 },
+  { x: 0.5, y: 0.23, t: t2 - 60 },
+  { x: 0.5, y: 0.26, t: t2 - 40 },
+  { x: 0.5, y: 0.30, t: t2 - 5 }
+];
+const mockKinematicPaper = {
+  gesture: "PAPER",
+  scores: { index: 0.85, middle: 0.88, ring: 0.82, pinky: 0.80 },
+  metrics: { sFront: 0.865, sBack: 0.81, sAll: 0.837, deltaScissors: 0.055, vSpreadAngle: 12.0 },
+  openCount: 4
+};
+paperEngine.process(Array(21).fill(0).map(() => ({ x: 0.5, y: 0.30 })), "PAPER", mockKinematicPaper.scores, null, mockKinematicPaper, "PAPER", 0.98);
+assert("In-Air Paper onset locked counter SCISSORS", paperLock !== null && paperLock.counter === "SCISSORS");
+
+// TEST 18: In-air 4th strike: ROCK confirmed clench recognized in flight -> counters with PAPER
+let rockLock = null;
+const rockEngine = new app.KineticSurgeEngine({
+  onBeat: () => {},
+  onAnticipate: () => {},
+  onPreLock: (pred, counter, leadMs, opts) => { rockLock = { pred, counter, leadMs, opts }; },
+  onClash: () => {},
+  onReset: () => {}
+});
+const t3 = global.performance.now();
+rockEngine.step = 3;
+rockEngine.anticipationActive = true;
+rockEngine.swing4Phase = "DESCENDING";
+rockEngine.swing4ApexY = 0.20;
+rockEngine.swing4DescentStartT = t3 - 90;
+rockEngine.lastBeatTime = t3 - 200;
+rockEngine.history = [
+  { x: 0.5, y: 0.15, t: t3 - 120 },
+  { x: 0.5, y: 0.20, t: t3 - 90 },
+  { x: 0.5, y: 0.30, t: t3 - 60 },
+  { x: 0.5, y: 0.40, t: t3 - 30 },
+  { x: 0.5, y: 0.48, t: t3 - 5 }
+];
+const mockKinematicRock = {
+  gesture: "ROCK",
+  scores: { index: 0.12, middle: 0.10, ring: 0.08, pinky: 0.07 },
+  metrics: { sFront: 0.11, sBack: 0.075, sAll: 0.092, deltaScissors: 0.035, vSpreadAngle: 0.0 },
+  openCount: 0
+};
+rockEngine.process(Array(21).fill(0).map(() => ({ x: 0.5, y: 0.48 })), "ROCK", mockKinematicRock.scores, null, mockKinematicRock, "ROCK", 0.96);
+assert("In-Air Rock confirmed clench locked counter PAPER", rockLock !== null && rockLock.counter === "PAPER");
+
+// TEST 19: CanvasRivalHand thrustAnimation exists and scales up
+const rHand = new app.CanvasRivalHand();
+assert("CanvasRivalHand has thrustAnimation", typeof rHand.thrustAnimation === "function");
+rHand.thrustAnimation("SCISSORS");
+assert("thrustAnimation sets gesture to SCISSORS", rHand.gesture === "SCISSORS");
+assert("thrustAnimation sets thrustScale > 1.0", rHand.thrustScale > 1.2);
+assert("thrustAnimation sets thrustGlow > 0.5", rHand.thrustGlow >= 0.9);
 
 console.log(`\nTest Summary: ${passed} passed, ${failed} failed.`);
 if (failed > 0) {

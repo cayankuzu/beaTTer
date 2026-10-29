@@ -495,9 +495,14 @@ class KineticSurgeEngine {
     this.lastVy = 0;
     this.currentVelocityY = 0;
     this.currentAccelY = 0;
+
+    // 4th Strike In-Air Tracking Phase
+    this.swing4Phase = "IDLE"; // "IDLE" | "WAIT_RISE" | "RISING" | "DESCENDING"
+    this.swing4ApexY = 1.0;
+    this.swing4DescentStartT = 0;
   }
 
-  process(lms, gesture, fingerScores, liveProbs) {
+  process(lms, gesture, fingerScores, liveProbs, currentKinematic = null, neuralGesture = "UNKNOWN", neuralScore = 0.0) {
     if (this.gameMode === "spaceOnly") return;
 
     const now = performance.now();
@@ -534,12 +539,105 @@ class KineticSurgeEngine {
     const fillEl = document.getElementById("kinetic-fill");
     if (fillEl) fillEl.style.width = `${power}%`;
 
-    // Live Anticipation calculation during transition
-    if (this.anticipationActive) {
+    // 4th STRIKE IN-AIR ONSET RECOGNITION & MID-FLIGHT COUNTER
+    if (this.step === 3 && this.anticipationActive) {
       this._evaluateEarlyAnticipation(liveProbs, now);
-      // Pre-Lock trigger: at step 3, when hand starts descent from apex (~180-250ms before strike)
-      if (!this.isLocked && this.step === 3 && (vy > 0.03 || cy > minY + 0.018)) {
-        this._executePreLock(gesture, fingerScores, liveProbs, now);
+
+      if (this.swing4Phase === "WAIT_RISE") {
+        if (vy < -0.035 || cy < midY) {
+          this.swing4Phase = "RISING";
+        }
+      }
+
+      if (this.swing4Phase === "RISING") {
+        if (cy < this.swing4ApexY) {
+          this.swing4ApexY = cy;
+        }
+        // When hand reaches highest peak and begins descending for the 4th strike:
+        if (vy > 0.020 && cy > this.swing4ApexY + 0.008) {
+          this.swing4Phase = "DESCENDING";
+          this.swing4DescentStartT = now;
+        }
+      }
+
+      // If the 4th strike is falling through the air and we haven't locked our move yet:
+      if (this.swing4Phase === "DESCENDING" && !this.isLocked) {
+        const dropDist = cy - this.swing4ApexY;
+        const dropProgress = dropDist / Math.max(0.06, amp);
+        const descentMs = now - this.swing4DescentStartT;
+
+        const isTwin = (typeof activeGameMode !== "undefined" && activeGameMode === "mindtwin");
+        if (isTwin) {
+          if (dropProgress >= 0.20 || descentMs >= 50) {
+            this._executePreLock(gesture, fingerScores, liveProbs, now, {
+              leadTimeMs: Math.round(now - this.anticipationStartTime)
+            });
+          }
+        } else {
+          const kin = currentKinematic || {};
+          const scores = kin.scores || fingerScores || {};
+          const metrics = kin.metrics || {};
+          const sFront = (typeof metrics.sFront === 'number') ? metrics.sFront : (((scores.index || 0) + (scores.middle || 0)) * 0.5);
+          const sBack = (typeof metrics.sBack === 'number') ? metrics.sBack : (((scores.ring || 0) + (scores.pinky || 0)) * 0.5);
+          const sAll = (typeof metrics.sAll === 'number') ? metrics.sAll : ((sFront + sBack) * 0.5);
+          const deltaScissors = (typeof metrics.deltaScissors === 'number') ? metrics.deltaScissors : (sFront - sBack);
+          const vSpread = (typeof metrics.vSpreadAngle === 'number') ? metrics.vSpreadAngle : 0;
+          const neuralG = neuralGesture || gesture;
+          const neuralS = neuralScore || 0;
+
+          let recognized = null;
+
+          // 1. SCISSORS in mid-air (index/middle extending, ring/pinky stay folded)
+          if (
+            (neuralG === "SCISSORS" && neuralS >= 0.50) ||
+            (scores.index >= 0.38 && scores.middle >= 0.38 && (scores.ring <= 0.38 || deltaScissors >= 0.16)) ||
+            (deltaScissors >= 0.18 && sFront >= 0.38) ||
+            (vSpread >= 18.0 && sFront >= 0.38)
+          ) {
+            recognized = "SCISSORS";
+          }
+          // 2. PAPER in mid-air (all 4 fingers uncurling outward)
+          else if (
+            (neuralG === "PAPER" && neuralS >= 0.50) ||
+            (scores.index >= 0.40 && scores.middle >= 0.40 && scores.ring >= 0.36 && (scores.pinky >= 0.34 || sBack >= 0.35)) ||
+            (sAll >= 0.42 && sBack >= 0.35 && ((kin.openCount && kin.openCount >= 3) || scores.ring >= 0.36))
+          ) {
+            recognized = "PAPER";
+          }
+          // 3. ROCK in mid-air (hand is descending, confirmed clench)
+          else if (
+            (dropProgress >= 0.32 || cy >= midY || descentMs >= 80) &&
+            (sAll <= 0.34 && sFront <= 0.36 && deltaScissors < 0.15 && (!kin.openCount || kin.openCount === 0))
+          ) {
+            recognized = "ROCK";
+          }
+          else if (
+            (dropProgress >= 0.26 || descentMs >= 65) &&
+            (neuralG === "ROCK" && neuralS >= 0.65 && sAll <= 0.36)
+          ) {
+            recognized = "ROCK";
+          }
+          // 4. Fail-safe at 50% descent or 135ms of downward motion
+          else if (dropProgress >= 0.50 || cy >= midY + 0.015 || descentMs >= 135) {
+            if (deltaScissors >= 0.15 || ((scores.index || 0) > 0.40 && (scores.middle || 0) > 0.40)) {
+              recognized = "SCISSORS";
+            } else if (sAll >= 0.40 || sBack >= 0.35) {
+              recognized = "PAPER";
+            } else {
+              recognized = "ROCK";
+            }
+          }
+
+          if (recognized) {
+            const leadMs = Math.max(90, Math.min(320, Math.round(now - this.anticipationStartTime)));
+            this._executePreLock(gesture, fingerScores, liveProbs, now, {
+              predictedMove: recognized,
+              leadTimeMs: leadMs,
+              dropProgress,
+              descentMs
+            });
+          }
+        }
       }
     }
 
@@ -573,6 +671,11 @@ class KineticSurgeEngine {
       return;
     }
 
+    if (this.isLocked && this.lockedPrediction) {
+      this.earlyPrediction = this.lockedPrediction;
+      return;
+    }
+
     if (!liveProbs || !liveProbs.probabilities) return;
     const probs = liveProbs.probabilities;
     let pred = "ROCK";
@@ -592,7 +695,7 @@ class KineticSurgeEngine {
     }
   }
 
-  _executePreLock(gesture, fingerScores, liveProbs, now) {
+  _executePreLock(gesture, fingerScores, liveProbs, now, options = {}) {
     this.isLocked = true;
     const isTwin = (typeof activeGameMode !== "undefined" && activeGameMode === "mindtwin");
 
@@ -600,18 +703,24 @@ class KineticSurgeEngine {
       const predCount = (typeof mindTwinEngine !== "undefined") ? mindTwinEngine.currentPredictedCount : 2;
       this.lockedPrediction = predCount;
       this.lockedCounter = predCount;
-      this.lockedLeadTimeMs = Math.max(120, Math.round(now - this.anticipationStartTime));
+      this.lockedLeadTimeMs = options.leadTimeMs || Math.max(120, Math.round(now - this.anticipationStartTime));
       if (this.onPreLock) {
         this.onPreLock(this.lockedPrediction, this.lockedCounter, this.lockedLeadTimeMs);
       }
     } else {
-      let pred = "ROCK";
-      if (liveProbs && liveProbs.probabilities) {
-        const probs = liveProbs.probabilities;
-        if (probs.SCISSORS > probs.PAPER && probs.SCISSORS > probs.ROCK && probs.SCISSORS > 0.38) {
-          pred = "SCISSORS";
-        } else if (probs.PAPER > probs.SCISSORS && probs.PAPER > probs.ROCK && probs.PAPER > 0.38) {
-          pred = "PAPER";
+      let pred = options.predictedMove;
+      if (!pred) {
+        if (gesture && gesture !== "UNKNOWN") {
+          pred = gesture;
+        } else if (liveProbs && liveProbs.probabilities) {
+          const probs = liveProbs.probabilities;
+          if (probs.SCISSORS > probs.PAPER && probs.SCISSORS > probs.ROCK && probs.SCISSORS > 0.38) {
+            pred = "SCISSORS";
+          } else if (probs.PAPER > probs.SCISSORS && probs.PAPER > probs.ROCK && probs.PAPER > 0.38) {
+            pred = "PAPER";
+          } else {
+            pred = "ROCK";
+          }
         } else {
           pred = "ROCK";
         }
@@ -619,14 +728,15 @@ class KineticSurgeEngine {
       const counter = getWinningCounter(pred);
       this.lockedPrediction = pred;
       this.lockedCounter = counter;
-      this.lockedLeadTimeMs = Math.max(160, Math.min(320, Math.round(now - this.anticipationStartTime)));
+      this.lockedLeadTimeMs = options.leadTimeMs || Math.max(120, Math.min(320, Math.round(now - this.anticipationStartTime)));
 
       if (this.onPreLock) {
         this.onPreLock(this.lockedPrediction, this.lockedCounter, this.lockedLeadTimeMs, {
           vy: this.currentVelocityY,
           ay: this.currentAccelY,
           tendonVel: (liveProbs && liveProbs.tendonVelocity) || 0,
-          vAngle: (liveProbs && liveProbs.vAngle) || "0.0"
+          vAngle: (liveProbs && liveProbs.vAngle) || "0.0",
+          ...options
         });
       }
     }
@@ -653,6 +763,9 @@ class KineticSurgeEngine {
       this.isLocked = false;
       this.lockedPrediction = null;
       this.lockedCounter = null;
+      this.swing4Phase = "WAIT_RISE";
+      this.swing4ApexY = 1.0;
+      this.swing4DescentStartT = 0;
       this.fistBaselineScores = fingerScores ? { ...fingerScores } : null;
     } else if (this.step === 3) {
       this.step = 0;
@@ -675,6 +788,7 @@ class KineticSurgeEngine {
     const leadMs = Math.max(45, this.lockedLeadTimeMs || this.earlyLeadTimeMs || 180);
 
     this.isLocked = false;
+    this.swing4Phase = "IDLE";
     this.onClash(move, pred, leadMs, counter);
   }
 
@@ -687,6 +801,9 @@ class KineticSurgeEngine {
     this.lockedPrediction = null;
     this.lockedCounter = null;
     this.lockedLeadTimeMs = 0;
+    this.swing4Phase = "IDLE";
+    this.swing4ApexY = 1.0;
+    this.swing4DescentStartT = 0;
     const lockBadge = document.getElementById("stat-lock-badge");
     if (lockBadge) {
       lockBadge.className = "stat-badge-lock";
@@ -795,20 +912,51 @@ class CanvasRivalHand {
     this.gesture = "ROCK";
     this.currentY = 0.5;
     this.targetY = 0.5;
+    this.thrustScale = 1.0;
+    this.thrustGlow = 0.0;
+    this.auraColor = "#ffb703";
+  }
+
+  thrustAnimation(counterMove) {
+    this.gesture = counterMove;
+    this.thrustScale = 1.32;
+    this.thrustGlow = 1.0;
+    if (counterMove === "ROCK") this.auraColor = "#ffb703";
+    else if (counterMove === "PAPER") this.auraColor = "#10b981";
+    else if (counterMove === "SCISSORS") this.auraColor = "#00e1ff";
   }
 
   update(playerY) {
     this.targetY = playerY;
     this.currentY = this.currentY * 0.65 + this.targetY * 0.35;
+    if (this.thrustScale > 1.0) {
+      this.thrustScale = Math.max(1.0, this.thrustScale - 0.035);
+    }
+    if (this.thrustGlow > 0.0) {
+      this.thrustGlow = Math.max(0.0, this.thrustGlow - 0.045);
+    }
   }
 
   draw(ctx, width, height) {
     const cx = width * 0.5;
     const cy = height * this.currentY;
-    const scale = Math.min(width, height) / 520.0;
+    const baseScale = Math.min(width, height) / 520.0;
+    const scale = baseScale * (this.thrustScale || 1.0);
 
     ctx.save();
     ctx.translate(cx, cy);
+
+    if (this.thrustGlow > 0.01) {
+      ctx.save();
+      ctx.strokeStyle = this.auraColor || "#ffb703";
+      ctx.lineWidth = 4 * scale;
+      ctx.shadowColor = this.auraColor || "#ffb703";
+      ctx.shadowBlur = 24 * this.thrustGlow;
+      ctx.beginPath();
+      ctx.arc(0, 0, (140 + (1.0 - this.thrustGlow) * 60) * scale, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     if (this.gesture === "ROCK") {
       this._drawFist(ctx, scale);
@@ -1554,6 +1702,8 @@ const swingEngine = new KineticSurgeEngine({
 
     if (hintMsg) hintMsg.innerHTML = `🔥 <strong>Tur ${currentSeriesTurn}/5:</strong> ${stepNum}. ${currentText}!`;
     rivalHand.gesture = "ROCK";
+    rivalHand.thrustScale = 1.0;
+    rivalHand.thrustGlow = 0.0;
     if (rivalStateTag) rivalStateTag.innerText = (activeGameMode === "mindtwin") ? `SİMÜLASYON (${currentText.toUpperCase()})` : `SALLANIYOR (${currentText.toUpperCase()})`;
   },
   onAnticipate: (predMove, leadMs) => {
@@ -1576,12 +1726,12 @@ const swingEngine = new KineticSurgeEngine({
     const icons = { ROCK: "🪨", PAPER: "📄", SCISSORS: "✂️" };
 
     if (activeGameMode === "rps") {
-      rivalHand.gesture = lockedCounter;
-      if (rivalStateTag) rivalStateTag.innerText = `🔒 KİLİTLENDİ: ${(trNames[lockedCounter] || lockedCounter).toUpperCase()}`;
+      rivalHand.thrustAnimation(lockedCounter);
+      if (rivalStateTag) rivalStateTag.innerText = `⚡ HAMLE FIRLATILDI: ${(trNames[lockedCounter] || lockedCounter).toUpperCase()}`;
 
       if (anticipationPill && antVal && antMs) {
         anticipationPill.classList.add("locked");
-        antVal.innerText = `🔒 ${trNames[lockedCounter] || lockedCounter} ${icons[lockedCounter] || ""}`;
+        antVal.innerText = `⚡ ${trNames[lockedCounter] || lockedCounter} ${icons[lockedCounter] || ""}`;
         antMs.innerText = `-${leadMs}ms`;
         anticipationPill.classList.remove("hidden");
       }
@@ -1589,7 +1739,15 @@ const swingEngine = new KineticSurgeEngine({
       const lockBadge = $("stat-lock-badge");
       if (lockBadge) {
         lockBadge.className = "stat-badge-lock locked";
-        lockBadge.innerText = `🔒 KİLİTLENDİ (-${leadMs}ms)`;
+        lockBadge.innerText = `⚡ FIRLATILDI (-${leadMs}ms)`;
+      }
+
+      const sealEl = $("mind-seal");
+      const sealHash = $("seal-hash");
+      if (sealEl) {
+        const h = Math.abs(fnv1a(`T${currentSeriesTurn}|${lockedPred}|${lockedCounter}|${leadMs}`)).toString(16).toUpperCase().padStart(4, "0").slice(0, 4);
+        if (sealHash) sealHash.innerText = `#${h}`;
+        sealEl.classList.remove("hidden");
       }
     } else {
       if (rivalStateTag) rivalStateTag.innerText = `🔒 SEZDİ: ${lockedPred} PARMAK`;
@@ -2433,7 +2591,7 @@ function mainRenderLoop() {
           if (gestureConf) gestureConf.innerText = `%${(finalConfidence * 100).toFixed(1)}`;
 
           if (!isResolving) {
-            swingEngine.process(activeLms, finalGesture, currentKinematic.scores, liveAnalysis);
+            swingEngine.process(activeLms, finalGesture, currentKinematic.scores, liveAnalysis, currentKinematic, currentNeuralGesture, currentNeuralScore);
           }
 
         } else {
