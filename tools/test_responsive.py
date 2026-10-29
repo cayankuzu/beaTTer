@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 from playwright.sync_api import sync_playwright
 
@@ -13,7 +14,9 @@ VIEWPORTS = [
     {"name": "desktop_1080p", "width": 1920, "height": 1080, "is_mobile": False}
 ]
 
-def run_responsive_tests():
+def run_responsive_tests(target_url=None):
+    if not target_url:
+        target_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080"
     with sync_playwright() as p:
         browser = p.chromium.launch(
             executable_path=chrome_path,
@@ -32,8 +35,8 @@ def run_responsive_tests():
                 has_touch=vp["is_mobile"]
             )
             page = context.new_page()
-            print(f"\n--- Testing Viewport: {vp['name']} ({vp['width']}x{vp['height']}) ---")
-            page.goto("http://localhost:8080", wait_until="domcontentloaded", timeout=20000)
+            print(f"\n--- Testing Viewport: {vp['name']} ({vp['width']}x{vp['height']}) on {target_url} ---")
+            page.goto(target_url, wait_until="domcontentloaded", timeout=20000)
             time.sleep(2)
 
             metrics = page.evaluate("""() => {
