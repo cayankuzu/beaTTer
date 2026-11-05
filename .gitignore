@@ -18,6 +18,7 @@ web_screenshot_fixed.png
 
 # Vercel & Node
 .vercel/
+.localcert/
 node_modules/
 npm-debug.log*
 

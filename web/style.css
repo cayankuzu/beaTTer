@@ -581,7 +581,6 @@ body {
 .shield-scan-bar {
   display: none !important;
 }
-}
 
 .shield-tag-pill {
   display: inline-flex;
@@ -1517,8 +1516,8 @@ body.clash-active .analyst-dock {
   }
 }
 
-/* 2. TABLET PORTRAIT & MOBILE SCREENS (<= 768px and Portrait) */
-@media (max-width: 768px) and (orientation: portrait), (max-width: 768px) {
+/* 2. TABLET PORTRAIT & MOBILE SCREENS (<= 1024px Portrait or <= 820px) */
+@media (max-width: 1024px) and (orientation: portrait), (max-width: 820px) {
   .app-container {
     padding: 6px 8px;
     gap: 6px;

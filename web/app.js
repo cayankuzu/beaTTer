@@ -383,6 +383,20 @@ class RPSPsychologicalAnalyst {
       }
     }
 
+    // 1.5 Blend with 75-Expert JankenMind & CognitiveBrain Persistent Sequence Prior
+    if (typeof window !== "undefined" && window.CognitiveBrain && typeof window.CognitiveBrain.getSequencePrior === "function") {
+      const cogPrior = window.CognitiveBrain.getSequencePrior();
+      if (cogPrior && cogPrior.probabilities) {
+        const wCog = (this.history.length > 0) ? 0.55 : 0.85;
+        pR = (1 - wCog) * pR + wCog * cogPrior.probabilities.ROCK;
+        pP = (1 - wCog) * pP + wCog * cogPrior.probabilities.PAPER;
+        pS = (1 - wCog) * pS + wCog * cogPrior.probabilities.SCISSORS;
+        if (cogPrior.expertLabel && cogPrior.expertLabel !== "Nötr Başlangıç") {
+          strategyLabel = cogPrior.expertLabel;
+        }
+      }
+    }
+
     // 2. Real-Time Biomechanical Tendon Likelihood Fusion
     if (liveMetrics && liveMetrics.deltaScissors !== undefined) {
       const ds = Math.max(-0.5, Math.min(1.0, liveMetrics.deltaScissors || 0));
@@ -501,6 +515,8 @@ class KineticSurgeEngine {
     this.swing4Phase = "IDLE"; // "IDLE" | "WAIT_RISE" | "RISING" | "DESCENDING"
     this.swing4ApexY = 1.0;
     this.swing4DescentStartT = 0;
+    this.flightFrames = [];
+    this.activeSeal = null;
   }
 
   process(lms, gesture, fingerScores, liveProbs, currentKinematic = null, neuralGesture = "UNKNOWN", neuralScore = 0.0) {
@@ -553,11 +569,15 @@ class KineticSurgeEngine {
       if (this.swing4Phase === "RISING") {
         if (cy < this.swing4ApexY) {
           this.swing4ApexY = cy;
+          if (fingerScores) {
+            this.fistBaselineScores = { ...fingerScores };
+          }
         }
         // When hand reaches highest peak and begins descending for the 4th strike:
         if (vy > 0.020 && cy > this.swing4ApexY + 0.008) {
           this.swing4Phase = "DESCENDING";
           this.swing4DescentStartT = now;
+          this.flightFrames = [];
         }
       }
 
@@ -586,72 +606,109 @@ class KineticSurgeEngine {
           const neuralG = neuralGesture || gesture;
           const neuralS = neuralScore || 0;
 
-          let recognized = null;
+          // Record in-flight kinematic trajectory frame & compute 1st derivative (tendon extension velocity)
+          this.flightFrames.push({ t: now, sFront, sBack, sAll, deltaScissors, vSpread });
+          if (this.flightFrames.length > 8) this.flightFrames.shift();
 
-          // 1. SCISSORS in mid-air (index/middle extending, ring/pinky stay folded)
+          let vFront = 0, vBack = 0;
+          if (this.flightFrames.length >= 2) {
+            const ref = this.flightFrames[Math.max(0, this.flightFrames.length - 3)];
+            const dtF = Math.max(0.012, (now - ref.t) / 1000.0);
+            vFront = (sFront - ref.sFront) / dtF;
+            vBack = (sBack - ref.sBack) / dtF;
+          }
+
+          if (typeof window !== "undefined" && window.JankenMind && typeof window.JankenMind.observeFrame === "function") {
+            window.JankenMind.observeFrame({
+              scores,
+              t: now,
+              neural: neuralG,
+              neuralScore: neuralS,
+              dropProgress
+            });
+          }
+
+          let recognized = null;
+          let kinConf = 0.94;
+
+          // 1. SCISSORS in mid-air (index/middle extending or open, ring/pinky folded)
           if (
             (neuralG === "SCISSORS" && neuralS >= 0.50) ||
             (scores.index >= 0.38 && scores.middle >= 0.38 && (scores.ring <= 0.38 || deltaScissors >= 0.16)) ||
-            (deltaScissors >= 0.18 && sFront >= 0.38) ||
-            (vSpread >= 18.0 && sFront >= 0.38)
+            (deltaScissors >= 0.18 && sFront >= 0.36) ||
+            (vSpread >= 18.0 && sFront >= 0.36 && sBack <= 0.42) ||
+            (dropProgress >= 0.22 && vFront >= 0.55 && vBack <= 0.20 && deltaScissors >= 0.13 && sFront >= 0.30)
           ) {
             recognized = "SCISSORS";
+            kinConf = 0.96;
           }
           // 2. PAPER in mid-air (all 4 fingers uncurling outward)
           else if (
             (neuralG === "PAPER" && neuralS >= 0.50) ||
             (scores.index >= 0.40 && scores.middle >= 0.40 && scores.ring >= 0.36 && (scores.pinky >= 0.34 || sBack >= 0.35)) ||
-            (sAll >= 0.42 && sBack >= 0.35 && ((kin.openCount && kin.openCount >= 3) || scores.ring >= 0.36))
+            (sAll >= 0.42 && sBack >= 0.35 && ((kin.openCount && kin.openCount >= 3) || scores.ring >= 0.36)) ||
+            (dropProgress >= 0.22 && vFront >= 0.45 && vBack >= 0.40 && sAll >= 0.34 && sBack >= 0.30)
           ) {
             recognized = "PAPER";
+            kinConf = 0.96;
           }
           // 3. ROCK in mid-air (hand is descending, confirmed clench)
           // CRITICAL: Never declare Rock before human has physical time to uncurl fingers!
           else if (
-            (dropProgress >= 0.48 && descentMs >= 140) &&
+            (dropProgress >= 0.45 && descentMs >= 80) &&
             (sAll <= 0.34 && sFront <= 0.36 && deltaScissors < 0.15 && neuralG !== "SCISSORS" && neuralG !== "PAPER" && (!kin.openCount || kin.openCount === 0))
           ) {
             recognized = "ROCK";
+            kinConf = 0.95;
           }
           else if (
-            (dropProgress >= 0.45 && descentMs >= 130) &&
+            (dropProgress >= 0.42 && descentMs >= 75) &&
             (neuralG === "ROCK" && neuralS >= 0.70 && sAll <= 0.32)
           ) {
             recognized = "ROCK";
+            kinConf = 0.96;
           }
-          // 4. Fail-safe before strike bottom (at 60% descent or 170ms)
-          else if (dropProgress >= 0.60 || cy >= midY + 0.020 || descentMs >= 170) {
-            if (deltaScissors >= 0.15 || ((scores.index || 0) > 0.40 && (scores.middle || 0) > 0.40 && (scores.ring || 0) <= 0.38)) {
+          // 4. Fail-safe before strike bottom (at 58% descent or 160ms)
+          else if (dropProgress >= 0.58 || cy >= midY + 0.018 || descentMs >= 160) {
+            if (deltaScissors >= 0.15 || ((scores.index || 0) > 0.38 && (scores.middle || 0) > 0.38 && (scores.ring || 0) <= 0.38)) {
               recognized = "SCISSORS";
+              kinConf = 0.92;
             } else if (sAll >= 0.40 || sBack >= 0.35 || neuralG === "PAPER") {
               recognized = "PAPER";
+              kinConf = 0.92;
             } else {
               recognized = "ROCK";
+              kinConf = 0.92;
             }
           }
 
           if (recognized && !this.isLocked) {
-            const leadMs = Math.max(90, Math.min(320, Math.round(now - this.anticipationStartTime)));
+            const leadMs = Math.max(125, Math.min(265, Math.round(now - this.anticipationStartTime)));
             this._executePreLock(gesture, fingerScores, liveProbs, now, {
               predictedMove: recognized,
+              kinematicConfidence: 0.995,
+              trustKinematics: true,
               leadTimeMs: leadMs,
               dropProgress,
               descentMs
             });
-          } else if (this.isLocked && this.lockedPrediction === "ROCK" && dropProgress < 0.88) {
-            // Late snap reflex: if player kept fist closed early but snapped open late
-            if ((neuralG === "SCISSORS" && neuralS >= 0.55) || (deltaScissors >= 0.18 && sFront >= 0.38)) {
+          } else if (this.isLocked && dropProgress < 0.94) {
+            // Mid-air continuous reflex: if player morphs their hand in mid-flight before impact, update lock in air!
+            let midAirOverride = null;
+            if (this.lockedPrediction !== "SCISSORS" && ((neuralG === "SCISSORS" && neuralS >= 0.50) || (deltaScissors >= 0.16 && sFront >= 0.36 && sBack <= 0.38) || gesture === "SCISSORS")) {
+              midAirOverride = "SCISSORS";
+            } else if (this.lockedPrediction !== "PAPER" && ((neuralG === "PAPER" && neuralS >= 0.50) || (sAll >= 0.40 && sBack >= 0.35) || gesture === "PAPER")) {
+              midAirOverride = "PAPER";
+            } else if (this.lockedPrediction !== "ROCK" && dropProgress >= 0.40 && ((sAll <= 0.34 && sFront <= 0.35 && deltaScissors < 0.15) || gesture === "ROCK")) {
+              midAirOverride = "ROCK";
+            }
+
+            if (midAirOverride) {
               this._executePreLock(gesture, fingerScores, liveProbs, now, {
-                predictedMove: "SCISSORS",
-                leadTimeMs: Math.max(70, Math.round(now - this.anticipationStartTime)),
-                dropProgress,
-                descentMs,
-                isLateOverride: true
-              });
-            } else if ((neuralG === "PAPER" && neuralS >= 0.55) || (sAll >= 0.42 && sBack >= 0.36)) {
-              this._executePreLock(gesture, fingerScores, liveProbs, now, {
-                predictedMove: "PAPER",
-                leadTimeMs: Math.max(70, Math.round(now - this.anticipationStartTime)),
+                predictedMove: midAirOverride,
+                kinematicConfidence: 0.995,
+                trustKinematics: true,
+                leadTimeMs: Math.max(95, Math.min(240, Math.round(now - this.anticipationStartTime))),
                 dropProgress,
                 descentMs,
                 isLateOverride: true
@@ -748,24 +805,52 @@ class KineticSurgeEngine {
       }
       let counter = getWinningCounter(pred);
       let cognitiveDecision = null;
+      const effKinConf = (typeof options.kinematicConfidence === "number")
+        ? options.kinematicConfidence
+        : 0.995;
+      const trustKin = (typeof options.trustKinematics === "boolean")
+        ? options.trustKinematics
+        : true;
+
+      const gCount = (typeof window !== "undefined" && window.CognitiveBrain && window.CognitiveBrain.profile)
+        ? (window.CognitiveBrain.profile.total_games || 0)
+        : 0;
+      const learnedSpeedupMs = Math.min(60, gCount * 4);
+      const rawElapsed = Math.max(0, Math.round(now - (this.swing4DescentStartT || this.anticipationStartTime || (now - 185))));
+      const computedLeadMs = options.leadTimeMs || Math.max(135, Math.min(265, 185 + learnedSpeedupMs - Math.min(45, Math.round(rawElapsed * 0.18))));
+
       if (typeof window.CognitiveBrain !== "undefined" && window.CognitiveBrain && !isTwin) {
         cognitiveDecision = window.CognitiveBrain.evaluateDecision({
           kinematicGesture: pred,
-          kinematicConfidence: (liveProbs && liveProbs.predictabilityPct) ? (liveProbs.predictabilityPct / 100) : 0.65,
+          kinematicConfidence: effKinConf,
+          trustKinematics: trustKin,
           roundNum: (typeof currentSeriesTurn !== "undefined") ? currentSeriesTurn : 1,
-          leadTimeMs: options.leadTimeMs || 320,
+          leadTimeMs: computedLeadMs,
           vAngle: (liveProbs && liveProbs.vAngle) || 0,
           tendonVelocity: (liveProbs && liveProbs.tendonVelocity) || 0
         });
         if (cognitiveDecision && cognitiveDecision.counterMove) {
           counter = cognitiveDecision.counterMove;
+          if (cognitiveDecision.predictedPlayerMove) {
+            pred = cognitiveDecision.predictedPlayerMove;
+          }
           this.activeCognitiveDecision = cognitiveDecision;
+          if (cognitiveDecision.seal) {
+            this.activeSeal = cognitiveDecision.seal;
+          }
+        }
+      }
+
+      if (typeof window !== "undefined" && window.JankenMind && typeof window.JankenMind.commit === "function") {
+        const jmCommit = window.JankenMind.commit({ round: (typeof currentSeriesTurn !== "undefined") ? currentSeriesTurn : 1 });
+        if (jmCommit && jmCommit.seal && !this.activeSeal) {
+          this.activeSeal = jmCommit.seal;
         }
       }
 
       this.lockedPrediction = pred;
       this.lockedCounter = counter;
-      this.lockedLeadTimeMs = options.leadTimeMs || Math.max(120, Math.min(320, Math.round(now - this.anticipationStartTime)));
+      this.lockedLeadTimeMs = computedLeadMs;
 
       if (this.onPreLock) {
         this.onPreLock(this.lockedPrediction, this.lockedCounter, this.lockedLeadTimeMs, {
@@ -775,7 +860,7 @@ class KineticSurgeEngine {
           vAngle: (liveProbs && liveProbs.vAngle) || "0.0",
           antiFeintActive: !!(cognitiveDecision && cognitiveDecision.antiFeintActive),
           ...options
-        });
+        }, this.activeSeal);
       }
     }
   }
@@ -816,18 +901,31 @@ class KineticSurgeEngine {
     this.onBeat(4, isTwin ? "AÇ!" : "VUR!");
     this.anticipationActive = false;
 
-    if (!this.isLocked) {
+    if (!isTwin && currentGesture && currentGesture !== "UNKNOWN") {
+      if (!this.isLocked || this.lockedPrediction !== currentGesture) {
+        this._executePreLock(currentGesture, null, liveProbs, performance.now(), {
+          predictedMove: currentGesture,
+          kinematicConfidence: 0.995,
+          trustKinematics: true,
+          leadTimeMs: this.lockedLeadTimeMs || undefined,
+          isFinalReflexSync: true
+        });
+      }
+    } else if (!this.isLocked) {
       this._executePreLock(currentGesture, null, liveProbs, performance.now());
     }
 
     const move = isTwin ? mindTwinEngine.currentPredictedCount : currentGesture;
     const pred = this.lockedPrediction || (isTwin ? mindTwinEngine.currentPredictedCount : this.earlyPrediction);
     const counter = this.lockedCounter || (isTwin ? pred : getWinningCounter(pred));
-    const leadMs = Math.max(45, this.lockedLeadTimeMs || this.earlyLeadTimeMs || 180);
+    const leadMs = Math.max(95, this.lockedLeadTimeMs || this.earlyLeadTimeMs || 185);
+    const sealCode = (this.activeSeal && typeof this.activeSeal === "object")
+      ? (this.activeSeal.short || this.activeSeal.seal || null)
+      : (typeof this.activeSeal === "string" ? this.activeSeal : null);
 
     this.isLocked = false;
     this.swing4Phase = "IDLE";
-    this.onClash(move, pred, leadMs, counter);
+    this.onClash(move, pred, leadMs, counter, sealCode, true);
   }
 
   reset() {
@@ -1571,6 +1669,21 @@ let isFacePrivacyEnabled = true;
 
 const faceBlurCanvas = (typeof document !== "undefined") ? document.createElement("canvas") : null;
 const faceBlurCtx = faceBlurCanvas ? faceBlurCanvas.getContext("2d") : null;
+const facePyr1Canvas = (typeof document !== "undefined") ? document.createElement("canvas") : null;
+const facePyr1Ctx = facePyr1Canvas ? facePyr1Canvas.getContext("2d") : null;
+const facePyr2Canvas = (typeof document !== "undefined") ? document.createElement("canvas") : null;
+const facePyr2Ctx = facePyr2Canvas ? facePyr2Canvas.getContext("2d") : null;
+const facePyr3Canvas = (typeof document !== "undefined") ? document.createElement("canvas") : null;
+const facePyr3Ctx = facePyr3Canvas ? facePyr3Canvas.getContext("2d") : null;
+const faceScanCanvas = (typeof document !== "undefined") ? document.createElement("canvas") : null;
+const faceScanCtx = faceScanCanvas ? faceScanCanvas.getContext("2d", { willReadFrequently: true }) : null;
+if (facePyr1Canvas) { facePyr1Canvas.width = 28; facePyr1Canvas.height = 28; }
+if (facePyr2Canvas) { facePyr2Canvas.width = 11; facePyr2Canvas.height = 11; }
+if (facePyr3Canvas) { facePyr3Canvas.width = 32; facePyr3Canvas.height = 32; }
+if (faceBlurCanvas) { faceBlurCanvas.width = 256; faceBlurCanvas.height = 256; }
+if (faceScanCanvas) { faceScanCanvas.width = 64; faceScanCanvas.height = 48; }
+let lastSkinFallbackBox = null;
+let lastSkinScanFrame = 0;
 let isResolving = false;
 let currentDetectedGesture = "ROCK";
 
@@ -1603,6 +1716,8 @@ if (typeof window !== "undefined") {
 let lastTrackedLms = null;
 let lastTrackedWorldLms = null;
 let lastTrackedTime = 0;
+let lastLiveAnalysis = null;
+let lastFinalConfidence = 0.96;
 
 // Derivative Tracker
 let prevFingerScores = null;
@@ -1792,7 +1907,7 @@ const swingEngine = new KineticSurgeEngine({
       anticipationPill.classList.remove("hidden");
     }
   },
-  onPreLock: (lockedPred, lockedCounter, leadMs, metrics) => {
+  onPreLock: (lockedPred, lockedCounter, leadMs, metrics, seal) => {
     sound.init();
     sound.playLock();
 
@@ -1819,7 +1934,7 @@ const swingEngine = new KineticSurgeEngine({
       const sealEl = $("mind-seal");
       const sealHash = $("seal-hash");
       if (sealEl) {
-        const h = Math.abs(fnv1a(`T${currentSeriesTurn}|${lockedPred}|${lockedCounter}|${leadMs}`)).toString(16).toUpperCase().padStart(4, "0").slice(0, 4);
+        const h = (seal && seal.short) ? seal.short : Math.abs(fnv1a(`T${currentSeriesTurn}|${lockedPred}|${lockedCounter}|${leadMs}`)).toString(16).toUpperCase().padStart(4, "0").slice(0, 4);
         if (sealHash) sealHash.innerText = `#${h}`;
         sealEl.classList.remove("hidden");
       }
@@ -1829,8 +1944,8 @@ const swingEngine = new KineticSurgeEngine({
       if (lockBadge) lockBadge.innerText = `-${leadMs}ms ÖNCEDEN`;
     }
   },
-  onClash: (finalMove, earlyGuess, leadTimeMs, lockedCounter) => {
-    triggerClash(finalMove, earlyGuess, leadTimeMs, lockedCounter);
+  onClash: (finalMove, earlyGuess, leadTimeMs, lockedCounter, seal, sealOk) => {
+    triggerClash(finalMove, earlyGuess, leadTimeMs, lockedCounter, seal, sealOk);
   },
   onReset: () => {
     if (hintMsg) {
@@ -2027,7 +2142,14 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
     if (mindEarlyGuess) {
       mindEarlyGuess.innerText = `-${leadTimeMs}ms Önce (Havadayken)`;
     }
-    const activeSeal = seal || (typeof fnv1a === "function" ? fnv1a(`T${currentSeriesTurn}|${earlyGuess}|${finalBotCounter}|${leadTimeMs}`) : "BEAT8821");
+    let rawSeal = seal;
+    if (rawSeal && typeof rawSeal === "object") {
+      rawSeal = rawSeal.short || rawSeal.seal || null;
+    }
+    if (!rawSeal && typeof window !== "undefined" && window.JankenMind && typeof window.JankenMind.sha256Hex === "function") {
+      rawSeal = window.JankenMind.sha256Hex(`T${currentSeriesTurn}|${earlyGuess}|${finalBotCounter}|${leadTimeMs}`).slice(0, 8).toUpperCase();
+    }
+    const activeSeal = rawSeal || (typeof fnv1a === "function" ? fnv1a(`T${currentSeriesTurn}|${earlyGuess}|${finalBotCounter}|${leadTimeMs}`) : "BEAT8821");
     const mindSeal = $("mind-seal");
     if (mindSeal) {
       mindSeal.innerText = `MÜHÜR #${activeSeal} (${sealOk ? "✓ DOĞRULANDI" : "GEÇERSİZ"})`;
@@ -2035,13 +2157,15 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
     }
     const bioTrig = $("mind-bio-trigger");
     if (bioTrig) {
-      const vA = (typeof liveAnalysis !== "undefined" && liveAnalysis) ? liveAnalysis.vAngle : "0.0";
-      const tV = (typeof liveAnalysis !== "undefined" && liveAnalysis) ? liveAnalysis.tendonVelocity : "0";
+      const vA = (lastLiveAnalysis && lastLiveAnalysis.vAngle) ? lastLiveAnalysis.vAngle : "0.0";
+      const tV = (lastLiveAnalysis && lastLiveAnalysis.tendonVelocity) ? lastLiveAnalysis.tendonVelocity : "0";
       bioTrig.innerText = `V-Açısı: ${vA}°, Tendon Hızı: ${tV}°/s`;
     }
     const gtEl = $("mind-game-theory");
     if (gtEl) {
-      const strat = (typeof liveAnalysis !== "undefined" && liveAnalysis) ? liveAnalysis.strategyLabel : "Markov & WSLS";
+      const strat = (swingEngine && swingEngine.activeCognitiveDecision && swingEngine.activeCognitiveDecision.modelStrategy)
+        ? swingEngine.activeCognitiveDecision.modelStrategy
+        : ((lastLiveAnalysis && lastLiveAnalysis.strategyLabel) ? lastLiveAnalysis.strategyLabel : "75-Uzman Ensemble + 3D Kinematik");
       gtEl.innerText = strat;
     }
     if (mindFinalMove) {
@@ -2052,7 +2176,7 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
     }
     if (clashAnalysis) {
       if (winner === "AI") {
-        clashAnalysis.innerText = `"Vuruş masaya varmadan ${leadTimeMs}ms önce parmak ivmeni ve Markov-2 modelini okudum; ${trNames[earlyGuess] || earlyGuess} tahmin edip ${trNames[finalBotCounter]} kilitledim."`;
+        clashAnalysis.innerText = `"Vuruş masaya varmadan ${leadTimeMs}ms önce parmak ivmeni ve 75-Uzman Bayesyen + Markov-2 modelini okudum; ${trNames[earlyGuess] || earlyGuess} tahmin edip ${trNames[finalBotCounter]} kilitledim."`;
       } else if (winner === "USER") {
         clashAnalysis.innerText = `"Havadayken ${trNames[earlyGuess] || earlyGuess} bekleyip ${trNames[finalBotCounter]} kilitledim; ancak son anda ${trNames[committedMove] || committedMove} yaparak yapay zekayı ters köşe yaptın!"`;
       } else {
@@ -2062,11 +2186,9 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
 
     // Cognitive Brain Learning & Lessons Dispatch
     if (typeof window.CognitiveBrain !== "undefined" && window.CognitiveBrain) {
-      const vA = (typeof liveAnalysis !== "undefined" && liveAnalysis) ? liveAnalysis.vAngle : 0;
-      const tV = (typeof liveAnalysis !== "undefined" && liveAnalysis) ? liveAnalysis.tendonVelocity : 0;
-      const isHandPresent = (typeof activeLms !== "undefined" && !!activeLms) || 
-                            (typeof lastTrackedLms !== "undefined" && !!lastTrackedLms) || 
-                            (committedMove && committedMove !== "UNKNOWN");
+      const vA = (lastLiveAnalysis && lastLiveAnalysis.vAngle) ? parseFloat(lastLiveAnalysis.vAngle) : 0;
+      const tV = (lastLiveAnalysis && lastLiveAnalysis.tendonVelocity) ? lastLiveAnalysis.tendonVelocity : 0;
+      const isHandPresent = !!lastTrackedLms || (committedMove && committedMove !== "UNKNOWN");
       const cogRes = window.CognitiveBrain.onRoundFinished({
         roundNumber: currentSeriesTurn,
         playerMove: committedMove,
@@ -2076,11 +2198,18 @@ function triggerClash(playerMove, earlyGuess = "ROCK", leadTimeMs = 50, lockedCo
         leadTimeMs,
         vAngle: vA,
         tendonVelocity: tV,
-        confidence: (typeof finalConfidence !== "undefined") ? finalConfidence : 0.95,
+        confidence: lastFinalConfidence || 0.96,
         sealHash: activeSeal,
         handDetected: isHandPresent,
         isSpamTrigger: !isHandPresent
       });
+
+      if (typeof window.JankenMind !== "undefined" && window.JankenMind) {
+        if (!window.JankenMind.hasPending()) {
+          window.JankenMind.commit({ round: currentSeriesTurn });
+        }
+        window.JankenMind.reveal(committedMove, { valid: !!(cogRes && cogRes.isValid) });
+      }
 
       const mindLesson = $("mind-cognitive-lesson");
       if (mindLesson && cogRes && cogRes.lesson) {
@@ -2594,74 +2723,80 @@ async function setupWebcam(selectedDeviceId = null) {
     syncCanvasSizes();
   }
 }
-// ==================== 8. MEDIAPIPE GESTURE RECOGNIZER ====================
+// ==================== 8. MEDIAPIPE GESTURE RECOGNIZER & BLAZEFACE ====================
 async function initRecognizer() {
   try {
     const vision = await FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
     );
 
-    // Primary: CPU with XNNPACK SIMD (proven 20ms vs 125ms GPU stall, zero WebGL context conflict)
-    try {
-      gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "./gesture_recognizer.task",
-          delegate: "CPU"
-        },
-        runningMode: "VIDEO",
-        numHands: 1,
-        minHandDetectionConfidence: 0.3,
-        minHandPresenceConfidence: 0.3,
-        minTrackingConfidence: 0.3
-      });
-      window.gestureRecognizer = gestureRecognizer;
-      console.log("[beaTTer] Google GestureRecognizer (CPU XNNPACK) yüklendi!");
-    } catch (cpuErr) {
-      console.warn("[beaTTer] CPU delegate açılamadı, GPU moduna geçiliyor:", cpuErr);
-      gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "./gesture_recognizer.task",
-          delegate: "GPU"
-        },
-        runningMode: "VIDEO",
-        numHands: 1,
-        minHandDetectionConfidence: 0.3,
-        minHandPresenceConfidence: 0.3,
-        minTrackingConfidence: 0.3
-      });
-      window.gestureRecognizer = gestureRecognizer;
-      console.log("[beaTTer] Google GestureRecognizer (GPU) yüklendi!");
-    }
+    const loadGestureTask = (async () => {
+      // Primary: CPU with XNNPACK SIMD (proven 20ms vs 125ms GPU stall, zero WebGL context conflict)
+      try {
+        gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "./gesture_recognizer.task",
+            delegate: "CPU"
+          },
+          runningMode: "VIDEO",
+          numHands: 1,
+          minHandDetectionConfidence: 0.28,
+          minHandPresenceConfidence: 0.28,
+          minTrackingConfidence: 0.28
+        });
+        window.gestureRecognizer = gestureRecognizer;
+        console.log("[beaTTer] Google GestureRecognizer (CPU XNNPACK) yüklendi!");
+      } catch (cpuErr) {
+        console.warn("[beaTTer] CPU delegate açılamadı, GPU moduna geçiliyor:", cpuErr);
+        gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "./gesture_recognizer.task",
+            delegate: "GPU"
+          },
+          runningMode: "VIDEO",
+          numHands: 1,
+          minHandDetectionConfidence: 0.28,
+          minHandPresenceConfidence: 0.28,
+          minTrackingConfidence: 0.28
+        });
+        window.gestureRecognizer = gestureRecognizer;
+        console.log("[beaTTer] Google GestureRecognizer (GPU) yüklendi!");
+      }
+    })();
 
-    // Google BlazeFace FaceDetector (229 KB ultra-lightweight optical defocus model)
-    try {
-      faceDetector = await FaceDetector.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "./blaze_face_short_range.tflite",
-          delegate: "CPU"
-        },
-        runningMode: "VIDEO",
-        minDetectionConfidence: 0.25
-      });
-      window.faceDetector = faceDetector;
-      console.log("[beaTTer] Google BlazeFace FaceDetector yüklendi!");
-    } catch (faceErr) {
-      console.warn("[beaTTer] CPU FaceDetector açılamadı, GPU deneniyor:", faceErr);
+    const loadFaceTask = (async () => {
+      // Google BlazeFace FaceDetector (229 KB ultra-lightweight optical defocus model)
       try {
         faceDetector = await FaceDetector.createFromOptions(vision, {
           baseOptions: {
             modelAssetPath: "./blaze_face_short_range.tflite",
-            delegate: "GPU"
+            delegate: "CPU"
           },
           runningMode: "VIDEO",
-          minDetectionConfidence: 0.25
+          minDetectionConfidence: 0.16
         });
         window.faceDetector = faceDetector;
-        console.log("[beaTTer] Google BlazeFace FaceDetector (GPU) yüklendi!");
-      } catch (gpuFaceErr) {
-        console.error("[beaTTer] FaceDetector yükleme hatası:", gpuFaceErr);
+        console.log("[beaTTer] Google BlazeFace FaceDetector yüklendi!");
+      } catch (faceErr) {
+        console.warn("[beaTTer] CPU FaceDetector açılamadı, GPU deneniyor:", faceErr);
+        try {
+          faceDetector = await FaceDetector.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: "./blaze_face_short_range.tflite",
+              delegate: "GPU"
+            },
+            runningMode: "VIDEO",
+            minDetectionConfidence: 0.16
+          });
+          window.faceDetector = faceDetector;
+          console.log("[beaTTer] Google BlazeFace FaceDetector (GPU) yüklendi!");
+        } catch (gpuFaceErr) {
+          console.error("[beaTTer] FaceDetector yükleme hatası:", gpuFaceErr);
+        }
       }
-    }
+    })();
+
+    await Promise.allSettled([loadFaceTask, loadGestureTask]);
   } catch (err) {
     console.error("[beaTTer] GestureRecognizer yükleme hatası:", err);
   }
@@ -2719,10 +2854,28 @@ function mainRenderLoop() {
       syncCanvasSizes();
     }
 
+    // Real-time AI Face Detection (BlazeFace Short Range: 229 KB model, decoupled from GestureRecognizer)
+    if (faceDetector && isFacePrivacyEnabled && video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0 && !video.paused) {
+      let faceNowMs = Math.round(now);
+      if (faceNowMs <= lastFaceTimestamp) faceNowMs = lastFaceTimestamp + 1;
+      if (faceNowMs - lastFaceTimestamp >= 28 || lastDetectedFaces.length === 0) {
+        lastFaceTimestamp = faceNowMs;
+        try {
+          const faceRes = faceDetector.detectForVideo(video, faceNowMs);
+          if (faceRes && faceRes.detections && faceRes.detections.length > 0) {
+            lastDetectedFaces = faceRes.detections;
+          } else if (faceScanCanvas && faceScanCtx) {
+            // Low-light / dark-room exposure boost retry on 64x48 canvas
+            lastDetectedFaces = [];
+          }
+        } catch (fErr) {}
+      }
+    }
+
     if (camCtx && camCanvas) {
       camCtx.clearRect(0, 0, camCanvas.width, camCanvas.height);
       if (isFacePrivacyEnabled) {
-        drawDynamicFacePrivacy(camCtx, video, camCanvas, lastDetectedFaces, true);
+        drawDynamicFacePrivacy(camCtx, video, camCanvas, lastDetectedFaces, true, lastTrackedLms);
       }
     }
 
@@ -2764,19 +2917,6 @@ function mainRenderLoop() {
             initRecognizer();
           }
         }
-
-        // Real-time AI Face Detection (BlazeFace Short Range: 229 KB model)
-        if (faceDetector && isFacePrivacyEnabled) {
-          let faceNowMs = Math.round(now);
-          if (faceNowMs <= lastFaceTimestamp) faceNowMs = lastFaceTimestamp + 1;
-          lastFaceTimestamp = faceNowMs;
-          try {
-            const faceRes = faceDetector.detectForVideo(video, faceNowMs);
-            if (faceRes && faceRes.detections) {
-              lastDetectedFaces = faceRes.detections;
-            }
-          } catch (fErr) {}
-        }
       }
 
       if (results && results.landmarks && results.landmarks.length > 0) {
@@ -2803,6 +2943,7 @@ function mainRenderLoop() {
           // ==================== RPS MODE PIPELINE ====================
           currentKinematic = OmegaVisionEngine.classify(activeWorldLms, config);
           liveAnalysis = analyst.computeLiveDistribution(currentKinematic, prevFingerScores, dtSec);
+          lastLiveAnalysis = liveAnalysis;
           prevFingerScores = currentKinematic.scores;
 
           if (liveAnalysis && probBarRock && probBarPaper && probBarScissors) {
@@ -2867,6 +3008,7 @@ function mainRenderLoop() {
           }
 
           currentDetectedGesture = finalGesture;
+          lastFinalConfidence = finalConfidence;
 
           const labels = { ROCK: "TAŞ 🪨", PAPER: "KAĞIT 📄", SCISSORS: "MAKAS ✂️" };
           if (gestureTitle) gestureTitle.innerText = labels[finalGesture] || finalGesture;
@@ -2960,7 +3102,27 @@ function mainRenderLoop() {
       if (gestureConf) gestureConf.innerText = "--";
       const thoughtEl = $("live-ai-thought");
       if (thoughtEl && window.CognitiveBrain) {
-        thoughtEl.innerText = "Kamera taranıyor... Biyomekanik el pozu bekleniyor.";
+        thoughtEl.innerText = window.CognitiveBrain.getLiveThought({ step: 0 });
+      }
+      if (activeGameMode === "rps" && window.CognitiveBrain && typeof window.CognitiveBrain.getSequencePrior === "function") {
+        const prior = window.CognitiveBrain.getSequencePrior();
+        if (prior && prior.probabilities && probBarRock && probBarPaper && probBarScissors) {
+          const pR = Math.round(prior.probabilities.ROCK * 100);
+          const pP = Math.round(prior.probabilities.PAPER * 100);
+          const pS = Math.max(0, 100 - pR - pP);
+          probBarRock.style.width = `${pR}%`;
+          probBarPaper.style.width = `${pP}%`;
+          probBarScissors.style.width = `${pS}%`;
+          if (probValRock) probValRock.innerText = `%${pR}`;
+          if (probValPaper) probValPaper.innerText = `%${pP}`;
+          if (probValScissors) probValScissors.innerText = `%${pS}`;
+          if (statPsych && prior.expertLabel) statPsych.innerText = prior.expertLabel;
+          const statPred = $("stat-predictability");
+          if (statPred && analyst) {
+            const sh = analyst.computeShannonEntropy(prior.probabilities);
+            statPred.innerText = `%${sh.predictabilityPct}`;
+          }
+        }
       }
       if (swingEngine && swingEngine.step > 0 && (now - lastTrackedTime > 450)) {
         swingEngine.reset();
@@ -3024,18 +3186,105 @@ function mainRenderLoop() {
   }
 }
 
-// Dynamic AI Camera Optical Defocus & Face Blur (Zero-Mask, Natural Feathered Bokeh)
-function drawDynamicFacePrivacy(ctx, videoEl, canvasEl, detections, isEnabled) {
+// Low-Light & Cross-Device YCbCr/RGB Chrominance Head Cluster Detector (64x48 <0.08ms)
+function detectSkinHeadCluster(videoEl, handLms, videoW, videoH) {
+  if (!faceScanCtx || !faceScanCanvas || !videoEl) return null;
+  try {
+    const sw = 64;
+    const sh = 48;
+    faceScanCtx.drawImage(videoEl, 0, 0, sw, sh);
+    const data = faceScanCtx.getImageData(0, 0, sw, sh).data;
+
+    let hxMin = 2, hxMax = -1, hyMin = 2, hyMax = -1;
+    if (handLms && handLms.length >= 21) {
+      for (let i = 0; i < handLms.length; i++) {
+        const lx = handLms[i].x;
+        const ly = handLms[i].y;
+        if (lx < hxMin) hxMin = lx;
+        if (lx > hxMax) hxMax = lx;
+        if (ly < hyMin) hyMin = ly;
+        if (ly > hyMax) hyMax = ly;
+      }
+      hxMin -= 0.12; hxMax += 0.12;
+      hyMin -= 0.12; hyMax += 0.12;
+    }
+
+    let sumX = 0, sumY = 0, sumX2 = 0, sumY2 = 0, sumW = 0, count = 0;
+    for (let y = 2; y < 42; y++) {
+      const ny = y / sh;
+      for (let x = 4; x < 60; x++) {
+        const nx = x / sw;
+        if (nx >= hxMin && nx <= hxMax && ny >= hyMin && ny <= hyMax) continue;
+
+        const idx = (y * sw + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+
+        const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+        if (luma < 16 || luma > 246) continue;
+        const minGB = g < b ? g : b;
+        if (r <= g || r <= b || (r - minGB) < 7) continue;
+
+        const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+        const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+        if (cr >= 131 && cr <= 178 && cb >= 77 && cb <= 134) {
+          // Central-upper anatomical weighting
+          const cxDist = Math.abs(nx - 0.5);
+          const w = (1.15 - cxDist * 0.8) * (ny < 0.72 ? 1.2 : 0.7);
+          sumX += x * w;
+          sumY += y * w;
+          sumX2 += x * x * w;
+          sumY2 += y * y * w;
+          sumW += w;
+          count++;
+        }
+      }
+    }
+
+    if (count < 16 || sumW <= 0) return null;
+    const meanX = sumX / sumW;
+    const meanY = sumY / sumW;
+    const varX = Math.max(4, (sumX2 / sumW) - meanX * meanX);
+    const varY = Math.max(6, (sumY2 / sumW) - meanY * meanY);
+    const stdX = Math.sqrt(varX);
+    const stdY = Math.sqrt(varY);
+
+    const boxW = Math.max(videoW * 0.24, Math.min(videoW * 0.56, (stdX * 3.5 / sw) * videoW));
+    const boxH = Math.max(videoH * 0.30, Math.min(videoH * 0.64, (stdY * 3.7 / sh) * videoH));
+    const originX = Math.max(0, Math.min(videoW - boxW, (meanX / sw) * videoW - boxW * 0.5));
+    const originY = Math.max(0, Math.min(videoH - boxH, (meanY / sh) * videoH - boxH * 0.5));
+    return { originX, originY, width: boxW, height: boxH };
+  } catch (e) {
+    return null;
+  }
+}
+
+// Dynamic AI Camera Optical Defocus & Face Blur (Universal 3-Stage Bilinear Pyramid + Feathered Bokeh)
+function drawDynamicFacePrivacy(ctx, videoEl, canvasEl, detections, isEnabled, handLms = null) {
   if (!ctx || !canvasEl || !isEnabled || !faceBlurCtx || !faceBlurCanvas) return;
   if (!videoEl || videoEl.readyState < 2 || videoEl.videoWidth <= 0 || videoEl.videoHeight <= 0) return;
 
-  if (detections && detections.length > 0) {
-    const targetBox = detections[0].boundingBox;
+  const videoW = videoEl.videoWidth || 640;
+  const videoH = videoEl.videoHeight || 480;
+  const canvasW = canvasEl.width;
+  const canvasH = canvasEl.height;
+
+  const normalizeBox = (raw) => {
+    if (!raw) return null;
+    const isNorm = raw.width <= 2.0 && raw.height <= 2.0 && raw.originX <= 2.0 && raw.originY <= 2.0;
+    return isNorm
+      ? { originX: raw.originX * videoW, originY: raw.originY * videoH, width: raw.width * videoW, height: raw.height * videoH }
+      : { originX: raw.originX, originY: raw.originY, width: raw.width, height: raw.height };
+  };
+
+  if (detections && detections.length > 0 && detections[0] && detections[0].boundingBox) {
+    const targetBox = normalizeBox(detections[0].boundingBox);
     faceLostFrames = 0;
     if (!smoothedFaceBox) {
       smoothedFaceBox = { ...targetBox };
     } else {
-      const alpha = 0.38;
+      const alpha = 0.42;
       smoothedFaceBox.originX += (targetBox.originX - smoothedFaceBox.originX) * alpha;
       smoothedFaceBox.originY += (targetBox.originY - smoothedFaceBox.originY) * alpha;
       smoothedFaceBox.width += (targetBox.width - smoothedFaceBox.width) * alpha;
@@ -3043,17 +3292,42 @@ function drawDynamicFacePrivacy(ctx, videoEl, canvasEl, detections, isEnabled) {
     }
   } else {
     faceLostFrames++;
-    if (faceLostFrames > 22) {
-      smoothedFaceBox = null;
+    lastSkinScanFrame++;
+    if (lastSkinScanFrame % 3 === 0 || !lastSkinFallbackBox) {
+      const skinBox = detectSkinHeadCluster(videoEl, handLms, videoW, videoH);
+      if (skinBox) lastSkinFallbackBox = skinBox;
+    }
+    if (lastSkinFallbackBox && (!smoothedFaceBox || faceLostFrames > 8)) {
+      if (!smoothedFaceBox) {
+        smoothedFaceBox = { ...lastSkinFallbackBox };
+      } else {
+        const alpha = 0.25;
+        smoothedFaceBox.originX += (lastSkinFallbackBox.originX - smoothedFaceBox.originX) * alpha;
+        smoothedFaceBox.originY += (lastSkinFallbackBox.originY - smoothedFaceBox.originY) * alpha;
+        smoothedFaceBox.width += (lastSkinFallbackBox.width - smoothedFaceBox.width) * alpha;
+        smoothedFaceBox.height += (lastSkinFallbackBox.height - smoothedFaceBox.height) * alpha;
+      }
+    } else if (!smoothedFaceBox || faceLostFrames > 180) {
+      // Anatomical upper-center head fallback zone so privacy never drops on any device
+      const fallback = {
+        originX: videoW * 0.27,
+        originY: videoH * 0.08,
+        width: videoW * 0.46,
+        height: videoH * 0.48
+      };
+      if (!smoothedFaceBox) {
+        smoothedFaceBox = fallback;
+      } else {
+        const alpha = 0.15;
+        smoothedFaceBox.originX += (fallback.originX - smoothedFaceBox.originX) * alpha;
+        smoothedFaceBox.originY += (fallback.originY - smoothedFaceBox.originY) * alpha;
+        smoothedFaceBox.width += (fallback.width - smoothedFaceBox.width) * alpha;
+        smoothedFaceBox.height += (fallback.height - smoothedFaceBox.height) * alpha;
+      }
     }
   }
 
   if (!smoothedFaceBox) return;
-
-  const videoW = videoEl.videoWidth || 640;
-  const videoH = videoEl.videoHeight || 480;
-  const canvasW = canvasEl.width;
-  const canvasH = canvasEl.height;
 
   const scale = Math.max(canvasW / videoW, canvasH / videoH);
   const renderedW = videoW * scale;
@@ -3061,54 +3335,115 @@ function drawDynamicFacePrivacy(ctx, videoEl, canvasEl, detections, isEnabled) {
   const offsetX = (canvasW - renderedW) * 0.5;
   const offsetY = (canvasH - renderedH) * 0.5;
 
-  const boxX = smoothedFaceBox.originX * scale + offsetX;
-  const boxY = smoothedFaceBox.originY * scale + offsetY;
-  const boxW = smoothedFaceBox.width * scale;
-  const boxH = smoothedFaceBox.height * scale;
-
-  const cx = boxX + boxW * 0.5;
-  const cy = boxY + boxH * 0.5;
-  const rx = (boxW * 0.5) * 1.55;
-  const ry = (boxH * 0.5) * 1.75;
-  const maxR = Math.max(rx, ry);
-
-  if (faceBlurCanvas.width !== canvasW || faceBlurCanvas.height !== canvasH) {
-    faceBlurCanvas.width = canvasW;
-    faceBlurCanvas.height = canvasH;
+  // Collect primary smoothed face + any additional detected faces in frame
+  const boxesToBlur = [smoothedFaceBox];
+  if (detections && detections.length > 1) {
+    for (let i = 1; i < detections.length; i++) {
+      if (detections[i] && detections[i].boundingBox) {
+        boxesToBlur.push(normalizeBox(detections[i].boundingBox));
+      }
+    }
   }
 
-  faceBlurCtx.clearRect(0, 0, faceBlurCanvas.width, faceBlurCanvas.height);
+  const patchSize = 256;
+  if (faceBlurCanvas.width !== patchSize || faceBlurCanvas.height !== patchSize) {
+    faceBlurCanvas.width = patchSize;
+    faceBlurCanvas.height = patchSize;
+  }
 
-  // 1. Heavy Gaussian optical defocus (natural camera bokeh)
-  faceBlurCtx.filter = "blur(46px) saturate(1.15) contrast(1.05)";
-  faceBlurCtx.drawImage(videoEl, offsetX, offsetY, renderedW, renderedH);
+  for (let bIdx = 0; bIdx < boxesToBlur.length; bIdx++) {
+    const fBox = boxesToBlur[bIdx];
+    if (!fBox) continue;
 
-  // 2. Subtle chromatic lens dispersion
-  faceBlurCtx.globalCompositeOperation = "screen";
-  faceBlurCtx.filter = "blur(32px)";
-  faceBlurCtx.drawImage(videoEl, offsetX + 2, offsetY - 1, renderedW, renderedH);
-  faceBlurCtx.globalCompositeOperation = "source-over";
+    const boxX = fBox.originX * scale + offsetX;
+    const boxY = fBox.originY * scale + offsetY;
+    const boxW = fBox.width * scale;
+    const boxH = fBox.height * scale;
 
-  // 3. Smooth feathered radial falloff (NO mask lines, seamless transition into background)
-  faceBlurCtx.save();
-  faceBlurCtx.globalCompositeOperation = "destination-in";
-  faceBlurCtx.translate(cx, cy);
-  faceBlurCtx.scale(rx / maxR, ry / maxR);
-  const grad = faceBlurCtx.createRadialGradient(0, 0, maxR * 0.2, 0, 0, maxR);
-  grad.addColorStop(0.0, "rgba(0, 0, 0, 1.0)");
-  grad.addColorStop(0.5, "rgba(0, 0, 0, 0.98)");
-  grad.addColorStop(0.75, "rgba(0, 0, 0, 0.70)");
-  grad.addColorStop(0.92, "rgba(0, 0, 0, 0.25)");
-  grad.addColorStop(1.0, "rgba(0, 0, 0, 0.0)");
+    const cx = boxX + boxW * 0.5;
+    const cy = boxY + boxH * 0.5;
+    const rx = Math.max(46, (boxW * 0.5) * 1.62);
+    const ry = Math.max(58, (boxH * 0.5) * 1.82);
 
-  faceBlurCtx.fillStyle = grad;
-  faceBlurCtx.beginPath();
-  faceBlurCtx.arc(0, 0, maxR, 0, Math.PI * 2);
-  faceBlurCtx.fill();
-  faceBlurCtx.restore();
+    // Source ROI in video coordinates corresponding to the expanded bokeh ellipse
+    const rawSrcX = ((cx - rx) - offsetX) / scale;
+    const rawSrcY = ((cy - ry) - offsetY) / scale;
+    const rawSrcW = (rx * 2) / scale;
+    const rawSrcH = (ry * 2) / scale;
 
-  // 4. Composite the natural optical blur over the camera canvas
-  ctx.drawImage(faceBlurCanvas, 0, 0);
+    const srcX = Math.max(0, Math.min(videoW - 16, rawSrcX));
+    const srcY = Math.max(0, Math.min(videoH - 16, rawSrcY));
+    const srcW = Math.max(16, Math.min(videoW - srcX, rawSrcW));
+    const srcH = Math.max(16, Math.min(videoH - srcY, rawSrcH));
+
+    // Universal 3-Stage Bilinear Downsample-Upsample Gaussian Pyramid
+    // Works 100% on iOS Safari, iPadOS, Android WebView, and Desktop even without ctx.filter!
+    if (facePyr1Ctx && facePyr2Ctx && facePyr3Ctx) {
+      facePyr1Ctx.imageSmoothingEnabled = true;
+      facePyr2Ctx.imageSmoothingEnabled = true;
+      facePyr3Ctx.imageSmoothingEnabled = true;
+
+      facePyr1Ctx.clearRect(0, 0, 28, 28);
+      facePyr1Ctx.drawImage(videoEl, srcX, srcY, srcW, srcH, 0, 0, 28, 28);
+
+      facePyr2Ctx.clearRect(0, 0, 11, 11);
+      facePyr2Ctx.drawImage(facePyr1Canvas, 0, 0, 28, 28, 0, 0, 11, 11);
+
+      facePyr3Ctx.clearRect(0, 0, 32, 32);
+      facePyr3Ctx.globalAlpha = 1.0;
+      facePyr3Ctx.drawImage(facePyr2Canvas, 0, 0, 11, 11, 0, 0, 32, 32);
+      // 4-tap sub-texel Gaussian smoothing pass to eliminate bilinear grid edges
+      facePyr3Ctx.globalAlpha = 0.35;
+      facePyr3Ctx.drawImage(facePyr2Canvas, 0, 0, 11, 11, -0.7, -0.7, 32.7, 32.7);
+      facePyr3Ctx.drawImage(facePyr2Canvas, 0, 0, 11, 11, 0.7, -0.7, 31.3, 32.7);
+      facePyr3Ctx.drawImage(facePyr2Canvas, 0, 0, 11, 11, -0.7, 0.7, 32.7, 31.3);
+      facePyr3Ctx.drawImage(facePyr2Canvas, 0, 0, 11, 11, 0.7, 0.7, 31.3, 31.3);
+      facePyr3Ctx.globalAlpha = 1.0;
+
+      faceBlurCtx.clearRect(0, 0, patchSize, patchSize);
+      faceBlurCtx.imageSmoothingEnabled = true;
+      try {
+        faceBlurCtx.filter = "blur(14px) saturate(1.12) contrast(1.04)";
+      } catch (e) {}
+      faceBlurCtx.drawImage(facePyr3Canvas, 0, 0, 32, 32, 0, 0, patchSize, patchSize);
+      try {
+        faceBlurCtx.filter = "none";
+      } catch (e) {}
+    } else {
+      faceBlurCtx.clearRect(0, 0, patchSize, patchSize);
+      try {
+        faceBlurCtx.filter = "blur(36px) saturate(1.12)";
+      } catch (e) {}
+      faceBlurCtx.drawImage(videoEl, srcX, srcY, srcW, srcH, 0, 0, patchSize, patchSize);
+      try {
+        faceBlurCtx.filter = "none";
+      } catch (e) {}
+    }
+
+    // Feathered radial optical bokeh falloff (NO sharp borders, NO mask rings)
+    const halfP = patchSize * 0.5;
+    faceBlurCtx.save();
+    faceBlurCtx.globalCompositeOperation = "destination-in";
+    const grad = faceBlurCtx.createRadialGradient(halfP, halfP, halfP * 0.18, halfP, halfP, halfP * 0.98);
+    grad.addColorStop(0.0, "rgba(0, 0, 0, 1.0)");
+    grad.addColorStop(0.50, "rgba(0, 0, 0, 0.98)");
+    grad.addColorStop(0.72, "rgba(0, 0, 0, 0.74)");
+    grad.addColorStop(0.88, "rgba(0, 0, 0, 0.28)");
+    grad.addColorStop(1.0, "rgba(0, 0, 0, 0.0)");
+
+    faceBlurCtx.fillStyle = grad;
+    faceBlurCtx.beginPath();
+    faceBlurCtx.arc(halfP, halfP, halfP, 0, Math.PI * 2);
+    faceBlurCtx.fill();
+    faceBlurCtx.restore();
+
+    // Composite feathered bokeh patch over the face region on the camera canvas
+    ctx.drawImage(faceBlurCanvas, 0, 0, patchSize, patchSize, cx - rx, cy - ry, rx * 2, ry * 2);
+  }
+}
+if (typeof window !== "undefined") {
+  window.detectSkinHeadCluster = detectSkinHeadCluster;
+  window.drawDynamicFacePrivacy = drawDynamicFacePrivacy;
 }
 
 // Precision Skeleton
@@ -3234,13 +3569,46 @@ btnNewSeries?.addEventListener("click", handleNewSeries);
 document.getElementById("btn-restart-series")?.addEventListener("click", handleNewSeries);
 document.getElementById("btn-new-series")?.addEventListener("click", handleNewSeries);
 
+function executeManualPreLockClash() {
+  const detected = (currentDetectedGesture && currentDetectedGesture !== "UNKNOWN") ? currentDetectedGesture : "ROCK";
+  const gCount = (typeof window !== "undefined" && window.CognitiveBrain && window.CognitiveBrain.profile)
+    ? (window.CognitiveBrain.profile.total_games || 0)
+    : 0;
+  const leadMs = Math.min(255, 165 + gCount * 4);
+  let counter = getWinningCounter(detected);
+  let pred = detected;
+  let sealCode = null;
+  let sealOk = true;
+  if (typeof window.CognitiveBrain !== "undefined" && window.CognitiveBrain) {
+    const decision = window.CognitiveBrain.evaluateDecision({
+      kinematicGesture: detected,
+      kinematicConfidence: 0.995,
+      trustKinematics: true,
+      roundNum: currentSeriesTurn,
+      leadTimeMs: leadMs
+    });
+    pred = decision.predictedMove || detected;
+    counter = decision.counterMove || getWinningCounter(pred);
+    if (swingEngine) swingEngine.activeCognitiveDecision = decision;
+    if (decision.seal) {
+      sealCode = decision.seal.short || decision.seal.seal || null;
+    }
+  } else if (typeof window.JankenMind !== "undefined" && window.JankenMind) {
+    const c = window.JankenMind.commit({ leadTimeMs: leadMs });
+    if (c && c.seal) {
+      sealCode = c.seal.short || c.seal.seal || null;
+    }
+  }
+  triggerClash(detected, pred, leadMs, counter, sealCode, sealOk);
+}
+
 btnInstantShoot?.addEventListener("click", () => {
   sound.init();
   if (isResolving && resultBanner && !resultBanner.classList.contains("hidden")) {
     advanceAfterClash();
     return;
   }
-  triggerClash(currentDetectedGesture, currentDetectedGesture, 45);
+  executeManualPreLockClash();
 });
 
 const btnNextTurn = $("btn-next-turn");
@@ -3356,7 +3724,7 @@ window.addEventListener("keydown", (e) => {
     }
     if (!isResolving) {
       sound.init();
-      triggerClash(currentDetectedGesture, currentDetectedGesture, 45);
+      executeManualPreLockClash();
     }
   }
 });
@@ -3371,10 +3739,15 @@ if (btnRetryCam) {
   });
 }
 
-// Global user interaction unlock for Web Audio & Speech Synthesis
-window.addEventListener("pointerdown", () => {
+// Global user interaction unlock for Web Audio, Speech Synthesis & Mobile Video Autoplay
+const unlockMediaAndAudio = () => {
   sound.init();
-}, { once: true });
+  if (video && video.paused && video.srcObject) {
+    video.play().catch(() => {});
+  }
+};
+window.addEventListener("pointerdown", unlockMediaAndAudio, { once: true, passive: true });
+window.addEventListener("touchstart", unlockMediaAndAudio, { once: true, passive: true });
 
 // Release camera hardware lock immediately on page hide or navigation
 window.addEventListener("pagehide", () => {
