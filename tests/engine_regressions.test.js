@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeRng } from '../web/js/core/rng.js';
 import { createRoundEngine } from '../web/js/core/round_engine.js';
+import { createCommitLog } from '../web/js/core/commit.js';
 import { createStrokeTracker } from '../web/js/core/stroke.js';
 import { createMetrics } from '../web/js/core/metrics.js';
 import { learnFusionWeights, foulNow, legalMassFor, chooseAction } from '../web/js/core/decision.js';
@@ -238,6 +239,84 @@ test('frames must advance in index as well as in time (frame order is what I1 re
   const clean = resultOf(feed(freshEngine(3).engine, simulateThrow({ move: PAPER, rng: makeRng(4), t0: 1000 }).frames));
   assert.ok(res && clean);
   assert.deepEqual([res.verdict, res.aiMove, res.timing.tLanding, res.landingFrame, res.commits.map((/** @type {any} */ x) => x.frame)], [clean.verdict, clean.aiMove, clean.timing.tLanding, clean.landingFrame, clean.commits.map((/** @type {any} */ x) => x.frame)]);
+});
+
+test('a seal that cannot be made aborts the round; the round is never judged on an older seal', () => {
+  // Found by the final verification: the in-air frame used to be marked "revision step reached" BEFORE
+  // the revision seal was made. If the commit log refused that seal (here: the nonce source fails after
+  // the behavioural seal) and the caller kept feeding frames, the round was judged on the unrevised
+  // behavioural seal - a coin flip against a legal ROCK. Now the round is aborted, its seal opened.
+  let aborted = 0, judged = 0, losses = 0, escaped = 0;
+  for (let seed = 1; seed <= 40; seed++) {
+    const nonce = makeRng(seed + 1000);
+    let calls = 0;
+    const hex = (/** @type {number} */ n) => {
+      calls += 1;
+      if (calls > 1) throw new Error('nonce source failed');
+      let out = '';
+      for (let i = 0; i < n; i++) out += Math.floor(nonce.next() * 256).toString(16).padStart(2, '0');
+      return out;
+    };
+    const commitLog = createCommitLog({ sessionId: `seal-fail-${seed}`, randomBytesHex: hex });
+    const player = createPlayerModel();
+    player.safety.load({ v: 4, budget: 0, rounds: 0, expectedPayoff: 0 }); // random behavioural move
+    const engine = createRoundEngine({ player, commitLog, rng: makeRng(seed), cfg: { rules: 'turnuva' } });
+    const sim = simulateThrow({ move: ROCK, rng: makeRng(600 + seed), t0: 1000 });
+    /** @type {any[]} */ let events = [];
+    try { events = feed(engine, sim.frames); } catch { escaped += 1; continue; }
+    const res = resultOf(events);
+    const ab = events.find((e) => e.type === 'aborted' && e.reason === 'ENGINE_ERROR');
+    if (res) {
+      judged += 1;
+      if (res.verdict === 'PLAYER') losses += 1;
+      assert.equal(res.commits.length, 1, 'a judged round here needed no revision');
+    }
+    if (ab) {
+      aborted += 1;
+      assert.ok(typeof ab.detail === 'string' && ab.detail.includes('nonce'));
+      assert.equal(ab.commits.length, 1);
+      assert.equal(ab.commits[0].reason, 'BEHAVIOUR');
+      assert.ok(ab.sealOk && ab.chainOk && ab.commits[0].verified, 'the seal that was shown is opened and verified');
+      assert.ok(!res, 'an aborted round is not judged');
+    }
+    assert.deepEqual(commitLog.sealedRounds(), []);
+  }
+  console.log(`  failing seal: ${aborted} rounds aborted, ${judged} judged (no revision needed), ${losses} player wins`);
+  assert.equal(escaped, 0, 'no exception escapes pushFrame');
+  assert.equal(losses, 0);
+  assert.ok(aborted >= 15 && judged >= 5, `aborted ${aborted}, judged ${judged}`);
+});
+
+test('frames the commit log could not seal are ignored (index beyond 2^53 - 1, time beyond 2^52 / 10 ms)', () => {
+  const sim = simulateThrow({ move: PAPER, rng: makeRng(8), t0: 1000 });
+  const { engine } = freshEngine(7);
+  let k = 0;
+  for (; k < sim.frames.length; k++) if (engine.pushFrame(sim.frames[k]).some((e) => e.type === 'flightStart')) break;
+  assert.ok(k < sim.frames.length - 1, 'the flight started');
+  const next = sim.frames[k + 1];
+  for (const bad of [
+    { ...next, index: Number.MAX_SAFE_INTEGER + 1 },
+    { ...next, index: 2 ** 60 },
+    { ...next, t: 2 ** 52 / 10 + 1 },
+    { ...next, t: Number.MAX_VALUE },
+  ]) assert.deepEqual(engine.pushFrame(/** @type {any} */ (bad)), []);
+  // the stream goes on exactly as if those frames had never arrived
+  const rest = resultOf(feed(engine, sim.frames.slice(k + 1)));
+  const clean = resultOf(feed(freshEngine(7).engine, sim.frames));
+  assert.ok(rest && clean);
+  assert.deepEqual(
+    [rest.verdict, rest.aiMove, rest.playerMove, rest.landingFrame, rest.commits.map((/** @type {any} */ c) => c.frame)],
+    [clean.verdict, clean.aiMove, clean.playerMove, clean.landingFrame, clean.commits.map((/** @type {any} */ c) => c.frame)]);
+});
+
+test('only the three named presets are accepted (no inherited object keys)', () => {
+  for (const name of ['constructor', 'toString', 'hasOwnProperty', 'valueOf', '__proto__']) {
+    const { engine } = freshEngine(1, { rules: name });
+    assert.equal(engine.snapshot().rules, 'turnuva', `cfg.rules = ${name} falls back to the default`);
+    assert.throws(() => engine.setRules(name), RangeError);
+  }
+  const { engine } = freshEngine(1);
+  for (const name of ['serbest', 'standart', 'turnuva']) { engine.setRules(name); assert.equal(engine.snapshot().rules, name); }
 });
 
 test('a tracking gap over the fast part of the stroke voids the round instead of judging stale or late evidence', () => {

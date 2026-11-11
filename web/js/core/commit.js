@@ -196,6 +196,18 @@ const isQuantisedTime = (t) => typeof t === 'number' && Number.isFinite(t) && Ma
 const shortOf = (hash) => hash.slice(0, DEFAULTS.shortLength).toUpperCase();
 
 /**
+ * Could a commitment be sealed for a frame with this index and capture time? The log accepts frame
+ * indices that are safe integers >= 0 and times whose 0.1 ms scaling is exact (|t| * 10 < 2^52, i.e. about
+ * 14 000 years of milliseconds). The round engine admits only such frames, so a seal it attempts can
+ * fail only for reasons outside the frame stream (for example a failing nonce source).
+ * @param {unknown} index @param {unknown} t
+ * @returns {boolean}
+ */
+export function isSealableFrame(index, t) {
+  return isIndex(index) && typeof t === 'number' && Number.isFinite(t) && Math.abs(t * TIME_SCALE) < MAX_SCALED_TIME;
+}
+
+/**
  * Hash that starts a session's chain.
  * @param {string} sessionId
  * @returns {string}

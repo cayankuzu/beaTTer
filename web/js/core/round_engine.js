@@ -13,6 +13,8 @@
  *     the audit log, flagged `postLanding`, and never judged. A tracked frame that follows a tracking
  *     gap and already shows the hand at its landing height is the landing frame: what happened inside
  *     the gap is unknown, so nothing after it counts as in-air.
+ *     A seal that cannot be made (the commit log refuses it) aborts the round: a round is never judged
+ *     on an older seal because a newer one failed.
  * I2  Every commitment is a SHA-256 hash published at once; the move stays secret until reveal.
  * I3  All commitments and revisions of a round are kept in order, opened and verified at reveal — also
  *     when the round is aborted.
@@ -31,6 +33,7 @@ import { createOpeningDetector, measureOpening } from './opening.js';
 import { fuse, legalMassFor, chooseAction, shouldRevise, foulNow } from './decision.js';
 import { createPoseClassifier, decideFinal, completionTime } from './pose.js';
 import { Kalman1D } from './filters.js';
+import { isSealableFrame } from './commit.js';
 import { median } from './math.js';
 
 /** @typedef {import('./constants.js').HandFrame} HandFrame */
@@ -135,7 +138,10 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
   const stroke = createStrokeTracker({ sensitivity: c.sensitivity });
   const flexKf = new Kalman1D({ q: 4e6, r: 60 }); // mean index+middle flexion (deg); velocity in deg/s
 
-  let ruleName = RULES[/** @type {keyof typeof RULES} */ (c.rules)] ? c.rules : DEFAULT_RULE;
+  // only the presets themselves: a plain `RULES[name]` lookup would also accept inherited keys such as
+  // 'constructor' and leave the referee without thresholds
+  const isPreset = (/** @type {unknown} */ name) => typeof name === 'string' && Object.prototype.hasOwnProperty.call(RULES, name);
+  let ruleName = isPreset(c.rules) ? c.rules : DEFAULT_RULE;
   let pendingRule = ruleName;
   /** @type {{primeBeats:number, metronome: null|{periodMs:number}}} */
   let mode = { primeBeats: c.primeBeats, metronome: null };
@@ -216,6 +222,24 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     return pub;
   };
 
+  /**
+   * Seal, or abort the round if the seal cannot be made. pushFrame admits only frames the log can seal,
+   * so this guards against failures outside the frame stream (a failing nonce source, a log shared with
+   * a stale engine). The exception is not rethrown: the round is closed, its seals are opened and
+   * verified (I3), and the `aborted` event carries the reason, so a caller that keeps feeding frames can
+   * never get a round judged on an older seal.
+   * @returns {boolean} true when the seal was made
+   */
+  const sealOrAbort = (/** @type {number} */ move, /** @type {'BEHAVIOUR'|'KINEMATIC'|'REVISION'} */ reason, /** @type {HandFrame} */ frame, /** @type {any} */ snap, /** @type {any[]} */ events) => {
+    try {
+      commit(move, reason, frame, snap, events);
+      return true;
+    } catch (err) {
+      abort('ENGINE_ERROR', frame.t, events, String((/** @type {any} */ (err) && /** @type {any} */ (err).message) || err));
+      return false;
+    }
+  };
+
   /** Open and verify every commitment of the round in progress (I2, I3). */
   const openRound = () => {
     const revealed = commitLog.reveal(r.round);
@@ -258,17 +282,17 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     events.push({ type: 'flightStart', t: frame.t, round: r.round });
     // the opening measured on this very frame goes into the record (null without a hand): I4
     const u0 = s0 ? openingFromBaseline(s0.e, r.base) : null;
-    commit(d.move, 'BEHAVIOUR', frame, { belief: { post: pred.p.slice(), pLate: 0, prior: pred.p.slice(), kinLik: [1 / 3, 1 / 3, 1 / 3], pLoss: null, legalCount: 3, informative: false }, u4: u0 ? [u0[1], u0[2], u0[3], u0[4]] : null, hF: null, hB: null }, events);
+    sealOrAbort(d.move, 'BEHAVIOUR', frame, { belief: { post: pred.p.slice(), pLate: 0, prior: pred.p.slice(), kinLik: [1 / 3, 1 / 3, 1 / 3], pLoss: null, legalCount: 3, informative: false }, u4: u0 ? [u0[1], u0[2], u0[3], u0[4]] : null, hF: null, hB: null }, events);
   };
 
-  const abort = (/** @type {string} */ reason, /** @type {number} */ t, /** @type {any[]} */ events) => {
+  const abort = (/** @type {string} */ reason, /** @type {number} */ t, /** @type {any[]} */ events, /** @type {string|null} */ detail = null) => {
     // I3: seals that were shown are opened and verified even though the round is not judged
     let opened = { commits: /** @type {any[]} */ ([]), sealOk: true, chainOk: true };
     const round = r ? r.round : null;
     if (r && r.commits.length) { try { opened = openRound(); } catch { opened = { commits: [], sealOk: false, chainOk: false }; } }
     r = null; schedule = null; phase = 'IDLE'; beat = 0; fistSinceT = null; recent = [];
     stroke.resetRhythm();
-    events.push({ type: 'aborted', t, reason, round, commits: opened.commits, sealOk: opened.sealOk, chainOk: opened.chainOk });
+    events.push({ type: 'aborted', t, reason, round, commits: opened.commits, sealOk: opened.sealOk, chainOk: opened.chainOk, ...(detail ? { detail } : {}) });
   };
 
   /**
@@ -334,24 +358,32 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     const afterGap = r.gapRecovery > 0;
     if (afterGap) r.gapRecovery -= 1;
     r.lastEvalT = s.t;
-    // `open`: the revision step below is reached on this frame (not while a single-stroke round merely
-    // waits armed, and not before enough frames of the round have been seen)
-    r.inAir.push({ t: s.t, index: frame.index, hF, hB, u4: [u[1], u[2], u[3], u[4]], y: stroke.state().y, afterGap, open: mayRevise && r.trackedInFlight >= c.minEvidenceFrames });
+    // `open`: the revision step below was carried out on this frame (not while a single-stroke round
+    // merely waits armed, not before enough frames of the round have been seen). It is set at the END of
+    // the step: if the step cannot complete, the frame never counts as one on which the AI could revise.
+    const inAirEntry = { t: s.t, index: frame.index, hF, hB, u4: [u[1], u[2], u[3], u[4]], y: stroke.state().y, afterGap, open: false };
+    r.inAir.push(inAirEntry);
     r.samples.push({ t: s.t, u4: [u[1], u[2], u[3], u[4]], neural: s.neural });
     const tr = r.trace;
     tr.t.push(round1(s.t)); tr.uF.push(+uF.toFixed(3)); tr.uB.push(+uB.toFixed(3)); tr.cy.push(+s.cy.toFixed(4));
     tr.hF.push(+hF.toFixed(3)); tr.hB.push(+hB.toFixed(3)); tr.pR.push(+belief.post[0].toFixed(3)); tr.pP.push(+belief.post[1].toFixed(3)); tr.pS.push(+belief.post[2].toFixed(3));
 
     if (!mayRevise || r.trackedInFlight < c.minEvidenceFrames) return;
-    if (c.freezeLeadMs > 0 && !rules().noLoss && tL - s.t < c.freezeLeadMs) return;
-    const cur = r.commits[r.commits.length - 1].move;
-    if (shouldRevise(cur, choice, rules())) {
-      const total = choice.total > 0 ? choice.total : 1;
-      commit(choice.action, r.kinematicCommits === 0 ? 'KINEMATIC' : 'REVISION', frame, {
-        belief: { post: belief.post.slice(), pLate: belief.pLate, prior: r.prior.slice(), kinLik: belief.kinLik.slice(), pLoss: choice.pLoss / total, legalCount: r.legalCount, informative: true },
-        u4: [u[1], u[2], u[3], u[4]], hF, hB,
-      }, events);
+    // the optional freeze (never under a no-loss preset) skips the revision on purpose; the frame still
+    // counts as one on which the AI was free to revise - that is what the freeze experiment measures
+    const frozen = c.freezeLeadMs > 0 && !rules().noLoss && tL - s.t < c.freezeLeadMs;
+    if (!frozen) {
+      const cur = r.commits[r.commits.length - 1].move;
+      if (shouldRevise(cur, choice, rules())) {
+        const total = choice.total > 0 ? choice.total : 1;
+        const sealed = sealOrAbort(choice.action, r.kinematicCommits === 0 ? 'KINEMATIC' : 'REVISION', frame, {
+          belief: { post: belief.post.slice(), pLate: belief.pLate, prior: r.prior.slice(), kinLik: belief.kinLik.slice(), pLoss: choice.pLoss / total, legalCount: r.legalCount, informative: true },
+          u4: [u[1], u[2], u[3], u[4]], hF, hB,
+        }, events);
+        if (!sealed) return; // the round has been aborted
+      }
     }
+    inAirEntry.open = true;
   };
 
   // --------------------------------------------------------------------------------------- the referee
@@ -502,13 +534,15 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
 
   // ------------------------------------------------------------------------------------------ frames
   /**
-   * Feed one camera frame (also frames without a hand). Never throws on malformed frames.
+   * Feed one camera frame (also frames without a hand). Never throws on malformed frames: a frame is
+   * ignored unless its index is a safe integer >= 0 and its time a finite number the commit log can seal
+   * (commit.js isSealableFrame), and unless both advance.
    * @param {HandFrame} frame
    * @returns {any[]} events
    */
   const pushFrame = (frame) => {
     /** @type {any[]} */ const events = [];
-    if (!frame || !Number.isFinite(frame.t) || !Number.isInteger(frame.index) || frame.index < 0) return events;
+    if (!frame || !isSealableFrame(frame.index, frame.t)) return events;
     // frames must advance in time AND in index: "before the landing" is decided by frame order (I1)
     if (lastT !== null && frame.t <= lastT) return events;
     if (lastIndex !== null && frame.index <= lastIndex) return events;
@@ -751,7 +785,7 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
 
   /** @param {string} name takes effect from the next round */
   const setRules = (name) => {
-    if (!RULES[/** @type {keyof typeof RULES} */ (name)]) throw new RangeError(`round_engine: unknown rule preset ${name}`);
+    if (!isPreset(name)) throw new RangeError(`round_engine: unknown rule preset ${name}`);
     pendingRule = name;
     if (phase === 'IDLE') ruleName = name;
   };

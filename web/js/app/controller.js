@@ -176,7 +176,8 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
           if (audio.cancelMetronome) audio.cancelMetronome();
           store.set({ live: emptyLive() });
           // the seals of an aborted round were opened and verified by the engine (I3): say so
-          toast(e.reason === 'HAND_LOST' ? 'ABORT_HAND_LOST' : e.reason === 'RHYTHM_TIMEOUT' ? 'ABORT_RHYTHM' : 'ABORT_MANUAL',
+          if (e.reason === 'ENGINE_ERROR') console.error('[beaTTer] a seal could not be made; the round was aborted', e.detail ?? '');
+          toast(e.reason === 'HAND_LOST' ? 'ABORT_HAND_LOST' : e.reason === 'RHYTHM_TIMEOUT' ? 'ABORT_RHYTHM' : e.reason === 'ENGINE_ERROR' ? 'ENGINE_ERROR' : 'ABORT_MANUAL',
             { seals: Array.isArray(e.commits) ? e.commits.length : 0, sealOk: e.sealOk !== false && e.chainOk !== false });
           if (source) source.onIdle();
           autoCountIn(900);
