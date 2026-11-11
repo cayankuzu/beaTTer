@@ -254,6 +254,52 @@ test('an aborted round clears the live strip; its seal is reported as opened and
   assert.ok(store.get().live.round === store.get().result.round && store.get().live.commits.every((/** @type {any} */ c) => store.get().result.commits.some((/** @type {any} */ k) => k.seq === c.seq)), 'the strip shows this round only');
 }));
 
+/** A controller whose demo runs on a manual clock and timer: deterministic, whatever the load of the machine. */
+function manualDemo(/** @type {number} */ seed, settingsPatch = {}) {
+  const storage = createStorage(fakeStorage());
+  storage.setSettings(settingsPatch);
+  const store = createStore(initialState(storage.getSettings()));
+  let clock = 1000;
+  /** @type {null|(() => void)} */ let pending = null;
+  const controller = createController({
+    store, storage, audio: audioStub(), now: () => clock,
+    makeDemoSource: (o) => createDemoSource({ ...o, setTimer: (/** @type {() => void} */ fn) => { pending = fn; return 1; }, clearTimer: () => { pending = null; } }),
+    options: { autoAdvanceMs: null, demo: { seed, speed: 40 } },
+  });
+  /** advance the wall clock by 6 ms and run the demo's pending tick (at most 8 frames) */
+  const step = () => { clock += 6; const fn = pending; pending = null; if (fn) fn(); };
+  /** tick until `fn()` holds, at most `n` ticks (3000 ticks are 12 minutes on the 40x frame clock) */
+  const until = (/** @type {() => boolean} */ fn, n = 3000) => { for (let k = 0; k < n && !fn(); k++) step(); return fn(); };
+  return { store, controller, step, until, lag: (/** @type {number} */ ms) => { clock += ms; } };
+}
+
+test('demo, single-stroke mode: the synthetic player never waits for an engine that is waiting for it', () => {
+  // Found while chasing an intermittent failure of the test above on a loaded machine (it failed with the
+  // previous engine as well). In single-stroke mode the engine arms by itself on a resting fist; the
+  // synthetic player planned a throw only while the engine was IDLE, so an engine that had armed without
+  // that throw and the player waited for each other for good. Two ways in, both deterministic here:
+  // (1) the player is behind the clock when a round is aborted, and the frames it still owes hold enough
+  // resting fist to arm on; (2) a dialog stays open long enough for the engine to arm behind it.
+  for (const seed of [1, 2, 3, 4]) {
+    const d = manualDemo(seed, { primeBeats: 0 });
+    try {
+      d.controller.actions.startDemo();
+      assert.ok(d.until(() => d.store.get().live.commits.length === 1 && d.store.get().engine.phase === 'ARMED'), 'armed, behavioural seal on the strip');
+      d.lag(15); // the machine stalls for 15 ms: 600 ms on the 40x frame clock that the player now owes
+      d.controller.actions.abortRound();
+      assert.ok(d.until(() => d.store.get().result !== null), `seed ${seed}: a round is judged after the abort (stuck in ${d.store.get().engine.phase})`);
+      d.controller.actions.primary(); // next round
+      d.controller.actions.openPanel('settings');
+      for (let k = 0; k < 40; k++) d.step(); // about 10 s of play time behind the dialog
+      assert.equal(d.store.get().engine.phase, 'ARMED', 'the engine armed on the resting fist behind the dialog');
+      d.controller.actions.closePanel();
+      assert.ok(d.until(() => d.store.get().result !== null), `seed ${seed}: a round is judged after the dialog (stuck in ${d.store.get().engine.phase})`);
+    } finally {
+      d.controller.dispose();
+    }
+  }
+});
+
 test('metronome demo: a settings change during the count-in neither stalls the game nor leaves the old count-in sounding', () => withBoots(async (boot) => {
   const { controller, audio, judged } = boot({ rhythm: 'metronome', metronomeBpm: 120 });
   controller.actions.startDemo();

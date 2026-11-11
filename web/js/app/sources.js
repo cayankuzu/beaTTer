@@ -80,7 +80,13 @@ export function createDemoSource(o) {
     const from = Math.max(simNow(), lastSimT + dt);
     if (ctx.mode === 'mindtwin') { queue.push(...idleFrames(from, 600, 'mindtwin')); return; }
     const led = !!(ctx.beatTimes && ctx.beatTimes.length === ctx.primeBeats + 1);
-    if (!roundQueued && !ctx.hold && (led || (ctx.phase === 'IDLE' && !ctx.metronome))) {
+    // Without a metronome the engine waits for a throw while IDLE, and in single-stroke mode also while
+    // ARMED: it arms by itself on a resting fist - on the waiting frames behind a dialog, or on frames still
+    // owed from an aborted round when this player has fallen behind the clock. The queue is empty here, so
+    // a planned throw has been played out in full; if the engine is still waiting, it did not take that
+    // throw up, and the player throws (again) instead of both sides waiting for each other for good.
+    const waiting = !ctx.metronome && (ctx.phase === 'IDLE' || (ctx.phase === 'ARMED' && ctx.primeBeats === 0));
+    if (!ctx.hold && ((led && !roundQueued) || waiting)) {
       const move = /** @type {0|1|2} */ (player.next(hist));
       // metronome-led rounds follow the scheduled beats (with human-like asynchrony); self-paced rounds rest briefly first
       const beatTimes = led ? /** @type {number[]} */ (ctx.beatTimes).map((b) => b + kin.normal(0, 12)) : undefined;
