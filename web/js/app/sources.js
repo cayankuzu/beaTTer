@@ -145,12 +145,8 @@ export function createDemoSource(o) {
  * @param {HTMLVideoElement} o.video
  * @param {ReturnType<typeof import('../platform/camera.js').createCamera>} o.camera
  * @param {ReturnType<typeof import('../platform/hand_tracker.js').createHandTracker>} o.tracker
- * @param {((meta:{t:number, now:number}) => void)|null} [o.afterFrame]  runs AFTER the engine has seen the
- *        frame (the face blur lives here: it must never delay a decision)
- * @param {(() => Promise<any>)|null} [o.beforeShow]  awaited before the source reports itself ready (the
- *        picture is not shown before the face detector has loaded or has definitely failed)
  */
-export function createCameraSource({ video, camera, tracker, afterFrame = null, beforeShow = null }) {
+export function createCameraSource({ video, camera, tracker }) {
   let index = 0;
   let running = false;
   /** @type {(frame:HandFrame, display:any) => void} */ let sink = () => {};
@@ -159,15 +155,30 @@ export function createCameraSource({ video, camera, tracker, afterFrame = null, 
   // image coordinates: speeds are ~0.5-3 units/s, so beta must be large for the cutoff to open up
   const filters = Array.from({ length: 42 }, () => new OneEuroFilter({ minCutoff: 2.0, beta: 12, dCutoff: 1.0 }));
 
+  // The frame is copied once, and both the tracker and the private picture read the copy: the sharp
+  // window of the picture is then computed from the very pixels it is drawn on. Reading the <video>
+  // element twice (tracker now, painter at the next animation frame) let a newer camera frame slip in
+  // between, and the window trailed the hand on fast strokes.
+  const snap = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+  const snapCtx = snap ? snap.getContext('2d') : null;
+  /** @returns {HTMLCanvasElement|null} the copy, or null when there is no frame to copy */
+  const copyFrame = () => {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!snap || !snapCtx || !(vw > 0) || !(vh > 0) || video.readyState < 2) return null;
+    if (snap.width !== vw || snap.height !== vh) { snap.width = vw; snap.height = vh; }
+    snapCtx.drawImage(video, 0, 0, vw, vh);
+    return snap;
+  };
+
   /** @param {{t:number, now:number}} meta */
   const onVideoFrame = (meta) => {
     if (running && tracker.ready) track(meta);
-    if (afterFrame) { try { afterFrame(meta); } catch (e) { console.error('[beaTTer] frame hook failed', e); } }
   };
 
   /** @param {{t:number, now:number}} meta */
   const track = (meta) => {
-    const out = tracker.detect(video, meta.t);
+    const picture = copyFrame();
+    const out = tracker.detect(picture ?? video, meta.t);
     const aspect = video.videoWidth > 0 && video.videoHeight > 0 ? video.videoWidth / video.videoHeight : 4 / 3;
     /** @type {HandFrame} */
     const frame = out
@@ -179,7 +190,12 @@ export function createCameraSource({ video, camera, tracker, afterFrame = null, 
     } else {
       for (const f of filters) f.reset();
     }
-    sink(frame, { image: smooth, demo: false, inferMs: out ? out.inferenceMs : null, latencyMs: Math.max(0, performance.now() - meta.t) });
+    // `picture` is the tracked frame and `raw` (unsmoothed) marks the sharp region in it; the smoothed
+    // `image` only draws the skeleton. `delegate` follows a rebuild of the tracker on the other processor.
+    sink(frame, {
+      image: smooth, raw: out ? out.image : null, picture, delegate: tracker.delegate ?? null,
+      demo: false, inferMs: out ? out.inferenceMs : null, latencyMs: Math.max(0, performance.now() - meta.t),
+    });
   };
 
   return {
@@ -202,8 +218,7 @@ export function createCameraSource({ video, camera, tracker, afterFrame = null, 
         camera.offFrame(onVideoFrame); camera.stop();
         const err = new Error(/** @type {any} */ (e)?.message ?? 'tracker'); /** @type {any} */ (err).code = 'TRACKER_FAILED'; throw err;
       }
-      if (beforeShow) { try { await beforeShow(); } catch { /* the blur has its own fallbacks */ } }
-      report({ tracker: 'ready' });
+      report({ tracker: 'ready', delegate: tracker.delegate ?? null });
     },
     close() { running = false; lost = null; camera.offFrame(onVideoFrame); camera.stop(); },
     devices: () => camera.listDevices(),

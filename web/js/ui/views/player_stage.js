@@ -1,9 +1,9 @@
 // @ts-check
 /**
- * beaTTer v4 — player stage: the mirrored camera video under an overlay canvas (face blur + hand
- * skeleton), status chips, the five finger-extension meters and the camera gate (call to action,
- * loading, error). In demo mode there is no video: the synthetic skeleton is drawn on the backdrop and a
- * persistent label says so.
+ * beaTTer v4 — player stage: the mirrored camera video under an overlay canvas (private picture: all
+ * defocused but the tracked hand; hand skeleton), status chips, the five finger-extension meters and the
+ * camera gate (call to action, loading, error). In demo mode there is no video: the synthetic skeleton is
+ * drawn on the backdrop and a persistent label says so.
  */
 
 import { h, fill, setText, setAttr, setVar, show, toggle, nextId, focusables } from '../dom.js';
@@ -81,25 +81,33 @@ export function mountPlayerStage(ctx) {
     show(guide, v.source === 'camera' && !v.hand);
   });
 
-  store.subscribe((st) => ({ fps: st.perf.fps === null ? null : Math.round(st.perf.fps), lat: st.perf.latencyMs === null ? null : Math.round(st.perf.latencyMs), source: st.boot.source }), (v) => {
+  store.subscribe((st) => ({
+    fps: st.perf.fps === null ? null : Math.round(st.perf.fps), lat: st.perf.latencyMs === null ? null : Math.round(st.perf.latencyMs),
+    infer: st.perf.inferMs === null ? null : Math.round(st.perf.inferMs), source: st.boot.source, delegate: st.boot.delegate,
+  }), (v) => {
     show(fps, v.source !== 'none');
     setText(fpsTxt, `${v.fps === null ? DASH : v.fps} ${T.fps}`);
     setText(latTxt, ` · ${v.lat === null ? DASH : v.lat} ${T.msUnit}`);
     toggle(fps, 'is-nolat', v.lat === null); // compact stages drop the unknown latency instead of showing a bare dash
+    // where the hand tracker runs and what one frame costs: the first thing to look at when tracking lags
+    setAttr(fps, 'title', v.source === 'camera' ? M.trackerTitle(v.delegate, v.infer) : null);
   });
 
-  // the chip never claims more than is true: "on" only with a working face detector, "approximate"
-  // while the blur relies on its fallback zones, and a failed painter hides the picture altogether
+  // the chip never claims more than is true: "on" while the private picture is painted, and a failed
+  // painter hides the picture altogether
   let blurFailed = false;
   const syncFace = () => {
     const st = store.get();
-    const on = st.settings.privacy, exact = st.boot.face === 'ready';
-    setText(faceTxt, !on ? T.faceOff : blurFailed ? T.faceFailed : exact ? T.faceOn : T.faceApprox);
-    setAttr(face, 'title', on && !blurFailed && !exact ? T.faceApproxTitle : null);
-    toggle(face, 'chip--warn', !on || blurFailed || !exact);
+    const on = st.settings.privacy;
+    setText(faceTxt, !on ? T.faceOff : blurFailed ? T.faceFailed : T.faceOn);
+    setAttr(face, 'title', on && !blurFailed ? T.faceOnTitle : null);
+    toggle(face, 'chip--warn', !on || blurFailed);
     toggle(el, 'cam--noblur', on && blurFailed);
+    // defence in depth: the video element itself is blurred too whenever privacy is on (CSS) - also while
+    // the camera is starting and the tracker loads behind the 90 % opaque gate, and before the first paint
+    toggle(el, 'cam--private', on);
   };
-  store.subscribe((st) => ({ source: st.boot.source, on: st.settings.privacy, face: st.boot.face }), (v) => {
+  store.subscribe((st) => ({ source: st.boot.source, on: st.settings.privacy }), (v) => {
     show(face, v.source === 'camera');
     if (!v.on || v.source !== 'camera') blurFailed = false;
     syncFace();
@@ -195,6 +203,7 @@ export function mountPlayerStage(ctx) {
   // ---- overlay canvas (requestAnimationFrame)
   /** @type {any} */ let lastImage = null;
   let lastSource = 'none';
+  let lastBlur = false;
   let blank = true;
 
   return {
@@ -205,24 +214,30 @@ export function mountPlayerStage(ctx) {
       const dirty = surface.takeDirty();
       if (f.source === 'none') {
         if (!blank || dirty) { surface.beginRaw(); blank = true; }
-        lastSource = 'none'; lastImage = null;
+        lastSource = 'none'; lastImage = null; lastBlur = false;
         return;
       }
       const p = f.source === 'camera' ? ctx.privacy() : null;
-      const blur = !!(p && p.enabled === true && video.videoWidth > 0);
-      // without the face blur the picture only changes when a new set of landmarks arrives
-      if (!blur && !dirty && f.image === lastImage && f.source === lastSource) return;
+      // the tracked frame (its landmarks are the sharp window); the live element only before the first one
+      const picture = f.picture ?? video;
+      const blur = !!(p && p.enabled === true && (f.picture ? f.picture.width > 0 : video.videoWidth > 0));
+      const wasBlur = lastBlur;
+      lastBlur = blur;
+      // without the private picture the canvas only changes when a new set of landmarks arrives - and once
+      // when the private picture has just been switched off, which must clear it
+      if (!blur && !wasBlur && !dirty && f.image === lastImage && f.source === lastSource) return;
       lastImage = f.image; lastSource = f.source;
       const c = surface.beginRaw();
       blank = false;
       if (blur && p) {
         c.save();
         try {
-          p.draw(c, video, canvas, f.image);
+          // the whole frame defocused, the hand of this frame sharp (raw landmarks: no smoothing lag)
+          p.draw(c, picture, canvas, f.raw ?? f.image);
           if (blurFailed) { blurFailed = false; syncFace(); }
         } catch (e) {
-          // fail closed: a face that cannot be blurred is not shown; the skeleton still draws
-          if (!blurFailed) { blurFailed = true; console.error('[beaTTer] face blur failed', e); syncFace(); }
+          // fail closed: a picture that cannot be made private is not shown; the skeleton still draws
+          if (!blurFailed) { blurFailed = true; console.error('[beaTTer] privacy painter failed', e); syncFace(); }
         }
         c.restore();
       }

@@ -73,8 +73,8 @@ export function initialState(settings) {
       cameraError: /** @type {null|{code:string, detail:string}} */ (null),
       source: /** @type {'none'|'camera'|'demo'} */ ('none'),
       storage: true,
-      /** face detector behind the privacy blur: 'ready' = detected faces, 'approx' = fallback zones only */
-      face: /** @type {'idle'|'loading'|'ready'|'approx'} */ ('idle'),
+      /** where the hand tracker runs once loaded: 'GPU' (WebGL2) or 'CPU' (the fallback) */
+      delegate: /** @type {null|'GPU'|'CPU'} */ (null),
       devices: /** @type {{id:string, label:string}[]} */ ([]),
     },
     settings,

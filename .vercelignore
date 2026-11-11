@@ -10,3 +10,4 @@ debug_live/
 *.sql
 *.png
 web/_design/
+web/lab/

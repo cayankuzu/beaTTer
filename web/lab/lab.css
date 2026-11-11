@@ -1,0 +1,7 @@
+/* local measurement pages (web/lab, not deployed) */
+body { background: #111; color: #ddd; font: 13px/1.45 ui-monospace, Consolas, monospace; margin: 12px; }
+h1 { font-size: 15px; margin: 0 0 6px; }
+canvas { width: 320px; border: 1px solid #444; margin-inline-end: 8px; vertical-align: top; }
+#out-canvas { width: 400px; }
+pre { white-space: pre-wrap; }
+code { color: #9cf; }

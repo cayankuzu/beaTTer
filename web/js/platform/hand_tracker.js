@@ -1,14 +1,22 @@
 // @ts-check
 /**
  * beaTTer v4 — hand tracker adapter (MediaPipe Tasks Vision: GestureRecognizer = hand landmarks + a
- * canned gesture label) and the face detector used by the privacy blur.
+ * canned gesture label).
  *
  * MediaPipe Hands gives 21 landmarks per hand: image coordinates normalised by width/height and "world"
  * coordinates in metres with the origin at the hand's centre [Zhang2020]. The engine receives them RAW —
  * no smoothing here: the opening detector needs independent per-frame noise.
  *
+ * Delegate: GPU (WebGL2) first, CPU (XNNPACK) as the fallback. Measured on the machine this was written on
+ * (synthetic 640x480 frames without a hand, i.e. the palm detector runs on every frame, the costliest
+ * case): median 16.4 ms per frame on the GPU against 47.4 ms on the CPU. The earlier CPU-first order
+ * capped tracking at about 20 frames per second on the main thread; a fast stroke then moved the hand
+ * further between two processed frames than the tracker's region of interest could follow, and the hand
+ * was lost. The model is warmed up once after loading (the first GPU inference compiles its shaders).
+ * When one delegate keeps failing at run time, the tracker is rebuilt on the other one.
+ *
  * The library is loaded with a dynamic import, so the rest of the app (demo mode, lab, settings) works
- * even when the CDN is unreachable. CPU (XNNPACK) first, GPU as fallback, as in production before.
+ * even when the CDN is unreachable.
  */
 
 const VERSION = '0.10.14';
@@ -16,6 +24,8 @@ const CDN = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VERSION}`;
 const LABELS = Object.freeze({ Closed_Fist: 'ROCK', Open_Palm: 'PAPER', Victory: 'SCISSORS' });
 /** Low on purpose: keeps the hand tracked through motion blur on fast strokes. */
 const MIN_CONFIDENCE = 0.28;
+/** Consecutive run-time failures after which the tracker is rebuilt (on the other delegate). */
+const MAX_FAILURES = 15;
 
 /** @type {Promise<{lib:any, vision:any}>|null} */
 let shared = null;
@@ -38,6 +48,8 @@ function loadVision() {
  */
 export function createHandTracker({ modelUrl }) {
   /** @type {any} */ let recognizer = null;
+  /** @type {'GPU'|'CPU'|null} */ let delegate = null;
+  /** @type {'GPU'|'CPU'|null} */ let avoid = null; // a delegate that kept failing at run time
   let ready = false;
   let lastTs = 0;
   let failures = 0;
@@ -47,10 +59,10 @@ export function createHandTracker({ modelUrl }) {
   const whenReady = new Promise((res) => { resolveReady = res; });
   /** @type {(() => void)|null} */ let onFail = null;
 
-  const create = async (/** @type {'CPU'|'GPU'} */ delegate) => {
+  const create = async (/** @type {'CPU'|'GPU'} */ d) => {
     const { lib, vision } = await loadVision();
     return lib.GestureRecognizer.createFromOptions(vision, {
-      baseOptions: { modelAssetPath: modelUrl, delegate },
+      baseOptions: { modelAssetPath: modelUrl, delegate: d },
       runningMode: 'VIDEO',
       numHands: 1,
       minHandDetectionConfidence: MIN_CONFIDENCE,
@@ -59,18 +71,36 @@ export function createHandTracker({ modelUrl }) {
     });
   };
 
+  /** A few inferences on a blank frame: shader compilation and buffer set-up happen here, not on the first camera frames. */
+  const warmUp = (/** @type {any} */ r) => {
+    if (typeof document === 'undefined') return;
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 64;
+    const x = c.getContext('2d');
+    if (x) { x.fillStyle = '#777'; x.fillRect(0, 0, 64, 64); }
+    for (let i = 0; i < 3; i++) { lastTs += 1; r.recognizeForVideo(c, lastTs); }
+  };
+
   /** Load the model (idempotent). Rejects if both delegates fail. */
   const init = () => {
     if (ready) return Promise.resolve();
     if (!initing) {
       initing = (async () => {
-        try {
-          recognizer = await create('CPU');
-        } catch (cpuErr) {
-          console.warn('[beaTTer] hand tracker: CPU delegate failed, trying GPU', cpuErr);
-          recognizer = await create('GPU');
+        const order = /** @type {('GPU'|'CPU')[]} */ (avoid === 'GPU' ? ['CPU', 'GPU'] : ['GPU', 'CPU']);
+        /** @type {unknown} */ let lastErr = null;
+        for (const d of order) {
+          try {
+            const r = await create(d);
+            try { warmUp(r); } catch (err) { try { r.close(); } catch { /* ignore */ } throw err; }
+            recognizer = r; delegate = d;
+            break;
+          } catch (err) {
+            lastErr = err;
+            console.warn(`[beaTTer] hand tracker: the ${d} delegate failed`, err);
+          }
         }
-        ready = true; failures = 0;
+        if (!recognizer) throw lastErr instanceof Error ? lastErr : new Error('hand tracker could not be created');
+        ready = true; failures = 0; frames = 0; inferSum = 0;
         resolveReady();
       })();
       initing.catch(() => { initing = null; });
@@ -79,13 +109,16 @@ export function createHandTracker({ modelUrl }) {
   };
 
   /**
-   * Track the hand in the current video frame.
-   * @param {HTMLVideoElement} video @param {number} tMs capture time of the frame
+   * Track the hand in a frame: the <video> element, or a canvas copy of its current frame (the camera
+   * source tracks the copy it also paints, so landmarks and pixels belong to the same frame).
+   * @param {HTMLVideoElement|HTMLCanvasElement} source @param {number} tMs capture time of the frame
    * @returns {{image:{x:number,y:number,z:number}[], world:{x:number,y:number,z:number}[], handedness:'Left'|'Right'|null,
    *            neural:{label:'ROCK'|'PAPER'|'SCISSORS'|'NONE', score:number}, inferenceMs:number} | null} null = no hand
    */
-  const detect = (video, tMs) => {
-    if (!ready || !recognizer || video.readyState < 2 || video.videoWidth === 0) return null;
+  const detect = (source, tMs) => {
+    const isVideo = typeof /** @type {any} */ (source).videoWidth === 'number';
+    const width = isVideo ? /** @type {HTMLVideoElement} */ (source).videoWidth : /** @type {HTMLCanvasElement} */ (source).width;
+    if (!ready || !recognizer || !(width > 0) || (isVideo && /** @type {HTMLVideoElement} */ (source).readyState < 2)) return null;
     // MediaPipe requires strictly increasing integer-millisecond timestamps
     let ts = Math.round(tMs);
     if (ts <= lastTs) ts = lastTs + 1;
@@ -93,15 +126,16 @@ export function createHandTracker({ modelUrl }) {
     const t0 = performance.now();
     let res;
     try {
-      res = recognizer.recognizeForVideo(video, ts);
+      res = recognizer.recognizeForVideo(source, ts);
       failures = 0;
     } catch (err) {
       failures += 1;
-      if (failures > 15) { // self-heal: rebuild the recogniser after repeated internal failures
-        console.warn('[beaTTer] hand tracker: re-initialising after repeated failures', err);
+      if (failures > MAX_FAILURES) { // self-heal: rebuild the recogniser, on the other delegate
+        console.warn(`[beaTTer] hand tracker: re-initialising after repeated failures on the ${delegate} delegate`, err);
+        avoid = delegate;
         ready = false; initing = null; failures = 0;
         try { recognizer.close(); } catch { /* ignore */ }
-        recognizer = null;
+        recognizer = null; delegate = null;
         // if the rebuild fails too, tracking is gone: tell the application instead of dropping frames forever
         init().catch(() => { if (onFail) onFail(); });
       }
@@ -129,33 +163,9 @@ export function createHandTracker({ modelUrl }) {
     /** Tracking failed for good after it had been working. @param {() => void} fn */
     onFailure(fn) { onFail = fn; },
     get ready() { return ready; },
-    stats: () => ({ frames, meanInferenceMs: frames ? inferSum / frames : null }),
-    dispose() { ready = false; try { if (recognizer) recognizer.close(); } catch { /* ignore */ } recognizer = null; },
-  };
-}
-
-/**
- * BlazeFace short-range face detector [Bazarevsky2019] for the privacy blur.
- * @param {{modelUrl:string}} o
- * @returns {Promise<{detect:(video:HTMLVideoElement, tMs:number) => any[]}>}
- */
-export async function createFaceDetector({ modelUrl }) {
-  const { lib, vision } = await loadVision();
-  const make = (/** @type {'CPU'|'GPU'} */ delegate) => lib.FaceDetector.createFromOptions(vision, {
-    baseOptions: { modelAssetPath: modelUrl, delegate }, runningMode: 'VIDEO', minDetectionConfidence: 0.16,
-  });
-  let detector;
-  try { detector = await make('CPU'); } catch { detector = await make('GPU'); }
-  let lastTs = 0;
-  return {
-    detect(video, tMs) {
-      let ts = Math.round(tMs);
-      if (ts <= lastTs) ts = lastTs + 1;
-      lastTs = ts;
-      try {
-        const r = detector.detectForVideo(video, ts);
-        return r && r.detections ? r.detections : [];
-      } catch { return []; }
-    },
+    /** The delegate in use ('GPU' | 'CPU'), null before the model has loaded. */
+    get delegate() { return delegate; },
+    stats: () => ({ frames, meanInferenceMs: frames ? inferSum / frames : null, delegate }),
+    dispose() { ready = false; try { if (recognizer) recognizer.close(); } catch { /* ignore */ } recognizer = null; delegate = null; },
   };
 }

@@ -14,7 +14,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   primeBeats: 3,             // 3 | 2 | 0
   metronomeBpm: 100,
   sensitivity: 3,            // 1..5 -> stroke threshold multiplier
-  privacy: true,             // face blur
+  privacy: true,             // camera picture defocused except the tracked hand
   muted: false,
   voice: true,
   liveBeliefs: true,         // show the live posterior during the round

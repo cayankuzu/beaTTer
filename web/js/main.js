@@ -19,7 +19,6 @@ import { mountUI } from './ui/index.js';
 
 /** Model files are cached for a long time; the version in the URL is what invalidates them. */
 const MODEL_VERSION = '4.0.0';
-const FACE_WAIT_MS = 6000;
 
 const params = new URLSearchParams(location.search);
 const num = (/** @type {string} */ k) => { const v = Number(params.get(k)); return params.has(k) && Number.isFinite(v) ? v : undefined; };
@@ -44,31 +43,21 @@ const video = /** @type {HTMLVideoElement} */ (document.getElementById('camera-v
 /** @type {any} */ let cameraSource = null;
 /** @type {any} */ let privacy = null;
 
-const setFace = (/** @type {'loading'|'ready'|'approx'} */ face) => store.set({ boot: { ...store.get().boot, face } });
-
-/** Camera, tracker and face privacy are loaded on demand: the page works without them (demo, lab, settings). */
+/**
+ * Camera, tracker and the privacy painter are loaded on demand: the page works without them (demo, lab,
+ * settings). Privacy needs no detector: the whole picture is defocused and only the tracked hand is kept
+ * sharp (platform/hand_focus.js), so nothing has to load before the picture may be shown.
+ */
 async function makeCameraSource() {
   if (cameraSource) return cameraSource;
-  const [{ createCamera }, { createHandTracker, createFaceDetector }, { createFacePrivacy }] = await Promise.all([
-    import('./platform/camera.js'), import('./platform/hand_tracker.js'), import('./platform/face_privacy.js'),
+  const [{ createCamera }, { createHandTracker }, { createHandFocus }] = await Promise.all([
+    import('./platform/camera.js'), import('./platform/hand_tracker.js'), import('./platform/hand_focus.js'),
   ]);
   const camera = createCamera(video);
   const tracker = createHandTracker({ modelUrl: `./models/gesture_recognizer.task?v=${MODEL_VERSION}` });
-  privacy = createFacePrivacy();
+  privacy = createHandFocus();
   privacy.setEnabled(store.get().settings.privacy);
-  // The face detector loads in parallel with the hand tracker and is independent of it. Until it is
-  // there - and for good if it fails - the blur works from its fallback zones, and the UI says
-  // "approximate" instead of claiming a detected face.
-  setFace('loading');
-  const face = createFaceDetector({ modelUrl: `./models/blaze_face_short_range.tflite?v=${MODEL_VERSION}` })
-    .then((fd) => { privacy.setDetector(fd); setFace('ready'); }, () => { privacy.setDetector(null); setFace('approx'); });
-  cameraSource = createCameraSource({
-    video, camera, tracker,
-    // after the engine has seen the frame: the blur never delays a decision
-    afterFrame: (meta) => privacy.update(video, meta.t),
-    // the picture is uncovered only when the detector is ready or has definitely failed (or after a grace period)
-    beforeShow: () => Promise.race([face, new Promise((resolve) => setTimeout(resolve, FACE_WAIT_MS))]).then(() => { if (!privacy.hasDetector) setFace('approx'); }),
-  });
+  cameraSource = createCameraSource({ video, camera, tracker });
   return cameraSource;
 }
 
@@ -91,7 +80,7 @@ mountUI(/** @type {HTMLElement} */ (document.getElementById('app')), {
   store,
   actions: controller.actions,
   frame: controller.frame,
-  /** face-privacy painter for the camera canvas, or null while the camera has never been started */
+  /** privacy painter for the camera canvas (everything defocused but the hand), or null before the camera was first started */
   privacy: () => privacy,
   unlockAudio: () => audio.unlock(),
 });

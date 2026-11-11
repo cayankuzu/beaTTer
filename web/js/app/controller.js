@@ -249,6 +249,8 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
     const t0 = now();
     if (disp.inferMs != null) perf.inferMs = ema(perf.inferMs, disp.inferMs);
     if (disp.latencyMs != null) perf.latencyMs = ema(perf.latencyMs, disp.latencyMs);
+    // the tracker may have been rebuilt on the other processor (GPU <-> CPU): the status follows it
+    if (disp.delegate && disp.delegate !== S().boot.delegate) store.set({ boot: { ...S().boot, delegate: disp.delegate } });
     if (S().mode === 'mindtwin') {
       const s = frameFeatures(frame, player.calibration);
       const out = s ? twin.push(s.t, s.e) : null;
@@ -508,7 +510,9 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
   return {
     actions,
     /** Drawing data for the canvases (read on requestAnimationFrame, not through the store). */
-    frame: () => ({ image: display.image, demo: !!display.demo, video: source && source.video ? source.video : null, source: S().boot.source }),
+    // `picture`: the latest tracked camera frame (a canvas copy); `raw`: its unsmoothed landmarks, the sharp
+    // region of the private picture
+    frame: () => ({ image: display.image, raw: display.raw ?? null, picture: display.picture ?? null, demo: !!display.demo, video: source && source.video ? source.video : null, source: S().boot.source }),
     moves: MOVES,
     get sessionId() { return sessionId; },
     dispose() { stopSource(); storage.flushAll(); },

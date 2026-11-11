@@ -28,7 +28,7 @@ import { mountOnboarding, mountRules, mountSeries, mountToast } from './views/pa
  * @property {ReturnType<typeof import('../app/store.js').createStore<ReturnType<typeof import('../app/store.js').initialState>>>} store
  * @property {ReturnType<typeof import('../app/controller.js').createController>['actions']} actions
  * @property {() => {image: any, demo: boolean, video: HTMLVideoElement|null, source: 'none'|'camera'|'demo'}} frame
- * @property {() => any} privacy            face-privacy painter, or null before the camera was ever started
+ * @property {() => any} privacy            privacy painter (all defocused but the hand), or null before the camera was ever started
  * @property {() => void} unlockAudio
  * @property {(message: string) => void} announce   polite live-region announcement (outcomes and status only)
  * @property {() => boolean} reducedMotion  true when non-essential motion must be removed
@@ -182,8 +182,8 @@ export function mountUI(root, deps) {
     try { fn(); } catch (e) { if (!reported.has(name)) { reported.add(name); console.error(`[beaTTer] painter "${name}" failed`, e); } }
   };
   const tick = (/** @type {number} */ now) => {
-    // re-arm first and isolate the painters: one failing canvas must not freeze the others (the face
-    // blur lives in this loop)
+    // re-arm first and isolate the painters: one failing canvas must not freeze the others (the private
+    // camera picture lives in this loop)
     raf = requestAnimationFrame(tick);
     safely('player', () => player.paint());
     safely('ai', () => ai.paint(now));

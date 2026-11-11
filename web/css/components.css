@@ -148,7 +148,11 @@
   }
   .cam__video, .cam__canvas { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; }
   .cam__video { object-fit: cover; background: var(--c-bg); }
-  /* the face blur failed: the picture is not shown rather than shown unblurred */
+  /* privacy on: the video element itself is blurred as a guard. The overlay canvas normally covers it with
+     the private picture (all defocused but the hand); the guard keeps the face hidden before the first
+     paint and if painting stops */
+  .cam--private .cam__video { filter: blur(28px) saturate(1.05); }
+  /* the private picture could not be painted: the picture is not shown rather than shown unblurred */
   .cam--noblur .cam__video { visibility: hidden; }
   .is-mirrored { transform: scaleX(-1); }
   .cam__tag { padding-inline: var(--sp-2); border: var(--bw-1) solid var(--c-line-2); border-radius: var(--r-1); background: var(--c-chip-bg); }
