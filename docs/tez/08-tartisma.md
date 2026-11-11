@@ -97,7 +97,10 @@ olduğu an çakışır. E8'de sınanan en zararlı bozulma tam olarak budur: avu
 ölçülmemiştir. Gerçek gürültü ayrıca kareler arasında ilintilidir (izleyici bir önceki karenin kırpımını
 kullanır [Zhang2020]); E8'de $\rho=0{,}8$'lik bir ilinti tek başına az etkilemiştir, ancak dedektörün
 bağımsızlık varsayımı ihlal edildiğinde olasılıkların aşırı güvenli olması beklenir ve kalibrasyon bu koşulda
-ölçülmemiştir.
+ölçülmemiştir. Pozlama bulanıklığının yanında işleme hızı da belirleyicidir: proje sahibinin ilk gerçek
+kamera denemesinde saniyede en çok yaklaşık 17 kare işlenirken el hızlı vuruşlarda algılanmıyordu ve en
+olası neden bu hızdı (aşağıda); ekran kartı yolu bir kareyi medyanda 16,4 ms'de (makine yüklüyken
+33,2 ms'de) işler, ama pozlama bulanıklığının kendisi kalır.
 
 **Kare düşmesi.** Hakem ancak atışa ait taze kanıtla hüküm verir; kanıt bayatsa tur geçersizdir. Bu kural
 tutucudur ve bedeli ölçülmüştür: karelerin taban olarak %15'i düştüğünde (hızlı vuruşta daha fazlası)
@@ -133,13 +136,57 @@ toplanmış tek bir değer yoktur**; telefonlarda yalnızca yakalama–geri ça�
 düşebilir. Karenin yakalanma zamanının kendisi de tarayıcının bildirdiği bir değerdir. (iii) Kullanıcının
 mührü *ekranda gördüğü* an ayrıca gösterim gecikmesi kadar sonradır ve hiç ölçülmemektedir.
 
-**Canlı kamera yalnızca sentetik bir akışla denenmiştir.** Kamera yolu — kamera, el izleyici, motor, arayüz
-— bu çalışmada gerçek bir kamera ve gerçek bir elle çalıştırılmamıştır. Yapılan tek sınama bir duman
-testidir: tarayıcıda, sentetik bir `canvas.captureStream()` video akışıyla zincirin uçtan uca çalıştığı,
-MediaPipe'ın daraltılmış İçerik Güvenlik İlkesi altında yüklendiği, ilke ihlali olmadığı ve el izleyici ile
-yüz dedektörünün hazır duruma geldiği görülmüştür; aynı sınama yayımlanan sitede yinelenmiştir. Bu, kodun
-bozuk olmadığını gösterir; izleyici gürültüsü, zamanlama, yüz bulanıklaştırmanın bir yüzü gerçekten örtüp
-örtmediği ve kamera kaybı senaryoları hakkında hiçbir şey söylemez.
+**Gerçek kamerayla yapılan ilk deneme başarısız olmuştur.** Kamera yolu — kamera, el izleyici, motor,
+arayüz — önce yalnızca bir duman testinden geçmişti: tarayıcıda, sentetik bir `canvas.captureStream()` video
+akışıyla zincirin uçtan uca çalıştığı, MediaPipe'ın daraltılmış İçerik Güvenlik İlkesi altında yüklendiği,
+ilke ihlali olmadığı ve el izleyici ile o sırada kullanılan yüz dedektörünün hazır duruma geldiği görülmüş,
+aynı sınama yayımlanan sitede yinelenmişti (Bölüm 5.7). Bu, kodun bozuk olmadığını gösteriyordu,
+kullanılabilir olduğunu değil. Proje sahibi yayımlanan siteyi 11 Kasım 2026'da bir Windows masaüstü
+bilgisayarda Chrome/Edge ile, gerçek bir kamera ve kendi eliyle denemiştir. Deneme ölçüm kaydı alınmadan
+yapılmıştır; gözlemler sahibinin bildirimidir: hızlı el hareketlerinde el algılanmamış, el iskeleti hiç
+görünmemiş, hareket çok gecikmeli izlenmiş ve bulanıklık elin önüne gelmiştir. Nedenleri bulmak için aynı
+bilgisayarda (20 mantıksal işlemci), geliştirme ortamının yerleşik Chromium tarayıcısında ölçüm yapılmıştır
+(Bölüm 5.9). El içermeyen $640\times480$ sentetik karelerde (avuç dedektörü her karede çalışır: uygulamanın
+el aradığı durum) el izleyici kare başına işlemcide medyan 47,4 ms, ekran kartında 16,4 ms sürmüş; yüz
+dedektörü işlemcide medyan 9,6 ms sürmüştür. Eski boru hattı ana iş parçacığında, her kamera karesinde önce
+işlemcideki el izleyiciyi, ardından (son çalışmasından bu yana en az 28 ms geçmişse, yani hemen her karede)
+yüz dedektörünü çalıştırıyordu: kare başına yaklaşık 57 ms, yani saniyede en çok yaklaşık 17 işlenen kare;
+buna ten rengi taraması ve bulanıklığın çizimi de ekleniyordu. Ölçümlere ve koda dayanan, ama gerçek bir
+elle yeniden üretilmemiş en olası açıklama şudur. (a) Bu hızda hızlı bir vuruş, iki işlenen kare arasında
+eli izleyicinin bir önceki kareden çıkardığı kırpımın dışına taşır; izleyici eli kaybeder ve hareketle
+bulanıklaşmış bir avucu baştan saptamak zorunda kalır [Zhang2020]; üstteki çizim de videonun gerisinde
+kalır. (b) Yüz dedektörü 0,16 güven eşiğiyle çalışıyor ve her saptama bulanıklaştırılıyordu; yüz
+bulunamayan 8 kareden sonra, yalnızca elin her yönde karenin 0,12'si kadar büyütülmüş sınırlayıcı kutusunu
+dışarıda bırakan bir ten rengi kümesi devreye giriyordu; ikisi de ele ya da kola denk gelebilir.
+(c) "İskeletin hiç görünmemesi" yeniden üretilmemiştir (ölçüm ortamında gerçek bir el ve kamera yoktu);
+(a) ile tutarlıdır: her vuruşta kaybolan bir el, hareket ederken iskelet göstermez.
+
+**Düzeltilmiş kamera yolu gerçek bir kamerayla denenmemiştir.** Düzeltmede el izleyici önce ekran kartı
+(WebGL2) yolunda çalıştırılır, işlemci (XNNPACK) yolu yedektir; model yüklendikten sonra boş bir karede üç
+kez çalıştırılarak ısıtılır, böylece ekran kartı gölgelendiricilerinin derlenmesi ilk kamera karelerine
+düşmez; çalışma sırasında art arda 15'ten fazla hatada izleyici öteki yolda yeniden kurulur ve hangi yolun
+kullanıldığı kare hızı rozetinin açıklama metninde yazar. Yüz dedektörü tümüyle kaldırılmış, kamera açılışı
+artık onu (en çok 6 s) beklemez. Gizlilik, proje sahibinin seçtiği tasarımla yeniden yapılmıştır: görüntünün
+tamamı bulanıklaştırılır, yalnızca izlenen el net kalır; çizilen görüntü, el izleyicinin işlediği karenin
+kopyasıdır; gizlilik açık olduğu her an (kamera açılırken ve izleyici yüklenirken de) video öğesinin kendisi
+de CSS ile bulanıklaştırılır ve çizer hata verirse görüntü kapatılır (Bölüm 5.8, 8.3). Değişiklik yayından
+önce üç bağımsız inceleyiciye okutulmuş; doğrulanan bulgular altı kusurda birleşmiş, altısı da giderilmiştir
+(Bölüm 5.1.7). Düzeltmeden sonraki sınamaların hepsi sentetiktir: sekiz otomatik test
+(`tests/camera_privacy.test.js`; net bölgenin geometrisi, kamera kaynağının açılışı ve bildirdiği temsilci,
+yedek bulanıklık); tarayıcıda, her yeri 2 piksellik keskin çizgilerle kaplı, yazı ve yüze benzeyen bir disk
+içeren sentetik bir karede, sentetik eklem noktalarıyla çizerin son hâlinin denetimi (ortalama mutlak yatay
+parlaklık gradyanı kaynak karede 125,0, el bölgesinde 72,0, elden uzakta 0,09, yüze benzeyen diskin elden
+uzak kısmında 0,26); ve değişikliğin ilk hâliyle, yerel sunucuda sentetik bir kamera akışıyla uygulamanın
+açılışı (kamera açık, izleyici ekran kartında hazır, hata yok; tarayıcı penceresi gizli olduğundan kare
+başına geri çağrılar tetiklenmemiştir). Bunlar kodun bozuk olmadığını, izleyicinin yerleşik tarayıcıda ekran
+kartında çalıştığını ve çizerin sentetik bir karede eli net, geri kalanı bulanık bıraktığını gösterir.
+Düzeltilmiş sürüm gerçek bir kamera ve gerçek bir elle henüz denenmemiştir (yerleşik tarayıcının kamerası
+yoktur); proje sahibinin yeniden denemesi beklenmektedir. Sahibinin bilgisayarında gerçek kamerayla işlenen
+kare hızı da ölçülmemiştir: kare başına 16,4 ms ile 30 kare/s'lik bir kameranın her karesinin işlenmesi
+beklenir; bu bir beklentidir, ölçüm değildir ve yüke bağlıdır: işlemci yükü %91 iken yinelenen ölçümde ekran
+kartında medyan 33,2 ms çıkmıştır, bu da 30 kare/s'de iki kare arasındaki sürenin neredeyse tamamıdır. Bu
+sınamalar izleyici gürültüsü, zamanlama, iniş saptama, net bölgenin hızlı hareket eden gerçek bir eli izleyip
+izlemediği, yüzün gerçekten gizli kalıp kalmadığı ve kamera kaybı senaryoları hakkında hiçbir şey söylemez.
 
 **Veritabanı betiği çalıştırılmamıştır.** `supabase_schema.sql` bu çalışmada hiçbir veritabanında
 çalıştırılmamıştır; betimlemesi dosyanın okunmasına dayanır. Üretim veritabanının şu anki ilke durumu da
@@ -160,11 +207,12 @@ Bugünkü test paketi daha büyüktür ve incelemenin her yeniden üretilebilen 
 yalnızca yazarlarının aklına gelen durumları sınar. Nitekim inceleme sonrasında yazılan testlerin hepsi
 geçerken Turnuva güvencesinde üç delik daha vardı (Bölüm 4.7); hiçbirini testler bulmadı: ikisini ispatın
 kodla satır satır karşılaştırılması, üçüncüsünü ispatı kırmaya yönelik bir saldırı denetimi buldu. Üçü de
-giderilmiş ve teste bağlanmıştır (bugün 105 test) ve güvence için ayrıca bir saldırı bulanık sınaması
+giderilmiş ve teste bağlanmıştır (bugün 113 test) ve güvence için ayrıca bir saldırı bulanık sınaması
 vardır (Bölüm 6.9); ama ders aynıdır: geçen bir test paketi boşluk olmadığını göstermez. Testlerin
 başarısızlığı da ciddiye alınmalıdır: yaşam döngüsü testlerinden biri yüklü makinede ara sıra başarısız
-oluyordu ve nedeni test değil, demodaki gerçek bir kilitlenmeydi (Bölüm 5.1.6). İkinci bir bağımsız
-inceleme yapılmamıştır.
+oluyordu ve nedeni test değil, demodaki gerçek bir kilitlenmeydi (Bölüm 5.1.6). Sistemin ikinci bir
+bağımsız incelemesi yapılmamıştır; yalnızca sonradan eklenen kamera değişikliği yayından önce ayrıca
+incelenmiş ve o sıradaki bütün testler geçerken altı kusur bulunmuştur (Bölüm 5.1.7).
 
 **İstatistiksel.** Güven aralıkları tohumlar arası değişkenliği değil, havuzlanmış turların binom
 belirsizliğini yansıtır; aynı oturumdaki turlar bağımsız değildir (model öğrenir). Koşullu oranlar (geçerli
@@ -188,10 +236,13 @@ gerekir. (ii) Bulut eşitleme açıkken gönderilen anonim kimlik kalıcıdır v
 tekil bir kayıt oluşturur; saklama süresi için öneri vardır (180 gün) ama otomatik uygulanmaz. (iii)
 Veritabanı betiği sahibi tarafından elle ve bütünüyle uygulanmalıdır; uygulanana kadar isteğe bağlı
 eşitleme güvenli yönde başarısız olur, ama veritabanında eski izin verici ilkeler duruyorsa onları kaldıran
-da bu uygulamadır. Betik bu çalışmada çalıştırılmamıştır (Bölüm 5.8). (iv) Yüz gizliliği "yaklaşık bölge"
-durumundayken (yüz dedektörü yüklenemediğinde) kadrajın kenarındaki bir yüz bulanıklaştırılmayabilir;
-arayüz bu durumu ayrı bir uyarı rozetiyle bildirir ama görüntüyü kapatmaz. Bulanıklaştırma gerçek bir yüzle
-sınanmamıştır. (v) İnsan denekli doğrulama etik kurul onayı gerektirir (Ek C).
+da bu uygulamadır. Betik bu çalışmada çalıştırılmamıştır (Bölüm 5.8). (iv) Gizlilik artık bir yüz bulmaya
+dayanmaz: yüz dedektörlü önceki tasarım kaldırılmış; görüntünün tamamı bulanıklaştırılır, yalnızca
+izlenen el net kalır (Bölüm 5.8). Net bölge elin çevresinde dar bir pay (yaklaşık bir parmak
+genişliği) içerir; yüzün önünde tutulan bir el, yüzün hemen yanındaki kısmını açar. İzleme kaybolduğunda el
+de yeniden bulunana kadar bulanıktır. Tasarım gerçek bir yüz ve gerçek bir kamerayla sınanmamıştır;
+bulanıklık yalnızca sentetik bir karede ölçülmüştür (Bölüm 8.2). (v) İnsan denekli doğrulama etik kurul
+onayı gerektirir (Ek C).
 
 **İkna edici teknoloji riski.** "Hamleni okuyan" bir sistem, kullanıcıda gerçekte olmayan bir yetenek izlenimi
 bırakabilir. Arayüzün simülasyonu etiketlemesi, belirsizliği göstermesi ve mührün neyi kanıtlamadığını

@@ -24,7 +24,7 @@ değişikliğinin oyunu durdurduğu ve yayımlanan sayıların dedektörle eşle
 vardır. Bulgular giderilmiş ya da açık sınır olarak belgelenmiştir. İncelemeden sonra, teoremin ispatı kodla
 adım adım karşılaştırılırken iki delik, ispatı kırmaya yönelik son bir saldırı denetiminde de motorun
 programlama arayüzü düzeyinde bir üçüncüsü bulunmuş; üçü de yeniden üretilmiş, kapatılmış ve teste
-bağlanmıştır. Gerçekleme 105 otomatik testle sınanmıştır. Sayısal sonuçların tamamı
+bağlanmıştır. Gerçekleme 113 otomatik testle sınanmıştır. Sayısal sonuçların tamamı
 simülasyondur. En sıkı ayarda 58 452 geçerli turda kayıp gözlenmemiştir (kuralın sonucu); metronom kipini de kapsayan
 15 000 oturumluk bir saldırı bulanık sınamasında da 14 579 geçerli turda kayıp yoktur. Dedektörün
 varsayımlarıyla eşleşmiş sentetik bir oyuncuya karşı yapay zekâ, parmaklarını olağan zamanda açan oyuncunun
@@ -34,8 +34,12 @@ inişten 40 ms önce dondurulması %2–4 kayba yol açmış; karar çoğu turda
 oluşmuşken verilmiş; sonsal olasılıklar az güvenli çıkmış (beklenen kalibrasyon hatası 0,065); yüksek eklem
 gürültüsünde denemelerin %22–59'u geçersiz kalmış; davranış kanalı tek başına insan benzeri bir oyuncuya
 karşı tur başına yalnızca 0,02–0,12 net kazanç sağlamış, rastgele bir oyuncuya karşı ise hiçbir şey
-kazanmamıştır. Gerçek insan verisi toplanmamış, gerçek bir kamerayla ölçüm yapılmamıştır (kamera yolu
-yalnızca sentetik bir video akışıyla denenmiştir); bunun için bir doğrulama protokolü sunulmuştur.
+kazanmamıştır. Gerçek insan verisi toplanmamış, gerçek bir kamerayla ölçüm yapılmamıştır. Proje sahibinin
+gerçek kamerayla yaptığı ilk deneme başarısız olmuştur: hareket gecikmeli izlenmiş, el hızlı vuruşlarda
+kaybolmuş, bulanıklık elin üzerine kaymıştır. En olası nedenleri belirlenip giderilmiş (aynı bilgisayarda
+sentetik karelerle iki kez ölçüldüğünde el izleme ekran kartında 2,5–2,9 kat hızlıdır; gizlilik artık elden
+başka her şeyi bulanıklaştırır), ancak düzeltilmiş sürüm henüz gerçek kamerayla yeniden denenmemiştir.
+Bir doğrulama protokolü sunulmuştur.
 
 **Anahtar kelimeler:** taş-kâğıt-makas; erken hareket tanıma; el kinematiği; taahhüt şeması; özet zinciri;
 uzman tavsiyesiyle kestirim; güvenli sömürü; kalibrasyon; açıklanabilir yapay zekâ; bilimsel dürüstlük.
@@ -69,7 +73,7 @@ published numbers rested on a simulator matched to the detector. The findings we
 the review, two further holes were found while the proof of the theorem was being checked against the code
 step by step, and a third, at the level of the engine's programming interface, in a final attack on the
 proof; all three were reproduced, closed and covered by regression tests. The implementation is verified
-by 105 automated tests. All numerical results are simulation. No loss occurred in
+by 113 automated tests. All numerical results are simulation. No loss occurred in
 58,452 valid rounds under the strictest preset (a consequence of the rule), nor in 14,579 valid rounds of
 an adversarial fuzz test of 15,000 sessions that also covers metronome mode. Against a synthetic player
 matched to the detector's assumptions the AI won 94.5% of the attempts of a player who opens at an ordinary
@@ -79,8 +83,12 @@ the decision 40 ms before landing caused 2–4% losses; in most rounds the decis
 half of the final shape had formed; posterior probabilities were under-confident (expected calibration
 error 0.065); under high landmark noise 22–59% of the attempts were void; and the behavioural channel alone
 earned only 0.02–0.12 net wins per round against a human-like player and nothing against a random one. No
-human-subject data were collected and nothing was measured with a real camera (the camera path was only
-exercised with a synthetic video stream); a validation protocol is provided.
+human-subject data were collected and nothing was measured with a real camera. The project owner's first
+real-camera test failed: motion was tracked with a lag, the hand was lost on fast strokes and the
+blur drifted onto the hand. The most likely causes were identified and fixed (measured twice with synthetic
+frames on the same computer, hand tracking runs 2.5–2.9 times faster on the GPU; privacy now defocuses
+everything but the hand), but the fixed version has not yet been re-tested with a real camera. A validation
+protocol is provided.
 
 **Keywords:** rock-paper-scissors; early action recognition; hand kinematics; commitment scheme; hash
 chain; prediction with expert advice; safe opponent exploitation; calibration; explainable AI; scientific

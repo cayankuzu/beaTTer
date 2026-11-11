@@ -201,8 +201,9 @@ göre metre cinsinden "dünya" koordinatları sentetik veriden kestirilir ve de�
 boyutta yapılır; avuç boyuna normalize ortalama mutlak hata tam model için $\%10{,}09\pm1{,}73$, insan
 yeniden işaretlemesi için %6,0'dır; model düşük ışık ve **hareket bulanıklığı** altında sınanmamıştır
 [MediaPipeHandCard2021]. Hazır jest sınıflandırıcısı yedi durağan jesti tanır; hareket içeren jestler kapsam
-dışıdır [MediaPipeGestureCard2022]. Yüz gizliliğinde kullanılan BlazeFace $128\times128$ girdili, altı
-anahtar noktalı bir yüz dedektörüdür [Bazarevsky2019].
+dışıdır [MediaPipeGestureCard2022]. Önceki sürümlerin yüz gizliliğinde kullanılan BlazeFace, $128\times128$
+girdili, altı anahtar noktalı bir yüz dedektörüdür [Bazarevsky2019]; bugünkü sürümde yüz dedektörü yoktur
+(Bölüm 5.8).
 
 **Süzme ve türev.** 1-euro süzgeci, kesim frekansı işaretin süzülmüş hızıyla artan birinci derece bir alçak
 geçirendir [Casiez2012]; 1 Hz kesimde zaman sabiti 159 ms'dir, yani hızlı olaylar için kabul edilemez bir

@@ -192,26 +192,37 @@ türetilmiş) ya da "varsayım" (mühendislik seçimi; ölçüme dayanmaz). AB =
 |---|---|---|---|
 | MediaPipe Tasks Vision sürümü | 0.10.14; `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/` dizininden `vision_bundle.mjs` ve `wasm/` | El izleme kitaplığı; İçerik Güvenlik İlkesi yalnızca bu dizine izin verir | — |
 | Model dosyası sürüm parametresi | `?v=4.0.0` | Bir yıl değişmez önbelleğe alınan model dosyalarının önbelleğini geçersiz kılar | — |
-| Yüz dedektörü bekleme süresi | 6000 ms | Görüntü, yüz dedektörü hazır olana ya da başarısız olana kadar en çok bu kadar kapalı tutulur | varsayım; inceleme sonrası |
 | Kamera duraksama süresi | 4000 ms | Sayfa görünürken bu kadar süre kare gelmezse kamera kaybı bildirilir | varsayım; inceleme sonrası |
 | Demo varsayılan tohumu | 20261112 | 20261111–20261510 arasından, açılışı geçerli ve çeşitli olacak biçimde seçilmiştir (Bölüm 5.4.1) | elle seçim |
 | Bulut uç noktası | `POST /rest/v1/rpc/beatter_push_round` | İsteğe bağlı eşitlemenin tek çağrısı | — |
 | `MIN_CONFIDENCE` | 0,28 | El saptama/varlık/izleme eşikleri (bulanıklıkta izlemeyi sürdürmek için düşük) | varsayım |
+| El izleyici temsilcisi (`delegate`) | önce GPU (WebGL2), kurulamazsa CPU (XNNPACK) | Çıkarımın çalıştığı birim (önceki sıra: önce CPU); kullanılan temsilci kare hızı göstergesinin ipucunda gösterilir. Her kare temsilciyi taşır: izleyici öteki temsilcide yeniden kurulunca gösterge de ona geçer. Geliştirme makinesinde, elsiz 640 × 480 sentetik karelerde kare başına medyan 16,4 ms'ye karşı 47,4 ms; işlemci yükü %91'deyken yinelenen ölçümde 33,2 ms'ye karşı 84,5 ms | ölçüm (Bölüm 5.9) |
+| Isınma çıkarımları | 3; 64 × 64 düz gri tuval | Model yüklendikten hemen sonra; GPU gölgelendiricilerinin derlenmesi ilk kamera karelerine düşmez | varsayım |
+| `MAX_FAILURES` | 15 | Ardışık çalışma zamanı hatası bu sayıyı aşınca izleyici, öteki temsilciden başlanarak yeniden kurulur | varsayım |
 | Kamera istemi | 640 × 480, 60 kare/s (ideal) | Kısıt merdiveni | [MediaCapture] |
-| Yüz saptama aralığı | 28 ms | Yüz gizliliği | önceki sürümden |
+| `BG_COLS`, `BG_PAD` (`platform/hand_focus.js`) | 32 sütun; 4 hücre | Gizli görüntünün arka planı: kare (`MID_COLS` üzerinden) 32 sütuna küçültülür (satır sayısı en-boy oranından), kenarları kararmasın diye altına gerilmiş bir kopyası konarak her yandan 4 hücre genişletilir ve yumuşatılarak geri büyütülür | varsayım |
+| `MID_COLS` | 128 sütun | Küçültmenin ara adımı: kare iki adımda, önce 128, sonra 32 sütuna, yüksek nitelikli yumuşatmayla küçültülür; küçültme tek tek pikselleri örneklemek yerine ortalama alır | varsayım; yayın öncesi kamera incelemesinden sonra (Bölüm 5.7) |
+| `BG_BLUR_CELLS` | 1,6 hücre | Küçültülmüş karenin ek bulanıklaştırması: tuval süzgeci (`ctx.filter`) olan tarayıcılarda süzgeçle, olmayanlarda aynı standart sapmayla JavaScript'te (sonraki satır). Gauss standart sapması kare genişliğinin yaklaşık %5'i (640 piksellik karede ≈ 32 piksel); yüzler, yazılar ve oda yumuşak renk alanlarına dönüşür | varsayım |
+| Yedek bulanıklık (`blurRGBA`) | $\sigma=1{,}6$ hücre; çekirdek yarıçapı $\lceil 3\sigma\rceil=5$ hücre | Tuval süzgeci olmayan tarayıcılarda paylı 40 sütunluk ara bellek üzerinde ayrılabilir Gauss bulanıklığı; kenarlarda en yakın piksel kullanılır. Bu tarayıcılarda net bölgenin maskesi yumuşatılmaz, kenarı sert kalır (yalnızca görünüş; bölge aynıdır) | varsayım; yayın öncesi kamera incelemesinden sonra (Bölüm 5.7) |
+| `SHAPE.capsule`, `.wrist`, `.feather`, `.minRefPx` | 0,22 × ref; 0,36 × ref; 0,09 × ref; 14 px | Net bölge: 21 kemik boyunca kapsüllerin yarıçapı, bilek diskinin yarıçapı, kenar yumuşatması ve ref'in alt sınırı; avuç çokgeni 0, 1, 2, 5, 9, 13, 17 noktalarıdır. ref (başvuru uzunluğu) = max(avuç boyu (bilekten orta parmağın MCP eklemine), eklem noktalarının sınırlayıcı kutusunun büyük kenarının 0,45 katı, 14 px). Bölgeyi son izlenen karenin ham (yumuşatılmamış) eklem noktaları belirler ve bölge aynı karenin kopyasına çizilir; iskelet yumuşatılmış noktalarla çizilir | varsayım |
+| Maskenin kenar uzatması | 3 × kenar yumuşatması, en az 3 px | Net bölgenin maskesi tuvalin dışına doğru bu kadar genişletilmiş bir bölgede hesaplanır: sahnenin kenarını geçen el o kenarda da net kalır, kırpılan maskenin kenarında sönmez | varsayım; yayın öncesi kamera incelemesinden sonra (Bölüm 5.7) |
+| Koruyucu CSS bulanıklığı (`.cam--private .cam__video`) | 28 px | Gizlilik açık olduğu sürece (kamera açılırken ve izleyici yüklenirken, %90 opak yükleme kapısının arkasında da) video öğesinin kendisi de bulanıktır; çizer ham kareyi okur (CSS süzgeçleri `drawImage`'ı etkilemez) ve öğeyi tamamen örter. İlk çizimden önce ya da çizim durursa görünen budur | varsayım |
 | `SNAPSHOT_MS` | 50 ms | Depoya anlık görüntü aktarımı (20 Hz) | [Nielsen1993] |
 | Hassasiyet çarpanları | 0,6; 0,8; 1; 1,25; 1,5 | Ayarlardaki 1–5 düzeyleri | varsayım |
 | Bulut zaman aşımı | 4000 ms | İsteğe bağlı eşitleme | varsayım |
-| Varsayılan ayarlar | Turnuva; serbest ritim; 3 vuruş; 100 vuruş/dk; hassasiyet 3; yüz gizliliği açık; ses açık; canlı tahmin açık; **bulut kapalı**; karar ufku 0 (Turnuva'da etkisiz); seri 5 tur | `DEFAULT_SETTINGS` | [GDPR] (varsayılan olarak koruma) |
+| Varsayılan ayarlar | Turnuva; serbest ritim; 3 vuruş; 100 vuruş/dk; hassasiyet 3; gizlilik (yalnızca el net) açık; ses açık; canlı tahmin açık; **bulut kapalı**; karar ufku 0 (Turnuva'da etkisiz); seri 5 tur | `DEFAULT_SETTINGS` | [GDPR] (varsayılan olarak koruma) |
 
 ---
 
 ## Ek B — Testler ve kanıtladıkları
 
-`npm test` → 105 test, 105 başarılı (bu metnin son denetimindeki koşularda toplam süre 16,7 s ve 15,5 s;
-süre makineye ve o andaki yüke bağlıdır). Sekiz dosya; son ikisi bağımsız incelemenin
-bulguları için yazılmış regresyon testleridir (Bölüm 5.1.6). Testlerdeki bütün oyuncular sentetiktir:
-aşağıdaki tablolarda geçen tur sayıları ve oranlar **simülasyon** sayılarıdır.
+`npm test` → 113 test, 113 başarılı (bu metnin son denetimindeki koşularda toplam süre 15,2 s ve
+16,2 s; süre makineye ve o andaki yüke bağlıdır). Dokuz dosya; `engine_regressions.test.js` ve
+`controller_lifecycle.test.js` bağımsız incelemenin bulguları için yazılmış regresyon testleridir (Bölüm
+5.1.6); sonuncusu, `camera_privacy.test.js`, ilk gerçek kamera denemesinden sonra yüz dedektörünün yerini
+alan gizli görüntünün tarayıcısız sınanabilen kısmını ve kamera kaynağını sınar (Bölüm 5.1.7); üç testi,
+değişikliğin yayından önceki incelemesinde bulunan kusurlar içindir (Bölüm 5.7). Testlerdeki bütün oyuncular
+sentetiktir: aşağıdaki tablolarda geçen tur sayıları ve oranlar **simülasyon** sayılarıdır.
 
 **`foundation.test.js` (9)**
 
@@ -358,9 +369,29 @@ aşağıdaki tablolarda geçen tur sayıları ve oranlar **simülasyon** sayıla
 | cloud payload: unknown values are null, a prediction is reported only when one was made | Buluta giden satır (R11) |
 | storage: one failed write does not turn the current settings and profile into defaults | Depo aynası (R13) |
 
+**`camera_privacy.test.js` (8)** — yüz dedektörünün yerini alan gizli görüntünün geometrisi, yedek bulanıklığı ve kamera kaynağı (Bölüm 5.1.7, 5.7)
+
+| Test | Kanıtladığı |
+|---|---|
+| cover mapping: the frame fills the canvas, centred, aspect kept | Görüntünün tuvale `object-fit: cover` izdüşümü (arka plan ve net bölge bununla çizilir): dört tuval–kare boyut çiftinde kare tuvali doldurur, ortalanır, en-boy oranı korunur |
+| sharp region: every landmark and every bone lies inside it, with margin, for open hands and fists in any pose | 45 gürültülü sentetik pozda (açık el, yumruk ve Makas şekli × 5 dönüş × 3 konum) net bölge hesaplanır; çizim kutusu her eklem noktasını kapsül yarıçapı payıyla içerir, yani hiçbir kemik kapsülü kırpılmaz; kapsül yarıçapı avuç boyunun 0,22 katından küçük değildir, bilek diski kapsülden geniştir, kenar yumuşatması sıfırdan büyüktür; avuç çokgeni 0, 1, 2, 5, 9, 13, 17 noktalarıdır |
+| a fist seen knuckles-first (foreshortened palm) still gets a capsule as wide as its fingers | Eklemleri kameraya dönük yumrukta (avuç kısalmış görünür) başvuru uzunluğu ref, eklem noktalarının sınırlayıcı kutusunun büyük kenarının 0,45 katından ve avuç boyundan küçük değildir: kısalan avuç kapsülü inceltmez |
+| malformed landmarks give no sharp region (the whole picture stays defocused) | `null`, 20 noktalık dizi ya da `NaN`, `Infinity`, `undefined` koordinat net bölge üretmez: görüntünün tamamı bulanık kalır |
+| camera source: opens without waiting for any face detector, reports the delegate, hands raw landmarks to the painter | Sahte kamera ve sahte izleyiciyle: kamera kaynağı yalnızca el izleyiciyi bekler (bekleme süresi yok; açılış 1 s'nin altında) ve kullanılan temsilciyi (`GPU`) bildirir; her karede motor ve çizer aynı karenin ham eklem noktalarını alır, iskelete giden alan 21 noktalıdır; çıkarım süresi ve kare dizinleri (0, 1, 2) iletilir; her kare temsilciyi taşır ve izleyici akışın ortasında öteki temsilcide (`CPU`) yeniden kurulunca sonraki kare bunu söyler (Bölüm 5.7, kusur vi); DOM olmadığında kare kopyası üretilmez (`picture` `null`'dır) |
+| the controller follows a tracker that moved to the other processor (status chip) | Sahte bir kamera kaynağıyla denetleyici: kamera açılınca durumdaki temsilci (kare hızı göstergesinin ipucunun okuduğu alan) `GPU`'dur; `CPU` taşıyan bir kare gelince `CPU`'ya geçer (kusur vi); ipucu temsilciyi Türkçe adlandırır ("işlemci (CPU)", "ekran kartı (GPU)") ve çıkarım süresi yokken süre yazmaz; kopyası olmayan karede `frame().picture` `null`'dır |
+| fallback blur (browsers without canvas filters): Gaussian of the requested width, energy kept, edges clamped | Tuval süzgeci olmayan tarayıcılar için JavaScript bulanıklığı (`blurRGBA`; kusur iv): 41 × 41'lik siyah bir ara bellekteki tek parlak piksel $\sigma=1{,}6$ ile bulanıklaştırılınca toplam parlaklık yuvarlama payı içinde (±12) korunur, ağırlık merkezi yerinde kalır (0,05 pikselden az kayma), yatay yayılımın standart sapması 1,6'ya 0,25'ten yakındır, opaklık değişmez; düzgün bir görüntü kenarları dâhil değişmez (kenarlar kararmaz); $\sigma=0$ hiçbir şeyi değiştirmez |
+| frame size: a video counts only once it has a frame; a canvas copy by its size | Çizerin kare boyutu yardımcısı (`frameSize`; kusur iii): video öğesi karesi yokken (`readyState` 1) ya da boyutu sıfırken boyut vermez, karesi varken (`readyState` 4) kendi boyutunu verir; tuval kopyası kendi genişlik ve yüksekliğiyle ölçülür; boyutu sıfır olan kopya ya da `null` boyut vermez |
+
 Otomatik testi **olmayan** inceleme bulguları: veritabanı betiği (R4; hiçbir veritabanında çalıştırılmadı),
-yüz gizliliğinin durumları ve bulanıklaştırma sırası (R9, R18; kod okuması ve sentetik akışla elle deneme),
-dağıtım yapılandırması (R16; yayımlanan sitede başlıklar elle denetlendi).
+yüz gizliliğinin durumları ve bulanıklaştırma sırası (R9, R18; kod okuması ve sentetik akışla elle deneme;
+bu bulguların konusu olan yüz dedektörü ve çizeri daha sonra kaldırılmıştır, Bölüm 5.1.7), dağıtım
+yapılandırması (R16; yayımlanan sitede başlıklar elle denetlendi). Yerine gelen çizerin çizimi tarayıcıda
+sentetik bir karede ölçülmüştür (Bölüm 5.8); geometrisi, yedek bulanıklığı, kare boyutu yardımcısı ve kamera
+kaynağının ona verdiği eklem noktaları yukarıdaki `camera_privacy.test.js` ile sınanır. Kamera
+değişikliğinin Bölüm 5.7'deki yayın öncesi incelemesinde bulunan altı kusurdan (iv) ve (vi) yukarıdaki
+testlerle, (iii) yalnızca kare boyutu yardımcısı yönünden sınanır; (i) gizlilik kapatılınca tuvalin
+temizlenmesi, (ii) CSS korumasının kamera açılırken de uygulanması ve (v) maskenin sahne kenarında
+genişletilmesi görünüm katmanında ya da tuvale çizimde olduğundan otomatik testleri yoktur.
 
 Teorem 1'in ispatının 1., 2. ve 3. adımlarının dayanakları birer regresyon testine bağlıdır (yukarıda);
 4. adımın — hakemin, YZ'nin kararında kullandığı sayıların aynısını okumasının — kendine ait bir testi yoktur

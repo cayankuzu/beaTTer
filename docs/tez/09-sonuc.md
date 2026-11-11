@@ -21,7 +21,7 @@ testleri geçerken — Turnuva'da geçerli turlar kaybedebildiğini, herhangi bi
 hiçbir turu hükme bağlamadığını, tek atış kipinde oyuncu hiçbir şey yapmadan tur hükme bağladığını, bazı
 "ölçüm"lerin sabit ya da kayık olduğunu ve yayımlanan oranların dedektörle eşleşmiş bir simülatöre
 dayandığını göstermiştir. Bulgular giderilmiş ya da açık sınır olarak belgelenmiş, yeniden üretilebilen kod kusurları için regresyon
-testleri yazılmış (toplam 105 test), deneyler yeniden üretilmiş ve bu metin baştan yazılmıştır.
+testleri yazılmış (toplam 113 test), deneyler yeniden üretilmiş ve bu metin baştan yazılmıştır.
 
 **Simülasyonun gösterdikleri.** Belirtilen varsayımlar altında Turnuva ön ayarında 58 452 geçerli turda
 kayıp gözlenmemiştir; bu, kuralın sonucudur ve dedektörün kalitesini ölçmez. Sistemi ölçen koşulsuz oranlarda:
@@ -49,9 +49,14 @@ $h_F=\tfrac12$ sınır durumu da hakem sınaması değiştirilerek kaldırılmı
 15 000 oturumluk bir saldırı bulanık sınaması 14 579 geçerli turda sıfır kayıp vermiştir
 (simülasyon; Bölüm 6.9).
 
-**Doğrulanmayanlar.** Gerçek insanlarla tek bir tur bile ölçülmemiştir. Kamera yolu yalnızca sentetik bir
-video akışıyla denenmiştir; canlı kamerada izleyici gürültüsü, hareket bulanıklığı, kare kaybı, iniş saptama
-hatası, kare → mühür gecikmesi ve gösterim gecikmesi bilinmemektedir. Model uyumsuzluğu deneyi bir duyarlılık
+**Doğrulanmayanlar.** Gerçek insanlarla tek bir tur bile ölçülmemiştir. Proje sahibinin gerçek bir
+kamerayla, ölçüm kaydı almadan yaptığı ilk deneme başarısız olmuştur: hareket gecikmeli izlenmiş, el hızlı
+vuruşlarda kaybolmuş, bulanıklık elin üzerine kaymıştır. En olası nedenleri ölçüm ve kod okumasıyla bulunup
+giderilmiştir: aynı bilgisayarda el izleyici ekran kartında işlemcidekinden 2,5–2,9 kat hızlı çalışır,
+yüz dedektörü kaldırılmış ve gizlilik artık elden başka her şeyi bulanıklaştırır. Düzeltilmiş sürüm ise gerçek
+kamerayla henüz yeniden denenmemiştir; düzeltmeden sonraki sınamalar sentetiktir (Bölüm 8.2). Canlı
+kamerada izleyici gürültüsü, hareket bulanıklığı, işlenen kare hızı, kare kaybı, iniş saptama hatası,
+kare → mühür gecikmesi ve gösterim gecikmesi bilinmemektedir. Model uyumsuzluğu deneyi bir duyarlılık
 çözümlemesidir, gerçek dünyadaki oranların ölçümü değildir. Veritabanı betiği çalıştırılmamış, arayüz
 kullanıcılarla sınanmamıştır. Bu nedenle çalışmanın savı "insanlara karşı yenilmez bir sistem yapılmıştır"
 değil, "yenilmezlik iddiasının ne anlama gelebileceği kesin olarak tanımlanmış, bunu denetlenebilir kılan bir
@@ -71,7 +76,9 @@ kapatılmıştır.
    ve duvar saatine göre gerçek değerleri (kare → mühür gecikmesi), hakemin iniş ve geç hamle kararlarının
    yüksek hızlı video ile karşılaştırılması, Turnuva altında gerçek kayıp oranı ve canlı tahmin
    göstergesinin oyuncu davranışına etkisi ölçülmelidir. Uygulamanın dışa aktarımı bunun için gereken tur
-   kayıtlarını içerir; yalnızca tur başına örnek izleri dışarıda bırakılır (Ek C).
+   kayıtlarını içerir; yalnızca tur başına örnek izleri dışarıda bırakılır (Ek C). Bunlardan önce düzeltilmiş
+   kamera yolu gerçek bir kamerayla yeniden denenmeli: işlenen kare hızı ve izleyicinin hızlı vuruşlarda eli
+   kaybetme sıklığı ölçülmeli, gizlilik gerçek bir yüz ve elle sınanmalıdır (Bölüm 8.2).
 2. **Davranış kanalının açık veri kümeleriyle çevrimdışı değerlendirmesi.** Brockbank ve Vul'un açık
    verileri (58 insan çifti; yedi kararlı bota karşı 218 ve sekiz uyarlanır bota karşı 194 katılımcı;
    300'er tur) ve L. Wang ve arkadaşlarının 52 oyuncunun 300 turluk dizilerini içeren ek dosyaları

@@ -71,7 +71,7 @@ doğrulamadaki bir saldırı denetimi de motorun programlama arayüzü düzeyind
    beklenen kaybı sınırlayan bütçeli karma strateji ve ispatı (Bölüm 4.5, 4.6).
 6. **Denetlenebilir taahhüt protokolü.** Nonce'lu, özet zincirli, bütün revizyonları açan ve iki bağımsız
    gerçeklemeyle doğrulanan taahhüt–ifşa kaydı; neyi kanıtlamadığının açık beyanı (Bölüm 4.8).
-7. **Gerçekleme ve testler.** Derleme adımı olmayan, saf çekirdekli bir tarayıcı uygulaması; 105 otomatik
+7. **Gerçekleme ve testler.** Derleme adımı olmayan, saf çekirdekli bir tarayıcı uygulaması; 113 otomatik
    test; değişmezlerin somut savlarla eşlemesi (Bölüm 5).
 8. **Yinelenebilir simülasyon deneyleri ve olumsuz sonuçların raporlanması.** Sekiz deney; koşullu (geçerli
    turlar) ve koşulsuz (bütün denemeler) oranların ayrılması; sonuçsuz deneme payının, erkenlik–doğruluk
@@ -83,7 +83,9 @@ doğrulamadaki bir saldırı denetimi de motorun programlama arayüzü düzeyind
     (Ek C).
 
 Katkıların sınırı baştan söylenmelidir: sayısal sonuçların tamamı simülasyondur; gerçek insan verisi
-toplanmamış, gerçek bir kamerayla ölçüm yapılmamıştır.
+toplanmamış, gerçek bir kamerayla ölçüm yapılmamıştır. Proje sahibinin gerçek kamerayla yaptığı ilk deneme
+başarısız olmuş, en olası nedenleri giderilmiştir; düzeltilmiş sürüm henüz gerçek kamerayla yeniden
+denenmemiştir (Bölüm 8.2).
 
 ## 1.5 Tezin düzeni
 

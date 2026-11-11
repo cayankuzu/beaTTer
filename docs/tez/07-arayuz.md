@@ -5,7 +5,7 @@ Bu bölüm arayüz kararlarını Bölüm 2.6'daki kaynaklara bağlar. Betimleme,
 görünen bütün metinler ve sayı biçimleri) dosyalarına ve görünüm modüllerine (`web/js/ui/views/`) dayanır.
 Bölüm **tasarım belirtimini ve metin katmanını** anlatır; piksel düzeyindeki yerleşim ayrıca
 belgelenmemiştir. Bağımsız incelemeden sonra değişen göstergeler (skor kartı, rapordaki zamanlama satırları,
-yüz gizliliği rozeti, iptal bildirimi) ilgili alt bölümlerde belirtilmiştir. Arayüz kullanıcılarla
+gizlilik rozeti, iptal bildirimi) ilgili alt bölümlerde belirtilmiştir. Arayüz kullanıcılarla
 sınanmamıştır; aşağıdaki gerekçeler literatüre dayalı tasarım gerekçeleridir, ölçülmüş kullanılabilirlik
 sonuçları değildir.
 
@@ -191,14 +191,27 @@ olayı için kullanılır; daha fazla efektin deneyimi iyileştirdiğine dair ka
   demo"). Tarayıcı istemi yalnızca düğmeye basıldıktan sonra açılır [PermissionsBP]. Hata durumlarının her
   biri için nedeni ve çözümü söyleyen ayrı metinler vardır (izin verilmedi, kamera başka uygulamada, kamera
   yok, güvenli bağlantı yok, model yüklenemedi ve — oturum ortasında — "Kamera bağlantısı kesildi").
-- **Yüz gizliliği** varsayılan olarak açıktır ve tek tuşla değiştirilebilir. Kamera sahnesindeki rozet
-  gerçekte olanı söyler ve dört metinden birini gösterir: "Yüz gizleme açık" (yalnızca yüz dedektörü
-  çalışıyorsa), "Yüz gizleme: yaklaşık bölge" (dedektör yüklenemediyse ya da henüz hazır değilse;
-  üzerine gelindiğinde bulanıklığın yüzün bulunması beklenen bölgeye uygulandığı açıklanır), "Yüz
-  gizlenemedi · görüntü kapatıldı" (bulanıklaştırma hata verdiyse kamera görüntüsü gösterilmez) ve "Yüz
-  gizleme kapalı". Son üçü uyarı biçeminde çizilir. İlk v4 arayüzünde rozet yalnızca ayara bakıyor,
-  dedektör olmasa da "açık" yazıyordu; bu, bir gizlilik güvencesini olduğundan güçlü göstermekti (Bölüm
-  5.1.6, 5.8).
+- **Gizlilik (yalnızca el net)** varsayılan olarak açıktır ve P tuşuyla, üst çubuktaki düğmeyle ya da
+  ayarlardaki "Gizlilik: yalnızca el net" anahtarıyla değiştirilebilir. Açıkken kamera görüntüsünün tamamı
+  bulanıklaştırılır, yalnızca izlenen el net görünür; el görülmediğinde her şey bulanıktır. Tanıtım ekranı
+  bunu "Görüntü cihazından çıkmaz. Yalnızca elin net görünür; yüzün ve odanın geri kalanı
+  bulanıklaştırılır." diye anlatır. Bu tasarımı, gerçek kamerada ilk denemede yüz bulanıklığının elin önüne
+  geldiğini gören proje sahibi seçmiştir (Bölüm 5.1.7). Gösterilen görüntü, el izleyicinin işlediği karenin
+  kendisidir: net bölge o karenin eklem noktalarından hesaplandığından hızlı vuruşlarda da elin üstündedir;
+  bedeli, görüntünün canlı kameranın bir izleyici çıkarımı kadar geriden gelmesidir. Kamera sahnesindeki
+  rozet üç metinden birini gösterir: "Yalnızca el net" (gizlilik açık; üzerine gelindiğinde "Gizlilik açık:
+  görüntünün tamamı bulanık, yalnızca izlenen el net. El görülmediğinde her şey bulanıktır; görüntü
+  cihazından çıkmaz."), "Gizlilik çizilemedi · görüntü kapatıldı" (çizer hata verdiyse kamera görüntüsü
+  gösterilmez, iskelet çizilmeye devam eder) ve "Gizlilik kapalı"; son ikisi uyarı biçeminde çizilir. Ek bir
+  önlem olarak, gizlilik açık olduğu her an video öğesinin kendisi de CSS ile bulanıklaştırılır (28 piksel);
+  bu, kamera açılırken ve el izleyici yüklenirken sahneyi örten %90 opak kapının arkasında da geçerlidir.
+  Gizlilik uygulanmış görüntü ilk kez çizilmeden önce ya da çizim durursa görünen, bu bulanık videodur.
+  Rozet yine yalnızca doğru olanı söyler. Önceki tasarımda yüzün gizlenmesi bir yüzün bulunmasına bağlıydı;
+  rozetin bu yüzden "Yüz gizleme: yaklaşık bölge" diye ayrı bir durumu vardı ve ilk v4 arayüzünde rozet,
+  dedektör olmasa da "açık" yazarak bir gizlilik güvencesini olduğundan güçlü gösteriyordu (Bölüm 5.1.6).
+  Yeni tasarımda yüzün gizlenmesi için hiçbir şeyin bulunması gerekmediğinden "yaklaşık" bir durum da
+  yoktur. Sınırı da yazılmalıdır: net bölge elin çevresinde dar bir pay içerir; yüzün önünde tutulan el,
+  yüzün hemen yanındaki bölümünü açar (Bölüm 5.1.7).
 - **Anonim istatistik paylaşımı** tanıtım ekranında işaretlenmemiş bir kutu olarak sunulur ve varsayılan
   olarak kapalıdır (varsayılan olarak veri koruma [GDPR]; ölçülülük [KVKK6698]). Metni neyin gönderildiğini
   ve neyin asla gönderilmediğini söyler. Önceden işaretli kutu ya da gizli gönderim karanlık örüntü
