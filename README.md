@@ -5,20 +5,32 @@ beaTTer, tarayıcıda web kamerasıyla oynanan bir taş-kâğıt-makas rakibidir
 **el inmeden önce** seçer, bu seçimi SHA-256 ile mühürleyip ekranda yayımlar ve tur bitince mührü açarak
 hamlesini sonradan değiştirmediğini kanıtlar. Proje aynı zamanda bir tez çalışmasıdır: önceki sürümün
 "yenilmezlik" iddiası denetlenmiş, sistem ölçülebilir ve sınanabilir dürüstlük kurallarıyla yeniden
-yazılmıştır.
+yazılmış, yeniden yazılan sürüm de bağımsız bir incelemeden geçirilmiştir.
 
 ## Durum
 
 | | |
 |---|---|
-| Doğrulandı | 67 otomatik test (`npm test`) geçiyor: taahhüt protokolü, hakem kuralları, kinematik, dizi modeli ve uçtan uca turlar. |
-| Doğrulandı | Yedi yinelenebilir **simülasyon** deneyi (`docs/results`). Sentetik oyunculara karşı, belirtilen varsayımlar altında. |
-| Doğrulanmadı | Gerçek insan verisi yok. Canlı kamerada doğrulama (izleyici gürültüsü, hareket bulanıklığı, gecikme) yapılmadı. Arayüz kullanıcılarla sınanmadı. |
+| Doğrulandı | 105 otomatik test (`npm test`, sekiz dosya) geçiyor: taahhüt protokolü, hakem kuralları, kinematik, dizi modeli, uçtan uca turlar, uygulama yaşam döngüsü ve bağımsız incelemenin yeniden üretilebilen bulguları için regresyon testleri. |
+| Yapıldı | v4'ün bağımsız kod incelemesi: 45 bulgu (ikisi kritik); her biri giderildi ya da açık bir sınır olarak belgelendi (`docs/tez/05a-onceki-surum-denetimi.md`, Bölüm 5.1.6). |
+| Doğrulandı | Sekiz yinelenebilir **simülasyon** deneyi (`docs/results`). Sentetik oyunculara karşı, belirtilen varsayımlar altında. Yedisi dedektörün varsayımlarıyla eşleşmiş bir sentetik el kullanır; sekizincisi (E8) bu eşleşmeyi bilerek bozar. |
+| Denendi | Kamera yolu, tarayıcıda **sentetik bir video akışıyla** (`canvas.captureStream()`) — yerelde ve yayımlanan sitede: kamera → el izleyici → motor → arayüz zinciri çalışıyor, İçerik Güvenlik İlkesi ihlali yok. Bu bir duman testidir; gerçek bir kamera ve gerçek bir elle doğrulama değildir. |
+| Doğrulandı | Turnuva'nın "geçerli turda kaybetmez" güvencesi kural gereğidir ve ispatının her adımı kodda zorlanır; inceleme sonrasında bulunan üç delik ve bir sayısal sınır durumu kapatılıp teste bağlandı. Metronom kipini de kapsayan 15 000 oturumluk saldırı bulanık sınamasında 14 579 geçerli turda kayıp yok (simülasyon; `docs/results/fuzz-guarantee.json`). |
+| Doğrulanmadı | Gerçek insan verisi yok. Gerçek kamerada hiçbir ölçüm yapılmadı (izleyici gürültüsü, hareket bulanıklığı, kare kaybı, gecikme). `supabase_schema.sql` hiçbir veritabanında çalıştırılmadı. Arayüz kullanıcılarla sınanmadı. |
 
-Simülasyondan iki dürüst özet (Turnuva hakem ayarı, 30 kare/s; ayrıntı için `docs/tez/06-deneyler.md`):
-geçerli turlarda yapay zekânın kaybı gözlenmedi; buna karşılık parmaklarını geç açan sentetik oyuncunun
-atışlarının %35,25'i (%95 güven aralığı 32,60–38,00) faul sayılıp tekrarlandı. Bu sayılar gerçek oyunculara
-ait değildir.
+Simülasyondan iki dürüst özet (Turnuva hakem ayarı; ayrıntı için `docs/tez/06-deneyler.md`):
+
+- **Koşullu (geçerli turlar):** geçerli turlarda yapay zekânın kaybı yoktur — deneylerin Turnuva
+  hücrelerinde toplam 58 452 geçerli turda sıfır. Bu, tahminin iyi olduğunu göstermez: kuralın sonucudur
+  (aşağıda). Bu deneyler oyuncunun kendi ritmiyle oynadığı kiplerdendir; metronom kipi güvence bulanık
+  sınamasında denenmiştir.
+- **Koşulsuz (bütün denemeler; 30 kare/s):** dedektörle eşleşmiş sentetik oyuncuda yapay zekâ, parmaklarını
+  olağan zamanda açan oyuncunun denemelerinin %94,50'sini (%95 güven aralığı 93,06–95,65) kazanır, %5,25'i
+  (4,12–6,66) faul sayılıp tekrarlanır; parmaklarını geç açan oyuncuda sonuçsuz kalan pay %35,25'tir
+  (32,60–38,00). Sentetik el dedektörün varsayımlarından bilerek saptırıldığında dürüst bir oyuncunun
+  sonuçsuz denemeleri %1,7 ile %23,4 arasında değişir.
+
+Bu sayılar gerçek oyunculara ait değildir.
 
 ## Hızlı başlangıç
 
@@ -30,7 +42,10 @@ Ardından tarayıcıda `http://localhost:8000` adresini açın ve "Kamerayı aç
 cihazınızdan çıkmaz.
 
 - **Kamerasız demo:** `http://localhost:8000/?demo=1` — sentetik bir el aynı motorla oynar; ekranda
-  "SİMÜLASYON" olarak etiketlenir, verisi saklanmaz. (`&seed=N` ile yinelenebilir, `&speed=K` ile hızlandırılmış.)
+  "SİMÜLASYON" olarak etiketlenir, verisi saklanmaz. (`&seed=N` ile yinelenebilir, `&speed=K` ile
+  hızlandırılmış.) **Demonun açılışı elle seçilmiştir:** varsayılan tohum, ilk on turu geçerli ve ilk beş
+  turunda üç hamle de görünen tohumlar arasından alınmıştır. Yalnızca açılış seçilmiştir; demo uzadıkça faul
+  ve kazanma oranları simülatörünkilere yaklaşır (`docs/tez/06-deneyler.md`).
 - **Telefon ya da tablet:** sunucu aynı ağdaki cihazlar için `https://<yerel-IP>:8443` adresini de açar
   (kamera güvenli bağlantı gerektirir; kendinden imzalı sertifika uyarısı çıkar).
 
@@ -41,14 +56,17 @@ cihazınızdan çıkmaz.
 2. Dördüncü vuruşta ("vur!") hamleni **el havadayken** aç. Yapay zekâ parmaklarının açılmaya başlamasını
    izler; kanıt değişirse mührünü yeniler. Her yenileme yeni bir mühürdür ve hiçbiri silinmez.
 3. Elin indiği andan itibaren yapay zekâ mühür atamaz. İnen şekil senin hamlendir; mühürler açılır ve
+   doğrulanır. Tur iptal edilirse (el kadrajdan çıktı, Esc) o ana kadar atılan mühürler yine açılır ve
    doğrulanır.
-4. Tur raporu kararın inişten kaç milisaniye önce verildiğini, o anda hamlenin ne kadarının oluşmuş
-   olduğunu, bütün mühürleri ve "kendin doğrula" aracını gösterir.
+4. Tur raporu kararın inişten kaç milisaniye önce yakalanmış bilgiye dayandığını, o anda hamlenin ne
+   kadarının oluşmuş olduğunu, bütün mühürleri ve "kendin doğrula" aracını gösterir. Kamera turlarında
+   ayrıca özetin fiilen hesaplandığı anla (duvar saati) iniş arasındaki süre de ölçülüp gösterilir.
 
 **Geç hamle kuralı.** Şekil el inmeden önce havada oluşmalıdır. El indikten sonra açılan ya da kapanan
 parmaklar geç hamledir: tur faul sayılır, skora işlenmez ve tekrar oynanır. İnişte yumruk olan elin Taş
 sayılması için yumruğun inişten sonra 250 ms kapalı kalması gerekir. Hakem yalnızca inişten önceki parmak
-hareketine ve inen şekle bakar; yapay zekânın neyi mühürlediğine bakmaz.
+hareketine ve inen şekle bakar; yapay zekânın neyi mühürlediğine bakmaz. Elin inişten hemen önce
+izlenemediği turlar (kare kaybı) faul değil, geçersizdir ve tekrarlanır.
 
 Ritim serbest (sen sallarsın) ya da metronomlu olabilir; hazırlık vuruşu sayısı 3, 2 ya da 0'dır (tek atış).
 İkinci bir kip olan MindTwin skor tutmaz: parmak açıklığının 120 ms sonrasını öngörür ve bu öngörünün
@@ -58,12 +76,14 @@ Ritim serbest (sen sallarsın) ya da metronomlu olabilir; hazırlık vuruşu say
 
 | Ayar | Ön parmak eşiği | Arka parmak eşiği | Anlamı |
 |---|---|---|---|
-| Turnuva (varsayılan) | 0,50 | 0,15 | Ön parmaklar inişten önce ya "ölçülebilir biçimde açılmıştır" ya da "açılmamıştır"; belirsiz bölge yoktur. Bu ayarda, tezde yazılı koşullar altında, yapay zekâ geçerli turları kaybetmez; bedeli geç açanlarda artan faul oranıdır. |
+| Turnuva (varsayılan) | 0,50 | 0,15 | Ön parmaklar inişten önce ya "ölçülebilir biçimde açılmıştır" ya da "açılmamıştır"; belirsiz bölge yoktur. Bu ayarda yapay zekâ geçerli bir turu **kural gereği** kaybetmez: hakemin kabul edebileceği hamleler en çok iki sınıfa iner ve yapay zekâ, kendi tahmini ne olursa olsun, o ikisine de kaybetmeyen hamleyi oynar. Bu bir tahmin başarısı değildir; bedeli faul ve geçersiz turlardır (geç açanlarda ve kamera eli iyi okuyamadığında artar). |
 | Standart | 0,15 | 0,10 | Belirsiz bir bölge bırakır; insan meşru biçimde kazanabilir. |
 | Serbest | 0,03 | 0,03 | En geniş belirsiz bölge. |
 
-Eşik, hakemin "parmak grubu şu ana kadar ölçülebilir biçimde açıldı" olasılığı üzerindedir; tanımı ve
-kaybetmeme teoremi `docs/tez/04-yontem.md` Bölüm 4.4 ve 4.7'dedir.
+Eşik, hakemin "parmak grubu şu ana kadar ölçülebilir biçimde açıldı" olasılığı üzerindedir; tanımı,
+kaybetmeme teoremi (Teorem 1), ispatı ve neyi iddia etmediği `docs/tez/04-yontem.md` Bölüm 4.4 ve 4.7'dedir.
+Laboratuvar panelindeki "kaybetmeme" oranı bu yüzden yalnızca geçerli turları sayar; sistemin gerçek
+başarımı aynı karttaki "tüm denemelerde kazanma" ve "sonuçsuz deneme" satırlarıdır.
 
 ## Proje düzeni
 
@@ -77,19 +97,26 @@ beaTTer/
 │       ├── core/              # saf bilim çekirdeği: kinematik, ritim, açılma dedektörü, karar,
 │       │   └── sequence/      #   taahhüt kaydı, tur motoru ve hakem; davranış dizi modeli
 │       ├── sim/               # sentetik el ve davranış oyuncuları (testler, deneyler, demo)
-│       ├── platform/          # kamera, el izleyici, ses, yerel depo, isteğe bağlı bulut
+│       ├── platform/          # kamera, el izleyici, yüz gizliliği, ses, yerel depo, isteğe bağlı bulut
 │       ├── app/               # denetleyici, kare kaynakları, durum deposu
 │       └── ui/                # görünümler ve bütün Türkçe metinler
-├── tests/                     # node:test ile 67 test
-├── experiments/run_all.mjs    # yinelenebilir simülasyon deneyleri
+├── tests/                     # node:test ile 105 test, sekiz dosya
+│   ├── foundation, kinematics_stroke, opening_decision, sequence, round_engine, controller
+│   ├── engine_regressions.test.js      # incelemenin çekirdekteki bulguları için regresyon testleri
+│   ├── controller_lifecycle.test.js    # incelemenin uygulama katmanındaki bulguları için regresyon testleri
+│   └── helpers/                        # elle kurulan kare dizileri
+├── experiments/
+│   ├── run_all.mjs            # yinelenebilir simülasyon deneyleri (E1–E8)
+│   └── fuzz_guarantee.mjs     # Turnuva güvencesinin saldırı bulanık sınaması
 ├── docs/
 │   ├── tez/                   # tez metni
 │   ├── results/               # deneylerin ham sayıları (JSON)
 │   └── figures/               # şekiller (SVG)
 ├── legacy/desktop-prototype/  # ilk OpenCV/Arduino masaüstü prototipi (bakımı yapılmıyor)
-├── serve_web.py               # yerel / yerel ağ sunucusu
-├── supabase_schema.sql        # isteğe bağlı bulut tabloları ve sıkılaştırma bölümü
-└── vercel.json                # dağıtım yapılandırması ve güvenlik başlıkları
+├── serve_web.py               # yerel / yerel ağ sunucusu (üretimle aynı güvenlik başlıkları)
+├── supabase_schema.sql        # isteğe bağlı bulut: kilitli tablolar ve tek doğrulayan işlev
+├── vercel.json                # dağıtım yapılandırması ve güvenlik başlıkları
+└── .vercelignore              # yalnızca web/ yüklenir; geri kalan her şey dağıtımın dışında kalır
 ```
 
 ## Testler ve deneyler
@@ -97,8 +124,9 @@ beaTTer/
 Gereksinim: Node.js 20 ya da üzeri; dış paket gerekmez.
 
 ```bash
-npm test                               # 67 test
-node experiments/run_all.mjs           # bütün deneyler; docs/results ve docs/figures yeniden üretilir
+npm test                               # 105 test
+npm run fuzz                           # Turnuva güvencesinin saldırı bulanık sınaması (2500 oturum)
+node experiments/run_all.mjs           # bütün deneyler (E1–E8); docs/results ve docs/figures yeniden üretilir
 node experiments/run_all.mjs --quick   # hızlı deneme (tezdeki sayıları vermez)
 ```
 
@@ -113,7 +141,7 @@ Tam metin [`docs/tez/`](docs/tez/README.md) klasöründedir:
 [ilgili çalışmalar](docs/tez/02-literatur.md) ·
 [problem tanımı](docs/tez/03-problem-tanimi.md) ·
 [yöntem](docs/tez/04-yontem.md) ·
-[önceki sürümün denetimi](docs/tez/05a-onceki-surum-denetimi.md) ·
+[önceki sürümün denetimi ve v4'ün incelemesi](docs/tez/05a-onceki-surum-denetimi.md) ·
 [mimari](docs/tez/05-mimari.md) ·
 [deneyler](docs/tez/06-deneyler.md) ·
 [arayüz](docs/tez/07-arayuz.md) ·
@@ -124,23 +152,43 @@ Tam metin [`docs/tez/`](docs/tez/README.md) klasöründedir:
 
 ## Gizlilik
 
-- Kamera kareleri ve el noktaları yalnızca tarayıcıda işlenir; saklanmaz ve gönderilmez. Kamera görüntüsünde
-  yüz varsayılan olarak bulanıklaştırılır.
+- Kamera kareleri ve el noktaları yalnızca tarayıcıda işlenir; saklanmaz ve gönderilmez.
+- Kamera görüntüsünde yüz varsayılan olarak bulanıklaştırılır. Kamera sahnesindeki rozet gerçekte olanı
+  söyler: "Yüz gizleme açık" (yüz dedektörü çalışıyor), "Yüz gizleme: yaklaşık bölge" (dedektör
+  yüklenemedi; bulanıklık yüzün bulunması beklenen bölgeye uygulanır ve kenardaki bir yüzü kaçırabilir) ya
+  da "Yüz gizlenemedi · görüntü kapatıldı" (bulanıklaştırma hata verdi; görüntü gösterilmez).
 - Tarayıcının yerel deposunda yalnızca hamle geçmişi, zamanlama istatistikleri ve ayarlar tutulur;
   "Laboratuvar → Veri ve gizlilik" bölümünden dışa aktarılabilir ya da silinebilir. Demo verisi saklanmaz.
-- **Anonim istatistik eşitleme varsayılan olarak kapalıdır.** Açılırsa yalnızca geçerli turların hamleleri,
-  sonucu ve ölçülen zamanlamaları rastgele bir kimlikle gönderilir.
-- Üçüncü taraf istekleri: el izleme kitaplığı `cdn.jsdelivr.net`'ten, yazı tipleri Google Fonts'tan yüklenir.
-- Bulut eşitlemeyi kendi Supabase projenizde kullanacaksanız `supabase_schema.sql` dosyasının sonundaki
-  sıkılaştırma bölümünü uygulayın; dosyanın ilk bölümündeki ilkeler herkese açık anahtarla bütün satırların
-  okunup değiştirilmesine izin verir.
+- **Anonim istatistik eşitleme varsayılan olarak kapalıdır.** Açılırsa yalnızca gerçek oyuncunun geçerli
+  turlarının hamleleri, sonucu ve ölçülen zamanlamaları rastgele bir kimlikle gönderilir; ölçülemeyen
+  değerler boş gönderilir. Demo turları ve geliştirme barındırıcıları (`localhost`, yerel ağ adresleri)
+  hiçbir zaman gönderim yapmaz (`?cloud=1` ile açıkça istenmedikçe).
+- **Üçüncü taraf istekleri:** el izleme kitaplığı
+  `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/` dizininden (`vision_bundle.mjs` ve `wasm/`
+  dosyaları), yazı tipleri Google Fonts'tan (`fonts.googleapis.com`, `fonts.gstatic.com`) yüklenir; her ikisi
+  de IP adresinizi ilgili sağlayıcıya gösterir. İçerik Güvenlik İlkesi betikleri bu tek paket dizinine,
+  bağlantıları buna ve tek bir Supabase projesine daraltır. Model dosyaları sitenin kendisinden sunulur.
+- **Bulut eşitlemeyi kullanacaksanız `supabase_schema.sql` dosyasının tamamını** Supabase SQL düzenleyicisine
+  yapıştırıp çalıştırın. Dosya tabloları kilitler (herkese açık anahtar hiçbir tabloyu okuyamaz, yazamaz,
+  silemez) ve anahtara tek bir yetki verir: her alanı doğrulayan `beatter_push_round` işlevini çağırmak.
+  Dosya uygulanana kadar isteğe bağlı eşitleme güvenli yönde başarısız olur (durum "çevrimdışı"); oyunun
+  geri kalanı etkilenmez. Veritabanında önceki sürümlerin izin verici ilkeleri duruyorsa, onları kaldıran da
+  bu dosyadır. Not: bu SQL bu çalışmada bir veritabanında çalıştırılarak sınanmamıştır.
 
 ## Dağıtım
 
 Uygulama durağan dosyalardan oluşur. Vercel yapılandırması `vercel.json` içindedir: `outputDirectory` değeri
 `web`'dir; İçerik Güvenlik İlkesi, İzin İlkesi (`camera=(self)`) ve önbellek başlıkları aynı dosyada
-tanımlıdır. Depo Vercel'e bağlıysa ana dala yapılan gönderimler yayına alınır; elle dağıtım için depo
-kökünde `vercel --prod` kullanılabilir.
+tanımlıdır. `.vercelignore` yalnızca `web/` dizininin yüklenmesini sağlar. Model dosyaları bir yıl değişmez
+olarak önbelleğe alınır; adreslerindeki `?v=4.0.0` parametresi dosya değiştiğinde artırılmalıdır. Depo
+Vercel'e bağlıysa ana dala yapılan gönderimler yayına alınır; elle dağıtım için depo kökünde
+`vercel deploy --prod` kullanılabilir.
+
+Site 11 Kasım 2026'da bu yolla dağıtılmış ve yayında denetlenmiştir: yanıt başlıkları (daraltılmış İçerik
+Güvenlik İlkesi, İzin İlkesi, `nosniff`), bütün varlıkların yüklenmesi, önceki sürümün dosyalarının artık
+sunulmaması, demonun mühürleri doğrulanmış turları hükme bağlaması (konsol hatası ve ilke ihlali olmadan) ve
+sentetik bir video akışıyla kamera yolunun el izleyiciyi ve yüz dedektörünü üretim ilkesi altında
+yüklemesi. Gerçek bir el denenmemiştir.
 
 Yayın adresi: <https://beatter.vercel.app> · Kaynak kod: <https://github.com/cayankuzu/beaTTer>
 

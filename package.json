@@ -9,7 +9,8 @@
   "scripts": {
     "test": "node --test",
     "experiments": "node experiments/run_all.mjs",
-    "serve": "python serve_web.py"
+    "serve": "python serve_web.py",
+    "fuzz": "node experiments/fuzz_guarantee.mjs"
   },
   "description": "beaTTer: a rock-paper-scissors opponent that seals its move before the hand lands (zero-build ES modules)",
   "license": "MIT"

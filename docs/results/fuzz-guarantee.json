@@ -1,0 +1,49 @@
+{
+ "id": "fuzz-guarantee",
+ "simulated": true,
+ "generatedBy": "experiments/fuzz_guarantee.mjs",
+ "rules": "turnuva",
+ "description": "Adversarial fuzz of the turnuva guarantee: random modes, frame rates, feints, late throws, weak strokes, drop-outs, extra gaps, model mismatch, decision freeze, random behavioural moves and frames placed within hundredths of a millisecond of scheduled beats and of the true landing. Seeds 90001..90000+sessions. \"none\" counts attempts that produced no judged round (aborted or never started).",
+ "sessions": 15000,
+ "judgedRounds": 26598,
+ "validRounds": 14579,
+ "losses": 0,
+ "exceptions": 0,
+ "orderViolations": 0,
+ "tally": {
+  "AI": 14548,
+  "FOUL_LATE": 8183,
+  "VOID_NO_HAND": 3338,
+  "none": 3454,
+  "VOID_UNKNOWN": 498,
+  "TIE": 31
+ },
+ "byMode": {
+  "beats2": {
+   "judged": 3474,
+   "valid": 1921,
+   "loss": 0
+  },
+  "metro3": {
+   "judged": 8322,
+   "valid": 4492,
+   "loss": 0
+  },
+  "beats3": {
+   "judged": 7140,
+   "valid": 4076,
+   "loss": 0
+  },
+  "metro0": {
+   "judged": 4285,
+   "valid": 2204,
+   "loss": 0
+  },
+  "single": {
+   "judged": 3377,
+   "valid": 1886,
+   "loss": 0
+  }
+ },
+ "examples": []
+}
