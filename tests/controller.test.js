@@ -114,6 +114,15 @@ test('report flow: a result opens the report, the primary action continues, a fu
   const exported = controller.actions.exportData();
   assert.equal(exported.simulated, true);
   assert.ok(exported.commitLog && exported.player.model.v === 4);
+  // the export carries every judged round of the session, without sample traces or seal payloads
+  assert.equal(exported.rounds.length, exported.metrics.rounds.judged);
+  for (const r of exported.rounds) {
+    assert.equal(r.simulated, true);
+    assert.ok(typeof r.verdict === 'string' && r.timing && Number.isInteger(r.landingFrame) && !('trace' in r));
+    assert.ok(r.commits.length >= 1 && r.commits.every((c) => !('payload' in c) && !('nonce' in c) && exported.commitLog.commits.some((k) => k.seq === c.seq)));
+  }
+  assert.ok(JSON.stringify(exported.rounds).length / exported.rounds.length < 4000, 'a round costs a few kB in the export');
+  assert.doesNotThrow(() => JSON.parse(JSON.stringify(exported)));
   controller.dispose();
   assert.ok(closed >= 2);
 });

@@ -146,19 +146,24 @@ export const PALM_LANDMARKS = Object.freeze([0, 5, 9, 13, 17]);
  * One referee preset.
  * @typedef {Object} RulePreset
  * @property {number} epsF          Decisiveness threshold on the front (index/middle) in-air heading, a
- *                                  probability in (0, 0.5]: the heading is decisive when it is below `epsF`
- *                                  or above `1 - epsF`. 0.5 leaves no ambiguous zone.
+ *                                  probability in (0, 0.5]: the group counts as closed below `epsF` and as
+ *                                  open from `1 - epsF` on. 0.5 leaves no ambiguous zone: every heading is
+ *                                  one or the other.
  * @property {number} epsB          Same threshold for the back (ring/pinky) heading.
  * @property {number} lossAversion  Weight mu of a loss in the risk-sensitive utility (+1 win, 0 tie, -mu loss).
- * @property {boolean} noLoss       true: lexicographic policy (minimise P(loss) first, then maximise P(win)).
+ * @property {boolean} noLoss       true: no-loss policy - play a move that cannot lose to any throw the
+ *                                  referee would still accept (decided on the referee's legal set, not on
+ *                                  the AI's belief); among such moves maximise P(win). See decision.js.
  */
 
 /** @typedef {'serbest'|'standart'|'turnuva'} RuleName */
 
 /**
  * Rule presets, keyed by the names the UI shows ("Hakem"). In `turnuva` the front heading is always
- * decisive (epsF = 0.5), which together with `noLoss` makes the AI unbeatable on every valid round by
- * rule; `serbest` and `standart` keep an ambiguous zone in which the human can legitimately win.
+ * decisive (epsF = 0.5), so at most two throws are ever legal and a move that cannot lose always exists;
+ * together with `noLoss` this makes the AI unbeatable on every VALID round by rule (thesis, Theorem 1).
+ * The price is paid elsewhere: a throw the in-air frames do not support is a foul or a void, not a
+ * round. `serbest` and `standart` keep an ambiguous zone in which the human can legitimately win.
  * @type {Readonly<Record<RuleName, Readonly<RulePreset>>>}
  */
 export const RULES = Object.freeze({

@@ -30,8 +30,11 @@ function assertInvariants(res, events) {
   assert.ok(!events.slice(landing).some((e) => e.type === 'commit'), 'I1: no commit event after the landing event');
   const judged = res.commits.find((c) => c.seq === res.judgedSeq);
   assert.ok(judged && !judged.postLanding, 'I1: judged commit exists and is pre-landing');
-  assert.ok(judged.t < res.timing.tLanding, `I1: judged commit ${judged.t} before landing ${res.timing.tLanding}`);
-  assert.ok(res.timing.leadToLandingMs > 0, 'I1: lead to landing is positive');
+  // I1 is a statement about frame order (exact); the time stamps are rounded to 0.1 ms and follow it
+  assert.ok(judged.frame < res.landingFrame, `I1: judged commit on frame ${judged.frame}, landing frame ${res.landingFrame}`);
+  for (const c of res.commits) assert.equal(c.postLanding, c.frame >= res.landingFrame, 'I1: the post-landing flag is the frame order');
+  assert.ok(judged.t <= res.timing.tLanding, `I1: judged commit ${judged.t} not after landing ${res.timing.tLanding}`);
+  assert.ok(res.timing.leadToLandingMs >= 0, 'I1: lead to landing is not negative');
   for (const c of res.commits) if (!c.postLanding) assert.ok(c.t <= res.timing.tLanding);
   assert.equal(res.aiMove, judged.move, 'the judged move is the AI move');
   // I2 / I3: every commitment is opened, verifies, and the chain is intact; commits are in sequence order

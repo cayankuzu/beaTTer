@@ -108,8 +108,12 @@ export function fuse({ prior, F, Bstay, Bopen, wPrior = 1, wKin = 1 }) {
  * @returns {boolean[]} [ROCK, PAPER, SCISSORS]
  */
 export function foulNow(hF, hB, rules) {
-  const frontOpen = hF > 1 - rules.epsF, frontClosed = hF < rules.epsF;
-  const backOpen = hB > 1 - rules.epsB, backClosed = hB < rules.epsB;
+  // "Open" takes the boundary (>=), "closed" does not (<). With epsF = 1/2 the two tests are then exact
+  // complements: for every heading the front group is either open or closed, never neither, so the
+  // legal set cannot contain all three throws - not even when the heading is exactly 1/2.
+  const f = Number.isFinite(hF) ? hF : 0, b = Number.isFinite(hB) ? hB : 0;
+  const frontOpen = f >= 1 - rules.epsF, frontClosed = f < rules.epsF;
+  const backOpen = b >= 1 - rules.epsB, backClosed = b < rules.epsB;
   return [frontOpen || backOpen, frontClosed || backClosed, frontClosed || backOpen];
 }
 

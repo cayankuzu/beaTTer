@@ -28,6 +28,17 @@ const SENSITIVITY = [0.6, 0.8, 1, 1.25, 1.5];
 const SNAPSHOT_MS = 50;      // store updates of the live snapshot are throttled to 20 Hz
 const LIVE_CAP = 240;        // samples kept for the live timeline
 const ENGINE_KEYS = ['primeBeats', 'rhythm', 'metronomeBpm', 'sensitivity', 'freezeLeadMs', 'seriesLength'];
+const ROUND_LOG_CAP = 2000;  // judged rounds of this page session kept for the export
+
+/** A judged round without its sample traces and seal payloads (those are in the commit log). */
+const compactRound = (/** @type {any} */ r) => {
+  const { trace, commits, ...rest } = r;
+  void trace;
+  return {
+    ...rest,
+    commits: commits.map((/** @type {any} */ c) => ({ seq: c.seq, reason: c.reason, frame: c.frame, t: c.t, move: c.move, postLanding: c.postLanding, verified: c.verified, leadMs: c.leadMs, sealLatencyMs: c.sealLatencyMs })),
+  };
+};
 
 const freshPerf = () => ({ fps: /** @type {number|null} */ (null), inferMs: /** @type {number|null} */ (null), engineMs: /** @type {number|null} */ (null), latencyMs: /** @type {number|null} */ (null) });
 const ema = (/** @type {number|null} */ old, /** @type {number} */ x) => (old === null ? x : old + 0.1 * (x - old));
@@ -64,6 +75,8 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
   /** @type {number[]|null} */ let beatTimes = null;
   /** seq -> ms between the capture of the frame a seal is based on and the moment its hash existed (camera only) */
   /** @type {Map<number, number>} */ const sealLatency = new Map();
+  /** Every round judged in this page session (camera and demo, each marked), for the export. Never persisted. */
+  /** @type {any[]} */ const roundLog = [];
   let toastId = 0;
   let isDemo = false;
   let gen = 0;        // generation of the frame source
@@ -190,6 +203,8 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
       },
     };
     sealLatency.clear();
+    roundLog.push(compactRound(result));
+    if (roundLog.length > ROUND_LOG_CAP) roundLog.shift();
     const series = { ...S().series, rounds: S().series.rounds.slice() };
     if (result.valid) {
       if (result.verdict === 'AI') series.ai += 1; else if (result.verdict === 'PLAYER') series.player += 1; else series.ties += 1;
@@ -451,12 +466,16 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
       toast('MEMORY_RESET');
       autoCountIn(600);
     },
-    /** Everything stored about the player plus this session's audit log, as one JSON-serialisable object. */
+    /**
+     * Everything stored about the player, this session's audit log and every round judged in this page
+     * session (verdict, moves, timings, measurements, belief at the judged seal - no camera data, no
+     * sample traces), as one JSON-serialisable object. Each round says whether it was simulated.
+     */
     exportData() {
       return {
         format: 'beaTTer/v4/export', exportedAt: new Date().toISOString(), simulated: isDemo,
         settings: settings(), player: { tag: S().player.tag, model: player.toJSON(), profile: player.profile() },
-        metrics: player.metrics.summary(), commitLog: commitLog.export(),
+        metrics: player.metrics.summary(), rounds: roundLog.slice(), commitLog: commitLog.export(),
       };
     },
     /**

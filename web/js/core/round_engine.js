@@ -5,11 +5,14 @@
  *   IDLE -> PRIMING (beats 1..primeBeats) -> FLIGHT -> SETTLING -> RESOLVED -> (acknowledge) -> IDLE
  *   (single-stroke mode: IDLE -> ARMED -> FLIGHT -> ...)
  *
- * I1  The AI's judged commitment is the last one made on a frame BEFORE the landing frame and dated
- *     BEFORE the landing time. commit() throws outside ARMED/FLIGHT; commitments dated at or after a
- *     (possibly retroactive) landing are kept in the audit log, flagged `postLanding`, and never judged.
- *     A tracked frame that follows a tracking gap and already shows the hand at its landing height is
- *     the landing frame: what happened inside the gap is unknown, so nothing after it counts as in-air.
+ * I1  The AI's judged commitment is the last one made on a frame BEFORE the landing frame. "Before" is
+ *     decided by FRAME ORDER alone - frame indices are integers and strictly increasing, so the test is
+ *     exact; time stamps are never compared for it (a sealed time is rounded to 0.1 ms, a frame time is
+ *     not, and mixing the two once let a pre-landing seal be discarded). commit() throws outside
+ *     ARMED/FLIGHT; commitments made on or after the (possibly retroactive) landing frame are kept in
+ *     the audit log, flagged `postLanding`, and never judged. A tracked frame that follows a tracking
+ *     gap and already shows the hand at its landing height is the landing frame: what happened inside
+ *     the gap is unknown, so nothing after it counts as in-air.
  * I2  Every commitment is a SHA-256 hash published at once; the move stays secret until reveal.
  * I3  All commitments and revisions of a round are kept in order, opened and verified at reveal — also
  *     when the round is aborted.
@@ -146,6 +149,7 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
   let handPresent = false;
   /** @type {number|null} */ let lastHandT = null;
   /** @type {number|null} */ let lastT = null;
+  /** @type {number|null} */ let lastIndex = null;
   let frameDt = 33;
   /** @type {import('./kinematics.js').KinSample[]} */ let recent = [];
   /** @type {number|null} */ let fistSinceT = null;
@@ -293,7 +297,11 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     landingFrame = Math.max(landingFrame, r.flightFrame + 1); // the behavioural commit always precedes the landing
     if (!(landT > r.tFlightStart)) { abort('RHYTHM_TIMEOUT', frame.t, events); return; }
     r.landing = { t: landT, frame: landingFrame, source };
-    for (const k of r.commits) if (k.pub.frame >= landingFrame || k.pub.t >= landT) k.postLanding = true; // I1
+    // I1, by frame order only: landingFrame is the first frame at or after the landing time, so every
+    // frame before it lies before the landing. Comparing the SEALED time (rounded to 0.1 ms) with the
+    // unrounded landing time instead would discard a seal made on a frame a few hundredths of a
+    // millisecond before a scheduled landing, although the referee still reads that very frame.
+    for (const k of r.commits) if (k.pub.frame >= landingFrame) k.postLanding = true;
     phase = 'SETTLING';
     events.push({ type: 'landing', t: landT, source });
   };
@@ -326,8 +334,9 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     const afterGap = r.gapRecovery > 0;
     if (afterGap) r.gapRecovery -= 1;
     r.lastEvalT = s.t;
-    // `open`: the revision path was open on this frame (false while a single-stroke round merely waits armed)
-    r.inAir.push({ t: s.t, index: frame.index, hF, hB, u4: [u[1], u[2], u[3], u[4]], y: stroke.state().y, afterGap, open: mayRevise });
+    // `open`: the revision step below is reached on this frame (not while a single-stroke round merely
+    // waits armed, and not before enough frames of the round have been seen)
+    r.inAir.push({ t: s.t, index: frame.index, hF, hB, u4: [u[1], u[2], u[3], u[4]], y: stroke.state().y, afterGap, open: mayRevise && r.trackedInFlight >= c.minEvidenceFrames });
     r.samples.push({ t: s.t, u4: [u[1], u[2], u[3], u[4]], neural: s.neural });
     const tr = r.trace;
     tr.t.push(round1(s.t)); tr.uF.push(+uF.toFixed(3)); tr.uB.push(+uB.toFixed(3)); tr.cy.push(+s.cy.toFixed(4));
@@ -349,7 +358,7 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
   const judge = (/** @type {ReturnType<typeof decideFinal>} */ decision, /** @type {number} */ t, /** @type {any[]} */ events) => {
     const L = r.landing;
     const judged = [...r.commits].reverse().find((k) => !k.postLanding) ?? r.commits[0];
-    const inAir = r.inAir.filter((/** @type {any} */ f) => f.index < L.frame && f.t < L.t);
+    const inAir = r.inAir.filter((/** @type {any} */ f) => f.index < L.frame); // frame order, as in land()
     const lastInAir = inAir.length ? inAir[inAir.length - 1] : null;
     const windowMs = Math.max(c.inAirWindowMs, c.inAirWindowFrames * frameDt);
     const trackedLate = inAir.filter((/** @type {any} */ f) => f.t >= L.t - windowMs).length;
@@ -418,12 +427,12 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
       else if (judged.belief && judged.belief.legalCount >= 3) code = 'GAMBLE_AMBIGUOUS';
       else if (judged.move === PAPER) code = 'ROCK_BY_ABSENCE';
       else if (judged.move === ROCK) code = 'RESOLVED_SCISSORS';
-      else code = judged.hB > 1 - R.epsB ? 'RESOLVED_PAPER' : 'SAFE_SCISSORS';
+      else code = judged.hB >= 1 - R.epsB ? 'RESOLVED_PAPER' : 'SAFE_SCISSORS';
     }
 
     const wouldBe = valid ? (() => { const p = payoff(r.behaviour.move, /** @type {0|1|2} */ (playerMove)); return p > 0 ? 'AI' : p < 0 ? 'PLAYER' : 'TIE'; })() : null;
     const result = {
-      round: r.round, verdict, valid, landingSource: L.source,
+      round: r.round, verdict, valid, landingSource: L.source, landingFrame: L.frame,
       playerMove, aiMove: judged.move,
       commits, judgedSeq: judged.pub.seq, sealOk, chainOk,
       timing: {
@@ -500,9 +509,11 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
   const pushFrame = (frame) => {
     /** @type {any[]} */ const events = [];
     if (!frame || !Number.isFinite(frame.t) || !Number.isInteger(frame.index) || frame.index < 0) return events;
+    // frames must advance in time AND in index: "before the landing" is decided by frame order (I1)
     if (lastT !== null && frame.t <= lastT) return events;
+    if (lastIndex !== null && frame.index <= lastIndex) return events;
     if (lastT !== null) { const d = frame.t - lastT; if (d > 0 && d < 250) frameDt += 0.1 * (d - frameDt); }
-    lastT = frame.t;
+    lastT = frame.t; lastIndex = frame.index;
 
     const s = frameFeatures(frame, player.calibration);
     if (s) {
@@ -686,7 +697,7 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
       if (!r.belief) return { code: 'FLIGHT_WATCHING', params: { msToLanding: ms } };
       const R = rules();
       if (r.hF >= 0.5) {
-        if (r.hB > 1 - R.epsB) return { code: 'PAPER_LIKELY', params: { msToLanding: ms } };
+        if (r.hB >= 1 - R.epsB) return { code: 'PAPER_LIKELY', params: { msToLanding: ms } };
         if (r.hB < R.epsB && r.belief.post[SCISSORS] > 0.6) return { code: 'SCISSORS_LIKELY', params: { msToLanding: ms } };
         return { code: 'ONSET_FRONT', params: { msToLanding: ms } };
       }

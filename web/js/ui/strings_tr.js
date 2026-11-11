@@ -389,7 +389,7 @@ export const T = {
   keepSr: 'Saklanır: ',
   keep1: 'Hamle ve sonuç geçmişi',
   keep2: 'Zamanlama ölçümleri: tempo, açılma başlangıcı ve süresi',
-  keep3: 'Mühür zinciri: içerik ve SHA-256 özetleri (yalnızca bu oturum; dışa aktarılabilir)',
+  keep3: 'Mühür zinciri ve bu oturumun tur sonuçları: mühür içeriği, SHA-256 özetleri, hükümler ve ölçümler (yalnızca bu oturum; dışa aktarılabilir)',
   keepNo: 'Saklanmaz: kamera görüntüsü, yüz, ham el noktaları',
   keepWhere: 'Yer: bu tarayıcının yerel deposu (localStorage).',
   keepWhereOff: 'Tarayıcı deposu kullanılamıyor: veriler yalnızca bu oturumda, bellekte tutuluyor.',
@@ -418,7 +418,7 @@ export const T = {
   gKeys: 'KLAVYE KISAYOLLARI',
   sRules: 'Hakem ayarı',
   ruleDesc: /** @type {Record<string, string>} */ ({
-    turnuva: 'El inmeden önce ölçülebilir açılma yoksa taş sayılır; YZ geçerli turda kaybetmez; geç açanlarda faul artar.',
+    turnuva: 'Ön parmaklar el inmeden önce ölçülebilir biçimde açılmadıysa yalnızca taş geçerlidir; sonradan açılan hamle fauldür ve tur tekrarlanır. Bu ayarda YZ geçerli bir turu kural gereği kaybetmez; bedeli, geç açanlarda artan faul sayısıdır.',
     standart: 'Belirsiz bölge bırakır; insan meşru biçimde kazanabilir. Dengeli eşikler.',
     serbest: 'Belirsiz bölge bırakır; insan meşru biçimde kazanabilir. En geniş tolerans, en az faul.',
   }),

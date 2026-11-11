@@ -7,12 +7,12 @@ import { makeRng } from '../web/js/core/rng.js';
 import { createRoundEngine } from '../web/js/core/round_engine.js';
 import { createStrokeTracker } from '../web/js/core/stroke.js';
 import { createMetrics } from '../web/js/core/metrics.js';
-import { learnFusionWeights } from '../web/js/core/decision.js';
+import { learnFusionWeights, foulNow, legalMassFor, chooseAction } from '../web/js/core/decision.js';
 import { frameFeatures, defaultCalibration } from '../web/js/core/kinematics.js';
 import { createPlayerModel } from '../web/js/core/player_model.js';
 import { simulateThrow } from '../web/js/sim/kinematic_player.js';
 import { createSession, runSession } from '../web/js/sim/session.js';
-import { ROCK, PAPER, SCISSORS } from '../web/js/core/constants.js';
+import { ROCK, PAPER, SCISSORS, RULES, payoff } from '../web/js/core/constants.js';
 import { minJerk } from '../web/js/core/math.js';
 import { genFrames, strokePlan, fingerPlan, absent, freshEngine, feed, FIST } from './helpers/frames.js';
 
@@ -166,13 +166,78 @@ test('metronome mode at 120 and 144 fps: a late stroke never gets a post-landing
       if (!res) continue;
       judged += 1;
       const j = judgedOf(res);
-      assert.ok(!j.postLanding && j.t < res.timing.tLanding, `${fps} fps seed ${seed}: judged seal at ${j.t}, landing ${res.timing.tLanding} (${res.landingSource})`);
-      assert.ok(res.timing.leadToLandingMs > 0);
-      for (const c of res.commits) assert.equal(c.postLanding, c.t >= res.timing.tLanding, 'post-landing flag follows the time stamp');
+      assert.ok(!j.postLanding && j.frame < res.landingFrame && j.t <= res.timing.tLanding, `${fps} fps seed ${seed}: judged seal at ${j.t} (frame ${j.frame}), landing ${res.timing.tLanding} (frame ${res.landingFrame}, ${res.landingSource})`);
+      assert.ok(res.timing.leadToLandingMs >= 0);
+      for (const c of res.commits) assert.equal(c.postLanding, c.frame >= res.landingFrame, 'the post-landing flag is the frame order');
       if (res.landingSource === 'metronome') { retro += 1; assert.ok(res.commits.some((/** @type {any} */ c) => c.postLanding) || res.commits.length === 1); }
     }
     assert.ok(judged >= 20 && retro >= 5, `${fps} fps: judged ${judged}, retroactive landings ${retro}`);
   }
+});
+
+test('metronome mode: a frame a few hundredths of a millisecond before the scheduled landing keeps its seal', () => {
+  // The seal time is rounded to 0.1 ms, the frame time is not. A frame 0.02 ms before a landing that is
+  // dated at the scheduled throw has a sealed time that rounds UP past the landing time. Flagging by
+  // time discarded that seal while the referee still read that very frame: 108 player wins in 800
+  // staged rounds. "Before the landing" is now decided by frame order alone.
+  let rounds = 0, sealsOnLast = 0;
+  /** @type {Record<string, number>} */ const c = {};
+  for (const fps of [30, 60]) for (let seed = 1; seed <= 200; seed++) {
+    const { engine } = freshEngine(seed);
+    engine.setMode({ primeBeats: 3, metronome: { periodMs: 520 } });
+    const sched = /** @type {{beatTimes:number[]}} */ (engine.armMetronome(1000.08));
+    const throwT = sched.beatTimes[3];
+    const sim = simulateThrow({ move: seed % 3 === 0 ? SCISSORS : PAPER, rng: makeRng(500 + seed), t0: 1000.5, fps, beatTimes: sched.beatTimes, still: true, style: { leadMean: 20 + (seed % 40) * 2.5, leadSd: 1 }, cfg: { leadInMs: 300, timestampJitterMs: 0 } });
+    const fr = sim.frames;
+    let k = -1;
+    for (let i = 0; i < fr.length; i++) if (fr[i].t < throwT) k = i;
+    if (k < 1 || !(throwT - 0.02 > fr[k - 1].t)) continue;
+    fr[k].t = throwT - 0.02; // the last in-air frame, 0.02 ms before the scheduled landing
+    const res = resultOf(feed(engine, fr));
+    if (!res) continue;
+    rounds += 1; c[res.verdict] = (c[res.verdict] ?? 0) + 1;
+    assert.equal(res.landingSource, 'metronome');
+    assert.equal(res.landingFrame, fr[k].index + 1, 'the landing frame is the first frame at or after the scheduled time');
+    const onLast = res.commits.filter((/** @type {any} */ x) => x.frame === fr[k].index);
+    sealsOnLast += onLast.length;
+    for (const x of onLast) assert.equal(x.postLanding, false, `seed ${seed}: a seal on the last in-air frame was discarded`);
+    if (onLast.length) assert.equal(judgedOf(res).frame, fr[k].index, 'the judged seal is the one made on the last in-air frame');
+    assert.notEqual(res.verdict, 'PLAYER', `${fps} fps seed ${seed}`);
+    assert.ok(res.timing.leadToLandingMs >= 0);
+  }
+  console.log(`  seal 0.02 ms before a scheduled landing: ${rounds} rounds ${JSON.stringify(c)}, ${sealsOnLast} seals on the last in-air frame, none discarded`);
+  assert.ok(rounds >= 300 && sealsOnLast >= 80 && (c.AI ?? 0) + (c.TIE ?? 0) >= 150);
+});
+
+test('the legal set never holds three throws under turnuva, not even at a heading of exactly one half', () => {
+  const t = RULES.turnuva;
+  for (const hF of [0, 0.25, 0.5 - Number.EPSILON, 0.5, 0.5 + Number.EPSILON, 0.75, 1, NaN]) for (const hB of [0, 0.15 - 1e-12, 0.15, 0.5, 0.85 - 1e-12, 0.85, 1, NaN]) {
+    const foul = foulNow(hF, hB, t);
+    const legal = foul.filter((f) => !f).length;
+    assert.ok(legal <= 2, `hF ${hF}, hB ${hB}: ${legal} legal throws`);
+    // so a safe move exists whenever anything is legal, and the policy takes it whatever the belief says
+    if (legal > 0) {
+      const lm = legalMassFor({ pLegal: [1e-300, 1e-300, 1e-300], pLate: 1, post: [1 / 3, 1 / 3, 1 / 3], kinLik: [1 / 3, 1 / 3, 1 / 3] }, hF, hB, t);
+      const choice = chooseAction(lm.mass, t, lm.legal);
+      assert.equal(choice.stats[choice.action].safe, true);
+      for (let y = 0; y < 3; y++) if (!foul[y]) assert.ok(payoff(/** @type {0|1|2} */ (choice.action), /** @type {0|1|2} */ (y)) >= 0, `hF ${hF}, hB ${hB}: AI ${choice.action} loses to legal ${y}`);
+    }
+  }
+  // exactly one half counts as "open": ROCK is a foul, PAPER and SCISSORS are judged on the back group
+  assert.deepEqual(foulNow(0.5, 0.5, t), [true, false, false]);
+  assert.deepEqual(foulNow(0.5 - Number.EPSILON, 0.5, t), [false, true, true]);
+});
+
+test('frames must advance in index as well as in time (frame order is what I1 rests on)', () => {
+  const { engine } = freshEngine(3);
+  const sim = simulateThrow({ move: PAPER, rng: makeRng(4), t0: 1000 });
+  // every frame is followed by a "replay" with a later time stamp but an older index: all are dropped
+  const ev = [];
+  for (const f of sim.frames) { ev.push(...engine.pushFrame(f)); ev.push(...engine.pushFrame({ ...f, t: f.t + 0.3, index: Math.max(0, f.index - 2) })); }
+  const res = resultOf(ev);
+  const clean = resultOf(feed(freshEngine(3).engine, simulateThrow({ move: PAPER, rng: makeRng(4), t0: 1000 }).frames));
+  assert.ok(res && clean);
+  assert.deepEqual([res.verdict, res.aiMove, res.timing.tLanding, res.landingFrame, res.commits.map((/** @type {any} */ x) => x.frame)], [clean.verdict, clean.aiMove, clean.timing.tLanding, clean.landingFrame, clean.commits.map((/** @type {any} */ x) => x.frame)]);
 });
 
 test('a tracking gap over the fast part of the stroke voids the round instead of judging stale or late evidence', () => {
