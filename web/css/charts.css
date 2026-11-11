@@ -1,0 +1,21 @@
+/* ==========================================================================
+   beaTTer v4 · hand-built SVG charts (laboratory)
+   ========================================================================== */
+@layer charts {
+  .chart { inline-size: 100%; max-inline-size: 21rem; block-size: auto; overflow: visible; }
+  .chart--sq { max-inline-size: 11.5rem; }
+  .chart text { font: var(--fw-medium) 12px var(--font-mono); fill: var(--c-text-2); }
+  .chart .ch-strong { fill: var(--c-text-1); font-weight: var(--fw-bold); }
+  .ch-axis { fill: none; stroke: var(--c-line-3); stroke-width: 1; }
+  .ch-grid { fill: none; stroke: var(--c-line-1); stroke-width: 1; }
+  .ch-ref { fill: none; stroke: var(--c-text-2); stroke-width: 1; stroke-dasharray: 3 3; }
+  .ch-bar { fill: var(--c-ai); }
+  .ch-bar--over { fill: var(--c-ai-tint); stroke: var(--c-ai); stroke-width: 1; stroke-dasharray: 2 2; }
+  .ch-line { fill: none; stroke: var(--c-ai); stroke-width: 1.25; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .ch-dot { fill: var(--c-ai); stroke: var(--c-surface-1); stroke-width: 2; }
+  .ch-open { fill: var(--c-surface-1); stroke: var(--c-ai); stroke-width: 1.25; }
+  .ch-ci { fill: none; stroke: var(--c-ai); stroke-width: 6; stroke-linecap: round; }
+  .ch-ci--you { stroke: var(--c-player); }
+  .ch-dot--you { fill: var(--c-player); }
+  .ch-whisk { fill: none; stroke: var(--c-ai); stroke-width: 1.25; }
+}

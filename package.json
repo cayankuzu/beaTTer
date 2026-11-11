@@ -1,0 +1,16 @@
+{
+  "name": "beatter",
+  "version": "4.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "experiments": "node experiments/run_all.mjs",
+    "serve": "python serve_web.py"
+  },
+  "description": "beaTTer: a rock-paper-scissors opponent that seals its move before the hand lands (zero-build ES modules)",
+  "license": "MIT"
+}

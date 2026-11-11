@@ -1,0 +1,80 @@
+/* ==========================================================================
+   beaTTer v4 · reset, base elements, utilities
+   ========================================================================== */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  html { font-size: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    min-block-size: 100dvh;
+    overflow: hidden;
+    background: var(--c-bg);
+    color: var(--c-text-1);
+    font: var(--fw-regular) var(--fs-15)/var(--lh-body) var(--font-ui);
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, h4, p, ol, ul, dl, dd, figure, table, fieldset, legend { margin: 0; }
+  ol, ul { padding: 0; list-style: none; }
+  fieldset { padding: 0; border: 0; min-inline-size: 0; }
+  legend { padding: 0; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { background: none; border: 0; padding: 0; cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  a { color: inherit; }
+  table { border-collapse: collapse; }
+  svg { display: block; }
+  canvas { display: block; }
+  b, strong { font-weight: var(--fw-bold); }
+  small { font-size: var(--fs-12); }
+  kbd { font-family: var(--font-mono); }
+  [hidden] { display: none !important; }
+  :focus-visible { outline: var(--bw-2) solid var(--c-focus); outline-offset: var(--sp-0); border-radius: var(--r-1); }
+  ::selection { background: var(--c-player); color: var(--c-ink); }
+
+  /* ---- utilities ---- */
+  .sr-only {
+    position: absolute; inline-size: 1px; block-size: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+  .sprite { position: absolute; inline-size: 0; block-size: 0; overflow: hidden; }
+  .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .nb { white-space: nowrap; }
+  .eyebrow {
+    font: var(--fw-medium) var(--fs-12)/var(--lh-snug) var(--font-mono);
+    letter-spacing: var(--tr-caps);
+    color: var(--c-text-3);
+  }
+  /* Icons: one stroke weight at every size (shapes carry vector-effect) */
+  .ic {
+    inline-size: 1.25rem; block-size: 1.25rem; flex: none;
+    fill: none; stroke: currentColor; stroke-width: var(--stroke-icon);
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .ic--sm { inline-size: 1rem; block-size: 1rem; }
+  .ic--lg { inline-size: 1.5rem; block-size: 1.5rem; }
+  /* Move glyphs (rock / paper / scissors): shape carries the meaning, never colour */
+  .glyph {
+    inline-size: var(--g, 1.5rem); block-size: var(--g, 1.5rem); flex: none;
+    fill: currentColor; fill-opacity: .12; stroke: currentColor; stroke-width: var(--gs, var(--stroke-icon));
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .glyph--sm { --g: 1rem; }
+  /* Role markers: player = circle, AI = diamond (shape + colour) */
+  .mk { display: inline-block; inline-size: .5rem; block-size: .5rem; flex: none; }
+  .mk--you { border-radius: var(--r-pill); background: var(--c-player); }
+  .mk--ai { background: var(--c-ai); rotate: 45deg; scale: .86; }
+  /* series pips */
+  .pip { inline-size: .875rem; block-size: .875rem; flex: none; }
+  .pip__you { fill: var(--c-player); }
+  .pip__ai { fill: var(--c-ai); }
+  .pip__now { fill: none; stroke: var(--c-text-1); stroke-width: 1.5; }
+  .pip__nowdot { fill: var(--c-text-1); }
+  .pip__todo { fill: none; stroke: var(--c-line-3); stroke-width: 1.25; }
+  .pip__draw { fill: var(--c-text-3); }
+  .scroll-y {
+    overflow-y: auto; overscroll-behavior: contain;
+    scrollbar-width: thin; scrollbar-color: var(--c-line-3) transparent;
+  }
+}

@@ -21,6 +21,24 @@ CERT_DIR = os.path.join(ROOT, ".localcert")
 CERT_FILE = os.path.join(CERT_DIR, "cert.pem")
 KEY_FILE = os.path.join(CERT_DIR, "key.pem")
 
+# Keep in sync with vercel.json (the model URLs carry ?v=..., so /models/ may be cached for long there).
+# script-src / connect-src name the one package version and the one Supabase project the app uses,
+# not the whole CDN or every project.
+CSP = (
+    "default-src 'self'; "
+    "script-src 'self' https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/ 'wasm-unsafe-eval'; "
+    "style-src 'self' https://fonts.googleapis.com; "
+    "font-src https://fonts.gstatic.com; "
+    "img-src 'self' data: blob:; "
+    "media-src 'self' blob: mediastream:; "
+    "connect-src 'self' https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/ https://znfvjfafkcahpkkcbdjc.supabase.co; "
+    "worker-src 'self' blob:; "
+    "object-src 'none'; "
+    "base-uri 'none'; "
+    "form-action 'none'; "
+    "frame-ancestors 'none'"
+)
+
 MIME_OVERRIDES = {
     ".js": "text/javascript; charset=utf-8",
     ".mjs": "text/javascript; charset=utf-8",
@@ -52,10 +70,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=DIRECTORY, **kwargs)
 
     def end_headers(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
+        # Same security headers as production (vercel.json), so policy violations show up locally.
+        self.send_header("Content-Security-Policy", CSP)
+        self.send_header("Permissions-Policy", "camera=(self), microphone=(), geolocation=()")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
-        self.send_header("Permissions-Policy", "camera=(self)")
         super().end_headers()
+
+    def do_POST(self):
+        # The app never posts to its own origin; answer quietly instead of the default 501.
+        self.send_response(404)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def log_message(self, fmt, *args):
         pass

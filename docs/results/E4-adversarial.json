@@ -1,0 +1,1745 @@
+{
+ "id": "E4-adversarial",
+ "simulated": true,
+ "generatedBy": "experiments/run_all.mjs",
+ "quick": false,
+ "description": "Feints, late throws, tracking loss and alternative round structures.",
+ "rows": [
+  {
+   "rules": "turnuva",
+   "case": "feint paper->rock, switch 150 ms before landing",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 633,
+   "W": 633,
+   "T": 0,
+   "L": 0,
+   "fouls": 87,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    99.4,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.6
+   ],
+   "attemptWinPct": 87.92,
+   "attemptWinCI": [
+    85.33,
+    90.1
+   ],
+   "noResultPct": 12.08,
+   "noResultCI": [
+    9.9,
+    14.67
+   ],
+   "foulOfAttemptsPct": 12.08,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    null,
+    null,
+    null
+   ],
+   "clearHonestFoulPct": null,
+   "clearHonestN": 0,
+   "kinematicLeadMedianMs": 33,
+   "foulPct": 12.08,
+   "foulCI": [
+    9.9,
+    14.67
+   ],
+   "leadMedianMs": 33,
+   "leadQ1Ms": 32,
+   "leadQ3Ms": 35,
+   "leadToCompletionMedianMs": null,
+   "meanProgressAtCommit": null,
+   "heldBehaviourPct": 0,
+   "sealsOk": true
+  },
+  {
+   "rules": "turnuva",
+   "case": "feint scissors->paper, switch 110 ms before landing",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 720,
+   "W": 720,
+   "T": 0,
+   "L": 0,
+   "fouls": 0,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    99.47,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.53
+   ],
+   "attemptWinPct": 100,
+   "attemptWinCI": [
+    99.47,
+    100
+   ],
+   "noResultPct": 0,
+   "noResultCI": [
+    0,
+    0.53
+   ],
+   "foulOfAttemptsPct": 0,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    null,
+    null,
+    null
+   ],
+   "clearHonestFoulPct": null,
+   "clearHonestN": 0,
+   "kinematicLeadMedianMs": 67,
+   "foulPct": 0,
+   "foulCI": [
+    0,
+    0.53
+   ],
+   "leadMedianMs": 67,
+   "leadQ1Ms": 66,
+   "leadQ3Ms": 69,
+   "leadToCompletionMedianMs": 33,
+   "meanProgressAtCommit": 0.724,
+   "heldBehaviourPct": 0,
+   "sealsOk": true
+  },
+  {
+   "rules": "turnuva",
+   "case": "feint paper->scissors, switch 150 ms before landing",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 510,
+   "W": 508,
+   "T": 2,
+   "L": 0,
+   "fouls": 210,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 99.61,
+   "winCI": [
+    98.58,
+    99.89
+   ],
+   "tiePct": 0.39,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.75
+   ],
+   "attemptWinPct": 70.56,
+   "attemptWinCI": [
+    67.12,
+    73.77
+   ],
+   "noResultPct": 29.17,
+   "noResultCI": [
+    25.96,
+    32.59
+   ],
+   "foulOfAttemptsPct": 29.17,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    null,
+    null,
+    null
+   ],
+   "clearHonestFoulPct": null,
+   "clearHonestN": 0,
+   "kinematicLeadMedianMs": 33,
+   "foulPct": 29.17,
+   "foulCI": [
+    25.96,
+    32.59
+   ],
+   "leadMedianMs": 33,
+   "leadQ1Ms": 32,
+   "leadQ3Ms": 35,
+   "leadToCompletionMedianMs": -35,
+   "meanProgressAtCommit": 0.99,
+   "heldBehaviourPct": 0,
+   "sealsOk": true
+  },
+  {
+   "rules": "turnuva",
+   "case": "feint scissors->paper, very late (60 ms)",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 474,
+   "W": 474,
+   "T": 0,
+   "L": 0,
+   "fouls": 246,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    99.2,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.8
+   ],
+   "attemptWinPct": 65.83,
+   "attemptWinCI": [
+    62.29,
+    69.21
+   ],
+   "noResultPct": 34.17,
+   "noResultCI": [
+    30.79,
+    37.71
+   ],
+   "foulOfAttemptsPct": 34.17,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    null,
+    null,
+    null
+   ],
+   "clearHonestFoulPct": null,
+   "clearHonestN": 0,
+   "kinematicLeadMedianMs": 33,
+   "foulPct": 34.17,
+   "foulCI": [
+    30.79,
+    37.71
+   ],
+   "leadMedianMs": 33,
+   "leadQ1Ms": 32,
+   "leadQ3Ms": 34,
+   "leadToCompletionMedianMs": 33,
+   "meanProgressAtCommit": 0.69,
+   "heldBehaviourPct": 0,
+   "sealsOk": true
+  },
+  {
+   "rules": "turnuva",
+   "case": "late throw: opens 100 ms after landing",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 4,
+   "W": 4,
+   "T": 0,
+   "L": 0,
+   "fouls": 716,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    51.01,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    48.99
+   ],
+   "attemptWinPct": 0.56,
+   "attemptWinCI": [
+    0.22,
+    1.42
+   ],
+   "noResultPct": 99.44,
+   "noResultCI": [
+    98.58,
+    99.78
+   ],
+   "foulOfAttemptsPct": 99.44,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    null,
+    null,
+    null
+   ],
+   "clearHonestFoulPct": null,
+   "clearHonestN": 0,
+   "kinematicLeadMedianMs": 430,
+   "foulPct": 99.44,
+   "foulCI": [
+    98.58,
+    99.78
+   ],
+   "leadMedianMs": 516,
+   "leadQ1Ms": 483,
+   "leadQ3Ms": 531,
+   "leadToCompletionMedianMs": null,
+   "meanProgressAtCommit": null,
+   "heldBehaviourPct": 75,
+   "sealsOk": true
+  },
+  {
+   "rules": "turnuva",
+   "case": "tracking drop-outs (15 % of frames)",
+   "attempts": 720,
+   "aborted": 136,
+   "judged": 584,
+   "valid": 254,
+   "W": 254,
+   "T": 0,
+   "L": 0,
+   "fouls": 36,
+   "voids": 294,
+   "voidsByKind": {
+    "noHand": 294,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    98.51,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    1.49
+   ],
+   "attemptWinPct": 35.28,
+   "attemptWinCI": [
+    31.87,
+    38.84
+   ],
+   "noResultPct": 64.72,
+   "noResultCI": [
+    61.16,
+    68.13
+   ],
+   "foulOfAttemptsPct": 5,
+   "voidOfAttemptsPct": 40.83,
+   "abortedPct": 18.89,
+   "foulByMovePct": [
+    0,
+    9.25,
+    6.25
+   ],
+   "clearHonestFoulPct": 2.04,
+   "clearHonestN": 638,
+   "kinematicLeadMedianMs": 132,
+   "foulPct": 12.41,
+   "foulCI": [
+    9.1,
+    16.71
+   ],
+   "leadMedianMs": 165,
+   "leadQ1Ms": 98,
+   "leadQ3Ms": 401,
+   "leadToCompletionMedianMs": 33,
+   "meanProgressAtCommit": 0.63,
+   "heldBehaviourPct": 15.35,
+   "sealsOk": true
+  },
+  {
+   "rules": "turnuva",
+   "case": "left hand",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 681,
+   "W": 681,
+   "T": 0,
+   "L": 0,
+   "fouls": 39,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    99.44,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.56
+   ],
+   "attemptWinPct": 94.58,
+   "attemptWinCI": [
+    92.68,
+    96.01
+   ],
+   "noResultPct": 5.42,
+   "noResultCI": [
+    3.99,
+    7.32
+   ],
+   "foulOfAttemptsPct": 5.42,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    8.87,
+    7.91
+   ],
+   "clearHonestFoulPct": 0.62,
+   "clearHonestN": 647,
+   "kinematicLeadMedianMs": 134,
+   "foulPct": 5.42,
+   "foulCI": [
+    3.99,
+    7.32
+   ],
+   "leadMedianMs": 167,
+   "leadQ1Ms": 100,
+   "leadQ3Ms": 466,
+   "leadToCompletionMedianMs": 34,
+   "meanProgressAtCommit": 0.503,
+   "heldBehaviourPct": 14.54,
+   "sealsOk": true
+  },
+  {
+   "rules": "turnuva",
+   "case": "weak throw stroke (soft landing)",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 675,
+   "W": 675,
+   "T": 0,
+   "L": 0,
+   "fouls": 45,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    99.43,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.57
+   ],
+   "attemptWinPct": 93.75,
+   "attemptWinCI": [
+    91.74,
+    95.3
+   ],
+   "noResultPct": 6.25,
+   "noResultCI": [
+    4.7,
+    8.26
+   ],
+   "foulOfAttemptsPct": 6.25,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    13.81,
+    5.31
+   ],
+   "clearHonestFoulPct": 1.72,
+   "clearHonestN": 640,
+   "kinematicLeadMedianMs": 134,
+   "foulPct": 6.25,
+   "foulCI": [
+    4.7,
+    8.26
+   ],
+   "leadMedianMs": 166,
+   "leadQ1Ms": 98,
+   "leadQ3Ms": 466,
+   "leadToCompletionMedianMs": 34,
+   "meanProgressAtCommit": 0.502,
+   "heldBehaviourPct": 14.52,
+   "sealsOk": true
+  },
+  {
+   "rules": "turnuva",
+   "case": "two priming beats",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 679,
+   "W": 679,
+   "T": 0,
+   "L": 0,
+   "fouls": 41,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    99.44,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.56
+   ],
+   "attemptWinPct": 94.31,
+   "attemptWinCI": [
+    92.37,
+    95.77
+   ],
+   "noResultPct": 5.69,
+   "noResultCI": [
+    4.23,
+    7.63
+   ],
+   "foulOfAttemptsPct": 5.69,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    11.62,
+    5.78
+   ],
+   "clearHonestFoulPct": 0.78,
+   "clearHonestN": 643,
+   "kinematicLeadMedianMs": 134,
+   "foulPct": 5.69,
+   "foulCI": [
+    4.23,
+    7.63
+   ],
+   "leadMedianMs": 166,
+   "leadQ1Ms": 100,
+   "leadQ3Ms": 464,
+   "leadToCompletionMedianMs": 34,
+   "meanProgressAtCommit": 0.506,
+   "heldBehaviourPct": 12.37,
+   "sealsOk": true
+  },
+  {
+   "rules": "turnuva",
+   "case": "single stroke",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 685,
+   "W": 685,
+   "T": 0,
+   "L": 0,
+   "fouls": 35,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    99.44,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.56
+   ],
+   "attemptWinPct": 95.14,
+   "attemptWinCI": [
+    93.31,
+    96.48
+   ],
+   "noResultPct": 4.86,
+   "noResultCI": [
+    3.52,
+    6.69
+   ],
+   "foulOfAttemptsPct": 4.86,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    7.3,
+    7.79
+   ],
+   "clearHonestFoulPct": 0.46,
+   "clearHonestN": 653,
+   "kinematicLeadMedianMs": 132,
+   "foulPct": 4.86,
+   "foulCI": [
+    3.52,
+    6.69
+   ],
+   "leadMedianMs": 134,
+   "leadQ1Ms": 100,
+   "leadQ3Ms": 167,
+   "leadToCompletionMedianMs": 34,
+   "meanProgressAtCommit": 0.514,
+   "heldBehaviourPct": 20,
+   "sealsOk": true
+  },
+  {
+   "rules": "turnuva",
+   "case": "single stroke, 3.5 s wait before the throw",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 681,
+   "W": 680,
+   "T": 1,
+   "L": 0,
+   "fouls": 39,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 99.85,
+   "winCI": [
+    99.17,
+    99.97
+   ],
+   "tiePct": 0.15,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.56
+   ],
+   "attemptWinPct": 94.44,
+   "attemptWinCI": [
+    92.52,
+    95.89
+   ],
+   "noResultPct": 5.42,
+   "noResultCI": [
+    3.99,
+    7.32
+   ],
+   "foulOfAttemptsPct": 5.42,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    11.02,
+    5.5
+   ],
+   "clearHonestFoulPct": 0.92,
+   "clearHonestN": 653,
+   "kinematicLeadMedianMs": 132,
+   "foulPct": 5.42,
+   "foulCI": [
+    3.99,
+    7.32
+   ],
+   "leadMedianMs": 134,
+   "leadQ1Ms": 100,
+   "leadQ3Ms": 168,
+   "leadToCompletionMedianMs": 34,
+   "meanProgressAtCommit": 0.484,
+   "heldBehaviourPct": 22.61,
+   "sealsOk": true
+  },
+  {
+   "rules": "turnuva",
+   "case": "single stroke, 60 fps",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 670,
+   "W": 670,
+   "T": 0,
+   "L": 0,
+   "fouls": 50,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    99.43,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.57
+   ],
+   "attemptWinPct": 93.06,
+   "attemptWinCI": [
+    90.96,
+    94.69
+   ],
+   "noResultPct": 6.94,
+   "noResultCI": [
+    5.31,
+    9.04
+   ],
+   "foulOfAttemptsPct": 6.94,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    13.14,
+    8.33
+   ],
+   "clearHonestFoulPct": 0.63,
+   "clearHonestN": 630,
+   "kinematicLeadMedianMs": 118,
+   "foulPct": 6.94,
+   "foulCI": [
+    5.31,
+    9.04
+   ],
+   "leadMedianMs": 133,
+   "leadQ1Ms": 86,
+   "leadQ3Ms": 152,
+   "leadToCompletionMedianMs": 34,
+   "meanProgressAtCommit": 0.417,
+   "heldBehaviourPct": 20.45,
+   "sealsOk": true
+  },
+  {
+   "rules": "turnuva",
+   "case": "scissors first, ring + pinky 60 ms before landing",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 319,
+   "W": 319,
+   "T": 0,
+   "L": 0,
+   "fouls": 401,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    98.81,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    1.19
+   ],
+   "attemptWinPct": 44.31,
+   "attemptWinCI": [
+    40.72,
+    47.95
+   ],
+   "noResultPct": 55.69,
+   "noResultCI": [
+    52.05,
+    59.28
+   ],
+   "foulOfAttemptsPct": 55.69,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    null,
+    null,
+    null
+   ],
+   "clearHonestFoulPct": null,
+   "clearHonestN": 0,
+   "kinematicLeadMedianMs": 33,
+   "foulPct": 55.69,
+   "foulCI": [
+    52.05,
+    59.28
+   ],
+   "leadMedianMs": 33,
+   "leadQ1Ms": 32,
+   "leadQ3Ms": 34,
+   "leadToCompletionMedianMs": 34,
+   "meanProgressAtCommit": 0.636,
+   "heldBehaviourPct": 0,
+   "sealsOk": true
+  },
+  {
+   "rules": "turnuva",
+   "case": "relaxed open hand (fingers at 75 %)",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 661,
+   "W": 659,
+   "T": 2,
+   "L": 0,
+   "fouls": 53,
+   "voids": 6,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 6,
+    "noFist": 0
+   },
+   "winPct": 99.7,
+   "winCI": [
+    98.9,
+    99.92
+   ],
+   "tiePct": 0.3,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.58
+   ],
+   "attemptWinPct": 91.53,
+   "attemptWinCI": [
+    89.27,
+    93.35
+   ],
+   "noResultPct": 8.19,
+   "noResultCI": [
+    6.41,
+    10.43
+   ],
+   "foulOfAttemptsPct": 7.36,
+   "voidOfAttemptsPct": 0.83,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    13.31,
+    8.62
+   ],
+   "clearHonestFoulPct": 1.72,
+   "clearHonestN": 638,
+   "kinematicLeadMedianMs": 133,
+   "foulPct": 7.42,
+   "foulCI": [
+    5.72,
+    9.58
+   ],
+   "leadMedianMs": 136,
+   "leadQ1Ms": 98,
+   "leadQ3Ms": 464,
+   "leadToCompletionMedianMs": 33,
+   "meanProgressAtCommit": 0.537,
+   "heldBehaviourPct": 12.56,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "feint paper->rock, switch 150 ms before landing",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 633,
+   "W": 633,
+   "T": 0,
+   "L": 0,
+   "fouls": 87,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    99.4,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.6
+   ],
+   "attemptWinPct": 87.92,
+   "attemptWinCI": [
+    85.33,
+    90.1
+   ],
+   "noResultPct": 12.08,
+   "noResultCI": [
+    9.9,
+    14.67
+   ],
+   "foulOfAttemptsPct": 12.08,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    null,
+    null,
+    null
+   ],
+   "clearHonestFoulPct": null,
+   "clearHonestN": 0,
+   "kinematicLeadMedianMs": 34,
+   "foulPct": 12.08,
+   "foulCI": [
+    9.9,
+    14.67
+   ],
+   "leadMedianMs": 34,
+   "leadQ1Ms": 32,
+   "leadQ3Ms": 35,
+   "leadToCompletionMedianMs": null,
+   "meanProgressAtCommit": null,
+   "heldBehaviourPct": 0,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "feint scissors->paper, switch 110 ms before landing",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 720,
+   "W": 720,
+   "T": 0,
+   "L": 0,
+   "fouls": 0,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    99.47,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.53
+   ],
+   "attemptWinPct": 100,
+   "attemptWinCI": [
+    99.47,
+    100
+   ],
+   "noResultPct": 0,
+   "noResultCI": [
+    0,
+    0.53
+   ],
+   "foulOfAttemptsPct": 0,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    null,
+    null,
+    null
+   ],
+   "clearHonestFoulPct": null,
+   "clearHonestN": 0,
+   "kinematicLeadMedianMs": 67,
+   "foulPct": 0,
+   "foulCI": [
+    0,
+    0.53
+   ],
+   "leadMedianMs": 67,
+   "leadQ1Ms": 66,
+   "leadQ3Ms": 70,
+   "leadToCompletionMedianMs": 33,
+   "meanProgressAtCommit": 0.699,
+   "heldBehaviourPct": 0,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "feint paper->scissors, switch 150 ms before landing",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 511,
+   "W": 510,
+   "T": 1,
+   "L": 0,
+   "fouls": 209,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 99.8,
+   "winCI": [
+    98.9,
+    99.97
+   ],
+   "tiePct": 0.2,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.75
+   ],
+   "attemptWinPct": 70.83,
+   "attemptWinCI": [
+    67.41,
+    74.04
+   ],
+   "noResultPct": 29.03,
+   "noResultCI": [
+    25.83,
+    32.45
+   ],
+   "foulOfAttemptsPct": 29.03,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    null,
+    null,
+    null
+   ],
+   "clearHonestFoulPct": null,
+   "clearHonestN": 0,
+   "kinematicLeadMedianMs": 33,
+   "foulPct": 29.03,
+   "foulCI": [
+    25.83,
+    32.45
+   ],
+   "leadMedianMs": 33,
+   "leadQ1Ms": 32,
+   "leadQ3Ms": 35,
+   "leadToCompletionMedianMs": -35,
+   "meanProgressAtCommit": 0.991,
+   "heldBehaviourPct": 0,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "feint scissors->paper, very late (60 ms)",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 532,
+   "W": 532,
+   "T": 0,
+   "L": 0,
+   "fouls": 188,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    99.28,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.72
+   ],
+   "attemptWinPct": 73.89,
+   "attemptWinCI": [
+    70.56,
+    76.96
+   ],
+   "noResultPct": 26.11,
+   "noResultCI": [
+    23.04,
+    29.44
+   ],
+   "foulOfAttemptsPct": 26.11,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    null,
+    null,
+    null
+   ],
+   "clearHonestFoulPct": null,
+   "clearHonestN": 0,
+   "kinematicLeadMedianMs": 33,
+   "foulPct": 26.11,
+   "foulCI": [
+    23.04,
+    29.44
+   ],
+   "leadMedianMs": 33,
+   "leadQ1Ms": 32,
+   "leadQ3Ms": 35,
+   "leadToCompletionMedianMs": 33,
+   "meanProgressAtCommit": 0.671,
+   "heldBehaviourPct": 0,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "late throw: opens 100 ms after landing",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 4,
+   "W": 4,
+   "T": 0,
+   "L": 0,
+   "fouls": 716,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 100,
+   "winCI": [
+    51.01,
+    100
+   ],
+   "tiePct": 0,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    48.99
+   ],
+   "attemptWinPct": 0.56,
+   "attemptWinCI": [
+    0.22,
+    1.42
+   ],
+   "noResultPct": 99.44,
+   "noResultCI": [
+    98.58,
+    99.78
+   ],
+   "foulOfAttemptsPct": 99.44,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    null,
+    null,
+    null
+   ],
+   "clearHonestFoulPct": null,
+   "clearHonestN": 0,
+   "kinematicLeadMedianMs": 430,
+   "foulPct": 99.44,
+   "foulCI": [
+    98.58,
+    99.78
+   ],
+   "leadMedianMs": 516,
+   "leadQ1Ms": 483,
+   "leadQ3Ms": 531,
+   "leadToCompletionMedianMs": null,
+   "meanProgressAtCommit": null,
+   "heldBehaviourPct": 75,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "tracking drop-outs (15 % of frames)",
+   "attempts": 720,
+   "aborted": 128,
+   "judged": 592,
+   "valid": 262,
+   "W": 261,
+   "T": 1,
+   "L": 0,
+   "fouls": 33,
+   "voids": 297,
+   "voidsByKind": {
+    "noHand": 297,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 99.62,
+   "winCI": [
+    97.87,
+    99.93
+   ],
+   "tiePct": 0.38,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    1.45
+   ],
+   "attemptWinPct": 36.25,
+   "attemptWinCI": [
+    32.82,
+    39.83
+   ],
+   "noResultPct": 63.61,
+   "noResultCI": [
+    60.03,
+    67.04
+   ],
+   "foulOfAttemptsPct": 4.58,
+   "voidOfAttemptsPct": 41.25,
+   "abortedPct": 17.78,
+   "foulByMovePct": [
+    0,
+    9.69,
+    4.78
+   ],
+   "clearHonestFoulPct": 1.88,
+   "clearHonestN": 640,
+   "kinematicLeadMedianMs": 132,
+   "foulPct": 11.19,
+   "foulCI": [
+    8.08,
+    15.29
+   ],
+   "leadMedianMs": 151,
+   "leadQ1Ms": 98,
+   "leadQ3Ms": 366,
+   "leadToCompletionMedianMs": 34,
+   "meanProgressAtCommit": 0.559,
+   "heldBehaviourPct": 15.65,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "left hand",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 689,
+   "W": 688,
+   "T": 0,
+   "L": 1,
+   "fouls": 31,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 99.85,
+   "winCI": [
+    99.18,
+    99.97
+   ],
+   "tiePct": 0,
+   "lossPct": 0.15,
+   "lossCI": [
+    0.03,
+    0.82
+   ],
+   "attemptWinPct": 95.56,
+   "attemptWinCI": [
+    93.79,
+    96.83
+   ],
+   "noResultPct": 4.31,
+   "noResultCI": [
+    3.05,
+    6.05
+   ],
+   "foulOfAttemptsPct": 4.31,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    8.7,
+    4.91
+   ],
+   "clearHonestFoulPct": 0.77,
+   "clearHonestN": 647,
+   "kinematicLeadMedianMs": 136,
+   "foulPct": 4.31,
+   "foulCI": [
+    3.05,
+    6.05
+   ],
+   "leadMedianMs": 168,
+   "leadQ1Ms": 100,
+   "leadQ3Ms": 466,
+   "leadToCompletionMedianMs": 35,
+   "meanProgressAtCommit": 0.446,
+   "heldBehaviourPct": 14.51,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "weak throw stroke (soft landing)",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 686,
+   "W": 684,
+   "T": 2,
+   "L": 0,
+   "fouls": 34,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 99.71,
+   "winCI": [
+    98.94,
+    99.92
+   ],
+   "tiePct": 0.29,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.56
+   ],
+   "attemptWinPct": 95,
+   "attemptWinCI": [
+    93.16,
+    96.37
+   ],
+   "noResultPct": 4.72,
+   "noResultCI": [
+    3.4,
+    6.53
+   ],
+   "foulOfAttemptsPct": 4.72,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    10.97,
+    3.72
+   ],
+   "clearHonestFoulPct": 1.68,
+   "clearHonestN": 654,
+   "kinematicLeadMedianMs": 136,
+   "foulPct": 4.72,
+   "foulCI": [
+    3.4,
+    6.53
+   ],
+   "leadMedianMs": 167,
+   "leadQ1Ms": 100,
+   "leadQ3Ms": 466,
+   "leadToCompletionMedianMs": 35,
+   "meanProgressAtCommit": 0.429,
+   "heldBehaviourPct": 12.68,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "two priming beats",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 685,
+   "W": 683,
+   "T": 2,
+   "L": 0,
+   "fouls": 35,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 99.71,
+   "winCI": [
+    98.94,
+    99.92
+   ],
+   "tiePct": 0.29,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.56
+   ],
+   "attemptWinPct": 94.86,
+   "attemptWinCI": [
+    93,
+    96.25
+   ],
+   "noResultPct": 4.86,
+   "noResultCI": [
+    3.52,
+    6.69
+   ],
+   "foulOfAttemptsPct": 4.86,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    10.48,
+    4.11
+   ],
+   "clearHonestFoulPct": 0.77,
+   "clearHonestN": 650,
+   "kinematicLeadMedianMs": 134,
+   "foulPct": 4.86,
+   "foulCI": [
+    3.52,
+    6.69
+   ],
+   "leadMedianMs": 166,
+   "leadQ1Ms": 101,
+   "leadQ3Ms": 464,
+   "leadToCompletionMedianMs": 34,
+   "meanProgressAtCommit": 0.454,
+   "heldBehaviourPct": 13.14,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "single stroke",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 692,
+   "W": 688,
+   "T": 4,
+   "L": 0,
+   "fouls": 28,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 99.42,
+   "winCI": [
+    98.52,
+    99.77
+   ],
+   "tiePct": 0.58,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.55
+   ],
+   "attemptWinPct": 95.56,
+   "attemptWinCI": [
+    93.79,
+    96.83
+   ],
+   "noResultPct": 3.89,
+   "noResultCI": [
+    2.7,
+    5.56
+   ],
+   "foulOfAttemptsPct": 3.89,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    7.33,
+    4.82
+   ],
+   "clearHonestFoulPct": 0.31,
+   "clearHonestN": 655,
+   "kinematicLeadMedianMs": 132,
+   "foulPct": 3.89,
+   "foulCI": [
+    2.7,
+    5.56
+   ],
+   "leadMedianMs": 134,
+   "leadQ1Ms": 100,
+   "leadQ3Ms": 169,
+   "leadToCompletionMedianMs": 34,
+   "meanProgressAtCommit": 0.441,
+   "heldBehaviourPct": 23.99,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "single stroke, 3.5 s wait before the throw",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 681,
+   "W": 680,
+   "T": 1,
+   "L": 0,
+   "fouls": 39,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 99.85,
+   "winCI": [
+    99.17,
+    99.97
+   ],
+   "tiePct": 0.15,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.56
+   ],
+   "attemptWinPct": 94.44,
+   "attemptWinCI": [
+    92.52,
+    95.89
+   ],
+   "noResultPct": 5.42,
+   "noResultCI": [
+    3.99,
+    7.32
+   ],
+   "foulOfAttemptsPct": 5.42,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    10.84,
+    5.17
+   ],
+   "clearHonestFoulPct": 0.62,
+   "clearHonestN": 647,
+   "kinematicLeadMedianMs": 132,
+   "foulPct": 5.42,
+   "foulCI": [
+    3.99,
+    7.32
+   ],
+   "leadMedianMs": 134,
+   "leadQ1Ms": 100,
+   "leadQ3Ms": 169,
+   "leadToCompletionMedianMs": 34,
+   "meanProgressAtCommit": 0.427,
+   "heldBehaviourPct": 23.49,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "single stroke, 60 fps",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 684,
+   "W": 678,
+   "T": 3,
+   "L": 3,
+   "fouls": 36,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 99.12,
+   "winCI": [
+    98.1,
+    99.6
+   ],
+   "tiePct": 0.44,
+   "lossPct": 0.44,
+   "lossCI": [
+    0.15,
+    1.28
+   ],
+   "attemptWinPct": 94.17,
+   "attemptWinCI": [
+    92.21,
+    95.66
+   ],
+   "noResultPct": 5,
+   "noResultCI": [
+    3.63,
+    6.84
+   ],
+   "foulOfAttemptsPct": 5,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    8.09,
+    7.46
+   ],
+   "clearHonestFoulPct": 0,
+   "clearHonestN": 632,
+   "kinematicLeadMedianMs": 119,
+   "foulPct": 5,
+   "foulCI": [
+    3.63,
+    6.84
+   ],
+   "leadMedianMs": 133,
+   "leadQ1Ms": 94,
+   "leadQ3Ms": 151,
+   "leadToCompletionMedianMs": 36,
+   "meanProgressAtCommit": 0.377,
+   "heldBehaviourPct": 19.59,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "scissors first, ring + pinky 60 ms before landing",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 413,
+   "W": 408,
+   "T": 0,
+   "L": 5,
+   "fouls": 307,
+   "voids": 0,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 0,
+    "noFist": 0
+   },
+   "winPct": 98.79,
+   "winCI": [
+    97.2,
+    99.48
+   ],
+   "tiePct": 0,
+   "lossPct": 1.21,
+   "lossCI": [
+    0.52,
+    2.8
+   ],
+   "attemptWinPct": 56.67,
+   "attemptWinCI": [
+    53.02,
+    60.24
+   ],
+   "noResultPct": 42.64,
+   "noResultCI": [
+    39.07,
+    46.28
+   ],
+   "foulOfAttemptsPct": 42.64,
+   "voidOfAttemptsPct": 0,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    null,
+    null,
+    null
+   ],
+   "clearHonestFoulPct": null,
+   "clearHonestN": 0,
+   "kinematicLeadMedianMs": 34,
+   "foulPct": 42.64,
+   "foulCI": [
+    39.07,
+    46.28
+   ],
+   "leadMedianMs": 34,
+   "leadQ1Ms": 32,
+   "leadQ3Ms": 35,
+   "leadToCompletionMedianMs": 35,
+   "meanProgressAtCommit": 0.611,
+   "heldBehaviourPct": 0,
+   "sealsOk": true
+  },
+  {
+   "rules": "serbest",
+   "case": "relaxed open hand (fingers at 75 %)",
+   "attempts": 720,
+   "aborted": 0,
+   "judged": 720,
+   "valid": 671,
+   "W": 663,
+   "T": 8,
+   "L": 0,
+   "fouls": 43,
+   "voids": 6,
+   "voidsByKind": {
+    "noHand": 0,
+    "unknown": 6,
+    "noFist": 0
+   },
+   "winPct": 98.81,
+   "winCI": [
+    97.67,
+    99.39
+   ],
+   "tiePct": 1.19,
+   "lossPct": 0,
+   "lossCI": [
+    0,
+    0.57
+   ],
+   "attemptWinPct": 92.08,
+   "attemptWinCI": [
+    89.88,
+    93.84
+   ],
+   "noResultPct": 6.81,
+   "noResultCI": [
+    5.19,
+    8.88
+   ],
+   "foulOfAttemptsPct": 5.97,
+   "voidOfAttemptsPct": 0.83,
+   "abortedPct": 0,
+   "foulByMovePct": [
+    0,
+    12.65,
+    5.43
+   ],
+   "clearHonestFoulPct": 1.1,
+   "clearHonestN": 637,
+   "kinematicLeadMedianMs": 133,
+   "foulPct": 6.02,
+   "foulCI": [
+    4.5,
+    8.01
+   ],
+   "leadMedianMs": 137,
+   "leadQ1Ms": 99,
+   "leadQ3Ms": 465,
+   "leadToCompletionMedianMs": 34,
+   "meanProgressAtCommit": 0.467,
+   "heldBehaviourPct": 13.71,
+   "sealsOk": true
+  }
+ ]
+}

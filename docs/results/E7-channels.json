@@ -1,0 +1,32 @@
+{
+ "id": "E7-channels",
+ "simulated": true,
+ "generatedBy": "experiments/run_all.mjs",
+ "quick": false,
+ "description": "Same rounds, two decisions: the pre-movement behavioural seal versus the judged seal.",
+ "rows": [
+  {
+   "system": "behaviour channel only (the seal made before any movement)",
+   "n": 2260,
+   "winPct": 38.58,
+   "winCI": [
+    36.6,
+    40.61
+   ],
+   "tiePct": 35.22,
+   "lossPct": 26.19
+  },
+  {
+   "system": "behaviour + kinematics (judged seal)",
+   "n": 2260,
+   "winPct": 99.96,
+   "winCI": [
+    99.75,
+    99.99
+   ],
+   "tiePct": 0.04,
+   "lossPct": 0
+  }
+ ],
+ "heldBehaviourPct": 13.05
+}

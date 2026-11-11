@@ -1,0 +1,12 @@
+# Only web/ is served (vercel.json: outputDirectory). Keep everything else out of the upload.
+legacy/
+docs/
+tests/
+experiments/
+debug_live/
+.claude/
+.localcert/
+*.py
+*.sql
+*.png
+web/_design/

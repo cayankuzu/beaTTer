@@ -1,96 +1,150 @@
-# beaTTer // Yenilmez Biyomekanik & Nöral Oyun Arenası 🦾⚡
+# beaTTer
 
-> **"İnsan beyni rastgele seçim yapamaz; gözün kırpılma süresi 250ms, yapay zekanın tendon ivmesini okuyup dijital ikizde geleceği simüle etmesi 20ms'dir."**
+beaTTer, tarayıcıda web kamerasıyla oynanan bir taş-kâğıt-makas rakibidir. Yapay zekâ, geçmiş hamlelerinden
+öğrendiği davranış modelini ve elin havadayken parmaklarının açılmaya başlamasını birleştirerek hamlesini
+**el inmeden önce** seçer, bu seçimi SHA-256 ile mühürleyip ekranda yayımlar ve tur bitince mührü açarak
+hamlesini sonradan değiştirmediğini kanıtlar. Proje aynı zamanda bir tez çalışmasıdır: önceki sürümün
+"yenilmezlik" iddiası denetlenmiş, sistem ölçülebilir ve sınanabilir dürüstlük kurallarıyla yeniden
+yazılmıştır.
 
-**beaTTer**, Tokyo Üniversitesi'nin *Janken Robot* konsepti, Zhejiang Üniversitesi bilişsel oyun teorisi deneyleri ve insan el biyomekaniğinden ilham alan; **insanlara karşı asla kaybetmeyecek şekilde tasarlanmış çift modlu yapay zeka ve dijital ikiz arenasıdır**.
+## Durum
 
----
+| | |
+|---|---|
+| Doğrulandı | 67 otomatik test (`npm test`) geçiyor: taahhüt protokolü, hakem kuralları, kinematik, dizi modeli ve uçtan uca turlar. |
+| Doğrulandı | Yedi yinelenebilir **simülasyon** deneyi (`docs/results`). Sentetik oyunculara karşı, belirtilen varsayımlar altında. |
+| Doğrulanmadı | Gerçek insan verisi yok. Canlı kamerada doğrulama (izleyici gürültüsü, hareket bulanıklığı, gecikme) yapılmadı. Arayüz kullanıcılarla sınanmadı. |
 
-## 🎮 İki Oyun Modu
+Simülasyondan iki dürüst özet (Turnuva hakem ayarı, 30 kare/s; ayrıntı için `docs/tez/06-deneyler.md`):
+geçerli turlarda yapay zekânın kaybı gözlenmedi; buna karşılık parmaklarını geç açan sentetik oyuncunun
+atışlarının %35,25'i (%95 güven aralığı 32,60–38,00) faul sayılıp tekrarlandı. Bu sayılar gerçek oyunculara
+ait değildir.
 
-### 1. ✊✌️🖐️ TAŞ - KAĞIT - MAKAS (Janken AI)
-- **360° Koordinatsız 3D Kinematik:** Eksen izdüşümü kullanmadığı için eliniz kameraya doğru bükük, yana yatık, baş aşağı (180°), ters veya 360 derece hangi açıda durursa dursun Taş, Kağıt ve Makas sıfır hata ile algılanır.
-- **-140ms Havada Erken Tendon Sezgisi & Karşı Hamle:** 4. iniş vuruşunda el henüz havadayken (%25-45 iniş fazında) parmak ekstansör ivmesi okunur, robot el hamlesini kullanıcı masaya varmadan önce fırlatır.
-- **Geç Hamle & Şaşırtma (Anti-Feint) Koruması:** Oyuncu erken inişte yumruk gösterip son salisede ani parmak açarsa yapay zekanın biyomekanik refleks katmanı hamleyi anında revize eder (%99.8 doğruluk).
-- **Kriptografik Mühürleme (#BEAT):** Hamlenin hile yapılmadan, vuruş masaya ulaşmadan milisaniyeler önce mühürlendiğini kanıtlayan FNV-1a dürüstlük mührü.
-- **Bilişsel Markov Analitiği (Win-Stay, Lose-Shift):** İnsan psikolojisinin bilişsel zaafiyetlerini Bayesyen füzyon ve Shannon entropisiyle birleştirir.
-- **Akıllı Kamera Kurtarma:** Windows Media Foundation veya donanım kilitlenmelerinde (`NotReadableError: Device in use`) tek tıkla yeniden bağlanma desteği.
+## Hızlı başlangıç
 
-### 2. 🧠🤖 MINDTWIN (Biyomekanik Zihin Okuyucu / Tek mi Çift mi Düellosu)
-- **Çift Pencereli Nöral Arayüz (Split-Screen HUD):**
-  - **Pencere 1 (Sol):** Canlı kamera, 3D eklem iskeleti, parmak fleksör/ekstansör açıları ve mikrosaniye hız türevleri.
-  - **Pencere 2 (Sağ):** Siber-Mekanik Dijital İkiz (Pre-Cognitive Cyber Hand). Kullanıcı henüz hareketini bitirmeden (+15ms), eklem ivmesinden gelecekteki el pozisyonunu hesaplar ve **kullanıcıdan 180ms önce** o pozisyona geçer!
-- **Zihin Okuyan Parite Düellosu (Tek mi Çift mi?):**
-  - Kullanıcı bahsini seçer (`TEK` veya `ÇİFT`).
-  - 1.. 2.. 3.. sayımıyla 1-5 arası parmak açarken, dijital ikiz kullanıcının açacağı parmakları saniyesinde simüle eder.
-  - AI, toplam pariteyi kendi lehine çevirecek parmak sayısını kilitler ve insan zihnini alt eder.
+```bash
+python serve_web.py
+```
 
----
+Ardından tarayıcıda `http://localhost:8000` adresini açın ve "Kamerayı aç" düğmesine basın. Kamera görüntüsü
+cihazınızdan çıkmaz.
 
-## 🌐 Canlı Web Arenası & Demo
+- **Kamerasız demo:** `http://localhost:8000/?demo=1` — sentetik bir el aynı motorla oynar; ekranda
+  "SİMÜLASYON" olarak etiketlenir, verisi saklanmaz. (`&seed=N` ile yinelenebilir, `&speed=K` ile hızlandırılmış.)
+- **Telefon ya da tablet:** sunucu aynı ağdaki cihazlar için `https://<yerel-IP>:8443` adresini de açar
+  (kamera güvenli bağlantı gerektirir; kendinden imzalı sertifika uyarısı çıkar).
 
-- **Vercel Canlı Oyun:** [https://beatter.vercel.app](https://beatter.vercel.app)
-- **Fikkis Portfolyo:** [https://fikkis.vercel.app](https://fikkis.vercel.app)
-- **GitHub Kaynak Kodu:** [https://github.com/cayankuzu/beaTTer](https://github.com/cayankuzu/beaTTer)
+## Bir tur nasıl işler?
 
----
+1. Yumruğunu kameraya göster ve ritimle salla: "taş – kâğıt – makas". Yapay zekâ bu sırada yalnızca geçmiş
+   hamlelerine bakarak ilk kararını verir ve mühürler; özetin ilk sekiz hanesi ekranda görünür.
+2. Dördüncü vuruşta ("vur!") hamleni **el havadayken** aç. Yapay zekâ parmaklarının açılmaya başlamasını
+   izler; kanıt değişirse mührünü yeniler. Her yenileme yeni bir mühürdür ve hiçbiri silinmez.
+3. Elin indiği andan itibaren yapay zekâ mühür atamaz. İnen şekil senin hamlendir; mühürler açılır ve
+   doğrulanır.
+4. Tur raporu kararın inişten kaç milisaniye önce verildiğini, o anda hamlenin ne kadarının oluşmuş
+   olduğunu, bütün mühürleri ve "kendin doğrula" aracını gösterir.
 
-## ⚡ Temel Yetenekler & Teknolojik Altyapı
+**Geç hamle kuralı.** Şekil el inmeden önce havada oluşmalıdır. El indikten sonra açılan ya da kapanan
+parmaklar geç hamledir: tur faul sayılır, skora işlenmez ve tekrar oynanır. İnişte yumruk olan elin Taş
+sayılması için yumruğun inişten sonra 250 ms kapalı kalması gerekir. Hakem yalnızca inişten önceki parmak
+hareketine ve inen şekle bakar; yapay zekânın neyi mühürlediğine bakmaz.
 
-1. **360° Koordinatsız 3D Kinematik Motoru:**
-   - 3D Öklid Kiriş Oranları ($R_{chord}$), Bilek Göreceli Mesafesi ve 3D Eklem Açı Kosinüsleri ile çalışır.
-2. **Pre-Cognitive Cybernetic Digital Twin (MINDTWIN):**
-   - 5 parmak için bağımsız servo motor açıları, hidrolik pistonlar ve neon enerji hatlarıyla kullanıcının niyetini anında canlandıran 60 FPS Canvas motoru.
-3. **5 Turluk Seri Formatı (Best of 5 Series):**
-   - Her iki oyunda da turn-by-turn geçmişi ve seri şampiyonluk dökümü.
-4. **Donanımsal Robot Kol Entegrasyonu (Arduino):**
-   - İsteğe bağlı olarak 5 servolu fiziksel bir robotik ele (`arduino/beatter_arm.ino`) anlık hamle sinyali gönderebilir.
+Ritim serbest (sen sallarsın) ya da metronomlu olabilir; hazırlık vuruşu sayısı 3, 2 ya da 0'dır (tek atış).
+İkinci bir kip olan MindTwin skor tutmaz: parmak açıklığının 120 ms sonrasını öngörür ve bu öngörünün
+ölçülen başarısını gösterir.
 
----
+## Hakem ayarları
 
-## 📁 Proje Dizin Yapısı
+| Ayar | Ön parmak eşiği | Arka parmak eşiği | Anlamı |
+|---|---|---|---|
+| Turnuva (varsayılan) | 0,50 | 0,15 | Ön parmaklar inişten önce ya "ölçülebilir biçimde açılmıştır" ya da "açılmamıştır"; belirsiz bölge yoktur. Bu ayarda, tezde yazılı koşullar altında, yapay zekâ geçerli turları kaybetmez; bedeli geç açanlarda artan faul oranıdır. |
+| Standart | 0,15 | 0,10 | Belirsiz bir bölge bırakır; insan meşru biçimde kazanabilir. |
+| Serbest | 0,03 | 0,03 | En geniş belirsiz bölge. |
+
+Eşik, hakemin "parmak grubu şu ana kadar ölçülebilir biçimde açıldı" olasılığı üzerindedir; tanımı ve
+kaybetmeme teoremi `docs/tez/04-yontem.md` Bölüm 4.4 ve 4.7'dedir.
+
+## Proje düzeni
 
 ```
 beaTTer/
-├── web/                      # Vercel Web & Mobil İstemcisi
-│   ├── index.html            # Web Arenası Arayüzü
-│   ├── style.css             # Responsive Cyberpunk Teması
-│   ├── app.js                # MediaPipe Tasks + 3D Kinematik + Markov Motoru
-│   └── gesture_recognizer.task # Google Edge AI Derin Öğrenme Modeli
-├── core/
-│   ├── classifier.py         # 21 eklem geometrik sınıflandırıcısı
-│   ├── psychological.py      # Biyometrik profil & Markov Zincirleri
-│   ├── vision.py             # MediaPipe Tasks HandLandmarker
-│   ├── anti_cheat.py         # Hile ve gecikme tespit motoru
-│   └── game_state.py         # Durum makinesi & alaycı replikler
-├── ui/                       # OpenCV Masaüstü HUD
-│   ├── overlay.py            # Can barları, retikül, telemetri
-│   ├── robot_hand.py         # Holografik robot el çizim motoru
-│   └── sound.py              # Prosedürel sentezlenen ses efektleri
-├── arduino/
-│   └── beatter_arm.ino       # 5 Servolu Robot Kol için Arduino Firmware kodu
-├── tests/                    # Otomatik Testler (Playwright + Unit Tests)
-├── serve_telemetry.py        # Canlı telemetri & görüntü izleme sunucusu
-├── main.py                   # PC Masaüstü Çalıştırıcısı
-└── vercel.json               # Vercel Dağıtım Yapılandırması
+├── web/                       # Yayımlanan uygulama (derleme adımı yok, ES modülleri)
+│   ├── index.html
+│   ├── css/                   # tasarım belirteçleri ve biçemler
+│   ├── models/                # el izleme ve yüz saptama modelleri
+│   └── js/
+│       ├── core/              # saf bilim çekirdeği: kinematik, ritim, açılma dedektörü, karar,
+│       │   └── sequence/      #   taahhüt kaydı, tur motoru ve hakem; davranış dizi modeli
+│       ├── sim/               # sentetik el ve davranış oyuncuları (testler, deneyler, demo)
+│       ├── platform/          # kamera, el izleyici, ses, yerel depo, isteğe bağlı bulut
+│       ├── app/               # denetleyici, kare kaynakları, durum deposu
+│       └── ui/                # görünümler ve bütün Türkçe metinler
+├── tests/                     # node:test ile 67 test
+├── experiments/run_all.mjs    # yinelenebilir simülasyon deneyleri
+├── docs/
+│   ├── tez/                   # tez metni
+│   ├── results/               # deneylerin ham sayıları (JSON)
+│   └── figures/               # şekiller (SVG)
+├── legacy/desktop-prototype/  # ilk OpenCV/Arduino masaüstü prototipi (bakımı yapılmıyor)
+├── serve_web.py               # yerel / yerel ağ sunucusu
+├── supabase_schema.sql        # isteğe bağlı bulut tabloları ve sıkılaştırma bölümü
+└── vercel.json                # dağıtım yapılandırması ve güvenlik başlıkları
 ```
 
----
+## Testler ve deneyler
 
-## 🎮 Nasıl Oynanır?
+Gereksinim: Node.js 20 ya da üzeri; dış paket gerekmez.
 
-1. Elinizi yumruk (**Taş**) yapın ve kameranın karşısına geçin.
-2. Doğal bir ritimle elinizi yukarı aşağı sallayın:
-   - **1. Salınım:** "1. TAŞ"
-   - **2. Salınım:** "2. KAĞIT"
-   - **3. Salınım:** "3. MAKAS"
-3. **4. vuruşta** elinizi istediğiniz hamleye açarak vurun!
-4. 5 tur boyunca yapay zekanın hamlelerinizi nasıl saliseler öncesinden okuduğunu görün.
+```bash
+npm test                               # 67 test
+node experiments/run_all.mjs           # bütün deneyler; docs/results ve docs/figures yeniden üretilir
+node experiments/run_all.mjs --quick   # hızlı deneme (tezdeki sayıları vermez)
+```
 
----
+Deneyler tohumlu üreteç kullanır. Ürettikleri her sayı sentetik oyunculara aittir ve dosyalarda
+`"simulated": true` olarak işaretlidir.
 
-## 📜 Lisans & Yapımcı
+## Tez
 
-Geliştirici: **Çayan Kuzu**  
-Portfolyo: [https://fikkis.vercel.app](https://fikkis.vercel.app)  
+Tam metin [`docs/tez/`](docs/tez/README.md) klasöründedir:
+[özet](docs/tez/00-ozet.md) ·
+[giriş](docs/tez/01-giris.md) ·
+[ilgili çalışmalar](docs/tez/02-literatur.md) ·
+[problem tanımı](docs/tez/03-problem-tanimi.md) ·
+[yöntem](docs/tez/04-yontem.md) ·
+[önceki sürümün denetimi](docs/tez/05a-onceki-surum-denetimi.md) ·
+[mimari](docs/tez/05-mimari.md) ·
+[deneyler](docs/tez/06-deneyler.md) ·
+[arayüz](docs/tez/07-arayuz.md) ·
+[tartışma](docs/tez/08-tartisma.md) ·
+[sonuç](docs/tez/09-sonuc.md) ·
+[kaynakça](docs/tez/kaynakca.md) ·
+[ekler](docs/tez/ekler.md)
+
+## Gizlilik
+
+- Kamera kareleri ve el noktaları yalnızca tarayıcıda işlenir; saklanmaz ve gönderilmez. Kamera görüntüsünde
+  yüz varsayılan olarak bulanıklaştırılır.
+- Tarayıcının yerel deposunda yalnızca hamle geçmişi, zamanlama istatistikleri ve ayarlar tutulur;
+  "Laboratuvar → Veri ve gizlilik" bölümünden dışa aktarılabilir ya da silinebilir. Demo verisi saklanmaz.
+- **Anonim istatistik eşitleme varsayılan olarak kapalıdır.** Açılırsa yalnızca geçerli turların hamleleri,
+  sonucu ve ölçülen zamanlamaları rastgele bir kimlikle gönderilir.
+- Üçüncü taraf istekleri: el izleme kitaplığı `cdn.jsdelivr.net`'ten, yazı tipleri Google Fonts'tan yüklenir.
+- Bulut eşitlemeyi kendi Supabase projenizde kullanacaksanız `supabase_schema.sql` dosyasının sonundaki
+  sıkılaştırma bölümünü uygulayın; dosyanın ilk bölümündeki ilkeler herkese açık anahtarla bütün satırların
+  okunup değiştirilmesine izin verir.
+
+## Dağıtım
+
+Uygulama durağan dosyalardan oluşur. Vercel yapılandırması `vercel.json` içindedir: `outputDirectory` değeri
+`web`'dir; İçerik Güvenlik İlkesi, İzin İlkesi (`camera=(self)`) ve önbellek başlıkları aynı dosyada
+tanımlıdır. Depo Vercel'e bağlıysa ana dala yapılan gönderimler yayına alınır; elle dağıtım için depo
+kökünde `vercel --prod` kullanılabilir.
+
+Yayın adresi: <https://beatter.vercel.app> · Kaynak kod: <https://github.com/cayankuzu/beaTTer>
+
+## Lisans ve yazar
+
+Geliştirici: **Çayan Kuzu** · Portfolyo: <https://fikkis.vercel.app>
 Lisans: MIT

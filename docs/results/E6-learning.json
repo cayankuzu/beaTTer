@@ -1,0 +1,54 @@
+{
+ "id": "E6-learning",
+ "simulated": true,
+ "generatedBy": "experiments/run_all.mjs",
+ "quick": false,
+ "description": "Median decision lead (valid rounds, blocks of 15) as the per-player onset prior is learned; prior before learning: 170 ms.",
+ "curves": [
+  {
+   "style": "early",
+   "roundsPerBlock": 15,
+   "medianLeadMsByBlock": [
+    233,
+    234,
+    265,
+    236,
+    232,
+    267,
+    264,
+    266
+   ],
+   "learnedOnsetLeadMs": 280
+  },
+  {
+   "style": "normal",
+   "roundsPerBlock": 15,
+   "medianLeadMsByBlock": [
+    135,
+    136,
+    198,
+    166,
+    167,
+    164,
+    168,
+    166
+   ],
+   "learnedOnsetLeadMs": 199
+  },
+  {
+   "style": "late",
+   "roundsPerBlock": 15,
+   "medianLeadMsByBlock": [
+    400,
+    101,
+    101,
+    117,
+    117,
+    431,
+    117,
+    100
+   ],
+   "learnedOnsetLeadMs": 126
+  }
+ ]
+}

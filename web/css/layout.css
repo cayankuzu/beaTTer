@@ -1,0 +1,277 @@
+/* ==========================================================================
+   beaTTer v4 · page frame: shell, top bar, arena, console, dialog layer
+   Reference viewports:
+     1440x900, 1280x720   two stages side by side, console in one band
+     1024x768             same, narrower AI stage
+     834x1112             stages stacked, console in three rows
+     390x844, 360x740     two-row top bar, compact stages, full-screen sheets
+     844x390              compact stages, two-row console, full-screen sheets
+   The arena never scrolls; sheets and panels scroll internally.
+   ========================================================================== */
+@layer layout {
+  /* ---- app shell ---- */
+  .app {
+    position: fixed; inset: 0; z-index: var(--z-shell);
+    block-size: 100vh; block-size: 100dvh;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: var(--gap-app);
+    padding-block-end: max(var(--gap-app), env(safe-area-inset-bottom));
+    isolation: isolate;
+  }
+
+  /* ---- top bar ---- */
+  .topbar {
+    display: flex; align-items: center; gap: var(--sp-4);
+    min-block-size: var(--topbar-h);
+    padding-inline: max(var(--sp-4), env(safe-area-inset-left)) max(var(--sp-3), env(safe-area-inset-right));
+    border-block-end: var(--bw-1) solid var(--c-line-2);
+    background: var(--c-surface-1);
+    min-inline-size: 0;
+  }
+  .wordmark {
+    display: inline-flex; align-items: center; min-block-size: var(--hit); flex: none;
+    font: var(--fw-black) var(--fs-22)/var(--lh-flat) var(--font-ui);
+    letter-spacing: var(--tr-tight);
+  }
+  .wordmark__you { color: var(--c-player); }
+  .wordmark__ai { color: var(--c-ai); }
+
+  .modes { display: flex; align-self: stretch; gap: var(--sp-1); flex: none; }
+  .modes__tab {
+    position: relative;
+    display: inline-flex; align-items: center;
+    min-block-size: var(--hit); padding-inline: var(--sp-3);
+    font: var(--fw-medium) var(--fs-15)/var(--lh-flat) var(--font-ui);
+    color: var(--c-text-2); white-space: nowrap;
+  }
+  .modes__tab::after {
+    content: ""; position: absolute; inset-inline: var(--sp-3); inset-block-end: 0;
+    block-size: var(--bw-2); background: transparent;
+  }
+  .modes__tab:hover { color: var(--c-text-1); }
+  .modes__tab:focus-visible { outline-offset: calc(-1 * var(--sp-1)); }
+  .modes__tab[aria-selected="true"] { color: var(--c-text-1); font-weight: var(--fw-bold); }
+  .modes__tab[aria-selected="true"]::after { background: var(--c-text-1); }
+
+  .series {
+    margin-inline: auto; flex: none;
+    display: flex; align-items: center; gap: var(--sp-3);
+    white-space: nowrap;
+  }
+  .series__round { font: var(--fw-medium) var(--fs-12)/var(--lh-flat) var(--font-mono); letter-spacing: var(--tr-caps); color: var(--c-text-3); }
+  .pips { display: flex; align-items: center; gap: var(--sp-15); min-inline-size: 0; }
+  .pips > li { display: flex; }
+  .pips--dense { gap: var(--sp-1); }
+  .pips--dense .pip { inline-size: .625rem; block-size: .625rem; }
+  .series__score {
+    display: inline-flex; align-items: center; gap: var(--sp-2);
+    font: var(--fw-bold) var(--fs-18)/var(--lh-flat) var(--font-mono);
+  }
+  .series__who {
+    display: inline-flex; align-items: center; gap: var(--sp-15);
+    font: var(--fw-bold) var(--fs-12)/var(--lh-flat) var(--font-ui);
+    letter-spacing: var(--tr-caps);
+  }
+  .series__who--you { color: var(--c-player); }
+  .series__who--ai { color: var(--c-ai); }
+  .series__dash { color: var(--c-text-3); font-weight: var(--fw-regular); }
+  .topbar__spacer { margin-inline: auto; }
+
+  .status {
+    display: inline-flex; align-items: center; gap: var(--sp-15); flex: none;
+    min-block-size: var(--chip-h); padding-inline: var(--sp-2);
+    border: var(--bw-1) solid var(--c-line-2); border-radius: var(--r-1);
+    font: var(--fw-medium) var(--fs-12)/var(--lh-flat) var(--font-mono);
+    letter-spacing: var(--tr-chip); color: var(--c-text-2); white-space: nowrap;
+  }
+  .status[data-tone="warn"] { border-color: var(--c-warn); color: var(--c-warn-ink); }
+  .status[data-tone="ok"] { border-color: var(--c-seal); color: var(--c-seal-ink); }
+  .status[data-tone="sim"] { border-color: var(--c-sim); color: var(--c-sim); }
+
+  .tools { display: flex; align-items: center; gap: var(--sp-0); flex: none; }
+
+  /* ---- arena ---- */
+  .arena {
+    display: grid;
+    grid-template-columns: minmax(0, 1.06fr) minmax(0, 1fr);
+    gap: var(--gap-app);
+    min-block-size: 0; min-inline-size: 0;
+    padding-inline: max(var(--pad-app), env(safe-area-inset-left)) max(var(--pad-app), env(safe-area-inset-right));
+  }
+  .arena:focus { outline: none; }
+  .stage {
+    position: relative; min-inline-size: 0; min-block-size: 0; overflow: hidden;
+    border: var(--bw-1) solid var(--c-line-2); border-radius: var(--r-2);
+    background-color: var(--c-surface-1);
+    container: stage / size;
+  }
+  /* crosshair corners, as on a measuring reticle */
+  .stage::after {
+    --k: linear-gradient(var(--c-line-3), var(--c-line-3));
+    content: ""; position: absolute; inset: var(--sp-1); z-index: 4; pointer-events: none;
+    background:
+      var(--k) left top / var(--tick) var(--bw-1), var(--k) left top / var(--bw-1) var(--tick),
+      var(--k) right top / var(--tick) var(--bw-1), var(--k) right top / var(--bw-1) var(--tick),
+      var(--k) left bottom / var(--tick) var(--bw-1), var(--k) left bottom / var(--bw-1) var(--tick),
+      var(--k) right bottom / var(--tick) var(--bw-1), var(--k) right bottom / var(--bw-1) var(--tick);
+    background-repeat: no-repeat;
+  }
+
+  /* ---- console ---- */
+  .console {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "beats scope action" "tempo thought action";
+    gap: var(--sp-2) var(--sp-4);
+    margin-inline: max(var(--pad-app), env(safe-area-inset-left)) max(var(--pad-app), env(safe-area-inset-right));
+    padding: var(--sp-3);
+    border: var(--bw-1) solid var(--c-line-2); border-radius: var(--r-2);
+    background: var(--c-surface-1);
+    min-inline-size: 0;
+  }
+  .beats { grid-area: beats; }
+  .tempo { grid-area: tempo; }
+  .scope { grid-area: scope; }
+  .thought { grid-area: thought; }
+  .console__action { grid-area: action; }
+  .console--twin { grid-template-columns: minmax(0, 1fr); grid-template-areas: "twin" "thought"; }
+  .twinbars { grid-area: twin; }
+
+  /* ---- dialog layer (report sheet, lab, settings, onboarding, rules, series) ---- */
+  .layer { position: fixed; inset: 0; z-index: var(--z-dialog); pointer-events: none; }
+  .dlg {
+    position: absolute; inset: 0; pointer-events: auto;
+    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
+    background: var(--c-scrim);
+    padding-block-start: env(safe-area-inset-top);
+  }
+  .dlg--sheet { align-items: end; justify-items: center; }
+  .dlg--drawer { justify-items: end; }
+  .dlg--modal { place-items: center; padding: var(--sp-4); }
+  .dlg--modal.dlg--dots {
+    background-color: var(--c-bg);
+    background-image: radial-gradient(circle at var(--bw-1) var(--bw-1), var(--c-line-1) var(--bw-1), transparent var(--bw-15));
+    background-size: var(--grid) var(--grid);
+  }
+
+  .sheet {
+    inline-size: min(72rem, 100% - 2 * var(--sp-5));
+    max-block-size: calc(100% - var(--sp-5)); min-block-size: 0;
+    display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr);
+    border: var(--bw-1) solid var(--c-line-3); border-block-end: 0;
+    border-radius: var(--r-4) var(--r-4) 0 0;
+    background: var(--c-surface-1);        /* opaque: nothing of the arena shows through */
+    box-shadow: var(--shadow-sheet);
+    isolation: isolate;
+  }
+  .drawer {
+    block-size: 100%; min-block-size: 0; inline-size: min(100%, 30rem);
+    display: grid; grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr);
+    border-inline-start: var(--bw-1) solid var(--c-line-3);
+    background: var(--c-bg);
+    box-shadow: var(--shadow-drawer);
+  }
+  .drawer--wide { inline-size: min(100%, 88rem); }
+  .modal {
+    inline-size: min(100%, 35rem); max-block-size: 100%; min-block-size: 0;
+    display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr);
+    border: var(--bw-1) solid var(--c-line-3); border-radius: var(--r-3);
+    background: var(--c-surface-1);
+    box-shadow: 0 1.5rem 4rem var(--c-shadow);
+  }
+  .modal--wide { inline-size: min(100%, 44rem); }
+
+  .toasts {
+    position: fixed; z-index: var(--z-toast); pointer-events: none;
+    inset-inline: 0; inset-block-start: calc(var(--topbar-h) + var(--sp-2) + env(safe-area-inset-top));
+    display: grid; justify-items: center; padding-inline: var(--sp-3);
+  }
+
+  /* ---- responsive page frame ---- */
+  /* the status chip keeps its text only on wide screens; below that it is an icon with a title */
+  @media (max-width: 87.49rem) {
+    .status__txt { display: none; }
+    .status { padding-inline: var(--sp-1); border-color: transparent; }
+    .status[data-tone] { border-color: transparent; }
+  }
+  @media (max-width: 80rem) {
+    .tools__label, .series__round { display: none; }
+  }
+  @media (max-width: 68.75rem) {
+    .topbar { gap: var(--sp-3); }
+  }
+  /* below 1024px: the series stacks (score over pips) so the top bar keeps one row */
+  @media (max-width: 63.99rem) {
+    .topbar { gap: var(--sp-2); }
+    .wordmark { font-size: var(--fs-18); }
+    .modes__tab { padding-inline: var(--sp-2); }
+    .modes__tab::after { inset-inline: var(--sp-2); }
+    .series { flex-direction: column-reverse; align-items: center; gap: var(--sp-1); }
+    .series__score { font-size: var(--fs-15); }
+    .pip { inline-size: .625rem; block-size: .625rem; }
+  }
+  /* portrait: stack the two stages, console in rows */
+  @media (orientation: portrait) {
+    .arena { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.25fr) minmax(0, 1fr); }
+    .console { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "beats tempo action" "scope scope scope" "thought thought thought"; }
+    .console--twin { grid-template-columns: minmax(0, 1fr); grid-template-areas: "twin" "thought"; }
+  }
+  /* portrait below 832px: the top bar takes two rows (brand + tools, then modes + series) */
+  @media (orientation: portrait) and (max-width: 51.99rem) {
+    .topbar { flex-wrap: wrap; gap: 0 var(--sp-2); min-block-size: 0; padding-inline: var(--sp-3) var(--sp-1); }
+    .wordmark { margin-inline-end: auto; }
+    .tools { order: 1; }
+    .modes { order: 2; margin-inline-start: calc(-1 * var(--sp-2)); }
+    .status { order: 3; margin-inline-start: auto; padding-inline: 0; border: 0; }
+    .series { order: 4; margin-inline: 0; align-items: flex-end; }
+    .topbar__spacer { display: none; }
+  }
+  /* phones, portrait */
+  @media (orientation: portrait) and (max-width: 37.5rem) {
+    .modes__tab { font-size: var(--fs-13); }
+    .arena { grid-template-rows: minmax(0, 1fr) minmax(0, 1.12fr); }
+    .console { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "beats beats" "scope scope" "thought thought" "tempo action"; gap: var(--sp-2); padding: var(--sp-2); }
+    .console--twin { grid-template-columns: minmax(0, 1fr); grid-template-areas: "twin" "thought"; }
+  }
+  /* phones, landscape */
+  @media (orientation: landscape) and (max-height: 30rem) {
+    .topbar { gap: var(--sp-2); }
+    .wordmark { font-size: var(--fs-18); }
+    .modes__tab { padding-inline: var(--sp-2); font-size: var(--fs-13); }
+    .modes__tab::after { inset-inline: var(--sp-2); }
+    .console { grid-template-areas: "beats scope action" "tempo thought thought"; gap: var(--sp-1) var(--sp-3); padding: var(--sp-15) var(--sp-2); }
+    .console--twin { grid-template-columns: minmax(0, 1fr); grid-template-areas: "twin" "thought"; }
+  }
+  @media (orientation: landscape) and (max-width: 56rem) {
+    .pips { display: none; }
+    .modes__tab { font-size: var(--fs-13); }
+  }
+  /* small landscape phones (e.g. 667x375, 568x320): both mode tabs stay reachable; the wordmark and the
+     score captions give way first */
+  @media (orientation: landscape) and (max-width: 45.99rem) {
+    .wordmark, .series__whotxt { display: none; }
+    .topbar { padding-inline-start: var(--sp-2); gap: var(--sp-1); }
+    .series { gap: var(--sp-2); }
+    .modes__tab { padding-inline: var(--sp-15); }
+    .modes__tab::after { inset-inline: var(--sp-15); }
+  }
+  @media (orientation: portrait) and (max-width: 37.5rem) {
+    .pips--dense { gap: var(--sp-0); }
+    .pips--dense .pip { inline-size: .5rem; block-size: .5rem; }
+  }
+  @media (max-width: 23.75rem) {
+    .wordmark { font-size: var(--fs-18); }
+    .series__whotxt { display: none; }
+  }
+
+  /* sheets and panels become full-screen on phones (either orientation) */
+  @media (max-width: 37.5rem), (orientation: landscape) and (max-height: 30rem) {
+    .dlg { background: var(--c-bg); }
+    .dlg--modal { padding: 0; }
+    .sheet { inline-size: 100%; block-size: 100%; max-block-size: none; border: 0; border-radius: 0; box-shadow: none; }
+    .drawer, .drawer--wide { inline-size: 100%; border: 0; box-shadow: none; }
+    .modal, .modal--wide { inline-size: 100%; block-size: 100%; border: 0; border-radius: 0; box-shadow: none; }
+  }
+}

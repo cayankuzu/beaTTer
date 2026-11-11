@@ -1,128 +1,233 @@
 -- ============================================================================
--- beaTTer // Autonomous Cognitive AI & Swarm Telemetry Database Schema
--- Supabase Project Ref: znfvjfafkcahpkkcbdjc
+-- beaTTer v4 — optional, anonymous statistics store (Supabase / PostgreSQL)
+-- Project ref: znfvjfafkcahpkkcbdjc
+--
+-- HOW TO APPLY: paste the whole file into the Supabase SQL editor and run it.
+-- It is idempotent and safe on an existing v3 database (no table is dropped).
+--
+-- Design
+-- ------
+-- The browser ships a PUBLIC anon key: whoever opens the page can use it. The
+-- database is therefore the only protection, and the rule is simple:
+--
+--     the anon role can do exactly ONE thing: call beatter_push_round().
+--
+-- It cannot read, change or delete any table. The function validates every
+-- field, writes one telemetry row and keeps the profile counters monotone.
+-- Nothing is ever read back by the application.
+--
+-- What is stored (only for valid rounds of real players who opted in):
+--   moves, outcome, the measured decision lead, two measured kinematic scalars,
+--   the belief's confidence when a kinematic prediction was made, the SHA-256
+--   of the judged seal, the explanation code, and round counters.
+-- Never stored: camera frames, landmarks, nonces, anything from the demo.
+-- Unknown measurements are NULL - never a made-up 0.
+--
+-- Known limit: a write-only anonymous endpoint can be spammed by anyone who
+-- reads the page source. The checks below bound the size and the values of a
+-- row; if abuse appears, add Supabase rate limiting in front of the function.
 -- ============================================================================
 
--- 1. Enable UUID Extension if not present
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- 2. Player Profiles Table: Long-term player recognition, habit memory & Markov models
+-- ---------------------------------------------------------------- 1. tables
 CREATE TABLE IF NOT EXISTS public.player_profiles (
-    id TEXT PRIMARY KEY,                       -- Unique player fingerprint (UUID / device FP)
-    player_tag TEXT NOT NULL DEFAULT 'Oyuncu', -- Display name or auto-generated badge (#8821)
-    hand_geometry_ratio FLOAT DEFAULT 0.0,    -- Anatomical palm/finger ratio for physical ID
+    id TEXT PRIMARY KEY,                       -- random anonymous id generated in the browser
+    player_tag TEXT NOT NULL DEFAULT 'Oyuncu',
+    hand_geometry_ratio FLOAT DEFAULT 0.0,     -- v3 legacy, unused by v4
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     last_seen_at TIMESTAMPTZ DEFAULT NOW(),
-    total_games INT DEFAULT 0,
-    total_wins INT DEFAULT 0,                 -- Human wins
-    total_losses INT DEFAULT 0,               -- AI wins
+    total_games INT DEFAULT 0,                 -- valid rounds
+    total_wins INT DEFAULT 0,                  -- human wins
+    total_losses INT DEFAULT 0,                -- AI wins
     total_ties INT DEFAULT 0,
-    rock_freq INT DEFAULT 0,
+    rock_freq INT DEFAULT 0,                   -- v3 legacy columns below, unused by v4
     paper_freq INT DEFAULT 0,
     scissors_freq INT DEFAULT 0,
     feint_count INT DEFAULT 0,
     feint_rate FLOAT DEFAULT 0.0,
     wsls_stay_win_rate FLOAT DEFAULT 0.50,
     wsls_shift_loss_rate FLOAT DEFAULT 0.75,
-    markov_matrix JSONB DEFAULT '{
-        "ROCK": {"ROCK": 0.33, "PAPER": 0.34, "SCISSORS": 0.33},
-        "PAPER": {"ROCK": 0.33, "PAPER": 0.33, "SCISSORS": 0.34},
-        "SCISSORS": {"ROCK": 0.34, "PAPER": 0.33, "SCISSORS": 0.33}
-    }'::jsonb,
-    q_weights JSONB DEFAULT '{
-        "OPENING": {"ROCK": 0.0, "PAPER": 0.0, "SCISSORS": 0.0},
-        "AFTER_WIN": {"ROCK": 0.0, "PAPER": 0.0, "SCISSORS": 0.0},
-        "AFTER_LOSS": {"ROCK": 0.0, "PAPER": 0.0, "SCISSORS": 0.0},
-        "AFTER_TIE": {"ROCK": 0.0, "PAPER": 0.0, "SCISSORS": 0.0},
-        "FEINT_DEFENSE": {"ROCK": 0.0, "PAPER": 0.0, "SCISSORS": 0.0}
-    }'::jsonb,
+    markov_matrix JSONB DEFAULT '{}'::jsonb,
+    q_weights JSONB DEFAULT '{}'::jsonb,
     lessons_learned JSONB DEFAULT '[]'::jsonb
 );
 
--- 3. Match Telemetry Table: Detailed per-round clash forensics & cryptographic audit trail
 CREATE TABLE IF NOT EXISTS public.match_telemetry (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     player_id TEXT REFERENCES public.player_profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    game_mode TEXT NOT NULL DEFAULT 'rps',    -- 'rps' or 'mindtwin'
+    game_mode TEXT NOT NULL DEFAULT 'rps',
     series_id TEXT,
     round_number INT NOT NULL,
     player_move TEXT NOT NULL,
     ai_move TEXT NOT NULL,
-    outcome TEXT NOT NULL,                    -- 'AI', 'USER', 'TIE'
-    early_predicted_move TEXT,
-    anticipation_ms INT DEFAULT 0,
+    outcome TEXT NOT NULL,                     -- 'AI', 'USER', 'TIE'
+    early_predicted_move TEXT,                 -- NULL when the judged seal was not a kinematic prediction
+    anticipation_ms INT,                       -- judged seal -> landing, measured (frame time)
     feint_detected BOOLEAN DEFAULT FALSE,
-    v_angle FLOAT DEFAULT 0.0,
-    tendon_velocity FLOAT DEFAULT 0.0,
-    confidence FLOAT DEFAULT 0.0,
+    v_angle FLOAT,
+    tendon_velocity FLOAT,
+    confidence FLOAT,
     seal_hash TEXT,
     ai_reasoning TEXT
 );
 
--- 4. Global Swarm Brain Weights: Swarm intelligence aggregated across all players worldwide
-CREATE TABLE IF NOT EXISTS public.global_brain_weights (
-    state_key TEXT PRIMARY KEY,
-    q_rock FLOAT NOT NULL DEFAULT 0.0,
-    q_paper FLOAT NOT NULL DEFAULT 0.0,
-    q_scissors FLOAT NOT NULL DEFAULT 0.0,
-    sample_count INT NOT NULL DEFAULT 1,
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- v4: unknown measurements are NULL. Remove the defaults that used to turn "unknown" into 0.
+ALTER TABLE public.match_telemetry
+    ALTER COLUMN anticipation_ms DROP DEFAULT,
+    ALTER COLUMN v_angle DROP DEFAULT,
+    ALTER COLUMN tendon_velocity DROP DEFAULT,
+    ALTER COLUMN confidence DROP DEFAULT;
 
--- 5. Seed Baseline Game-Theory Priors into Global Swarm Brain
-INSERT INTO public.global_brain_weights (state_key, q_rock, q_paper, q_scissors, sample_count)
-VALUES
-    ('OPENING_ROUND_1', 0.25, 0.40, 0.35, 100),       -- Humans favor Rock on opening; Paper is counter
-    ('AFTER_WIN_ROCK', 0.15, 0.60, 0.25, 100),        -- Winner repeats Rock -> Counter with Paper
-    ('AFTER_WIN_PAPER', 0.20, 0.20, 0.60, 100),       -- Winner repeats Paper -> Counter with Scissors
-    ('AFTER_WIN_SCISSORS', 0.65, 0.15, 0.20, 100),    -- Winner repeats Scissors -> Counter with Rock
-    ('AFTER_LOSS_ROCK', 0.50, 0.25, 0.25, 100),       -- Loser shifts to Scissors/Paper -> Counter accordingly
-    ('AFTER_LOSS_PAPER', 0.25, 0.50, 0.25, 100),
-    ('AFTER_LOSS_SCISSORS', 0.25, 0.25, 0.50, 100),
-    ('AFTER_TIE', 0.33, 0.34, 0.33, 100),
-    ('FEINT_SUSPECTED_PAPER_TO_ROCK', 0.10, 0.80, 0.10, 100) -- Anticipate fake paper -> fist, play Paper
-ON CONFLICT (state_key) DO NOTHING;
-
--- 6. Indices for High-Speed Queries
 CREATE INDEX IF NOT EXISTS idx_telemetry_player_id ON public.match_telemetry(player_id);
 CREATE INDEX IF NOT EXISTS idx_telemetry_created_at ON public.match_telemetry(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_player_last_seen ON public.player_profiles(last_seen_at DESC);
 
--- 7. Row Level Security (RLS) Policies
+-- ------------------------------------------------- 2. lock the tables down
 ALTER TABLE public.player_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.match_telemetry ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.global_brain_weights ENABLE ROW LEVEL SECURITY;
 
--- Allow anon and authenticated users to read and write player profiles
-DROP POLICY IF EXISTS "Public player profiles read" ON public.player_profiles;
-CREATE POLICY "Public player profiles read" ON public.player_profiles
-    FOR SELECT TO anon, authenticated USING (true);
-
+-- every policy of the earlier versions goes: with row-level security on and no
+-- policy, the anon and authenticated roles see and change nothing
+DROP POLICY IF EXISTS "Public player profiles read"   ON public.player_profiles;
 DROP POLICY IF EXISTS "Public player profiles upsert" ON public.player_profiles;
-CREATE POLICY "Public player profiles upsert" ON public.player_profiles
-    FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-
--- Allow anon and authenticated users to read and insert match telemetry
-DROP POLICY IF EXISTS "Public match telemetry read" ON public.match_telemetry;
-CREATE POLICY "Public match telemetry read" ON public.match_telemetry
-    FOR SELECT TO anon, authenticated USING (true);
-
+DROP POLICY IF EXISTS "v4 profile insert"             ON public.player_profiles;
+DROP POLICY IF EXISTS "v4 profile update"             ON public.player_profiles;
+DROP POLICY IF EXISTS "Public match telemetry read"   ON public.match_telemetry;
 DROP POLICY IF EXISTS "Public match telemetry insert" ON public.match_telemetry;
-CREATE POLICY "Public match telemetry insert" ON public.match_telemetry
-    FOR INSERT TO anon, authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "v4 telemetry insert"           ON public.match_telemetry;
 
--- Allow anon and authenticated users to read and update global brain weights
-DROP POLICY IF EXISTS "Public brain weights read" ON public.global_brain_weights;
-CREATE POLICY "Public brain weights read" ON public.global_brain_weights
-    FOR SELECT TO anon, authenticated USING (true);
+REVOKE ALL ON TABLE public.player_profiles FROM anon, authenticated;
+REVOKE ALL ON TABLE public.match_telemetry FROM anon, authenticated;
 
-DROP POLICY IF EXISTS "Public brain weights upsert" ON public.global_brain_weights;
-CREATE POLICY "Public brain weights upsert" ON public.global_brain_weights
-    FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+-- v3's "global brain" table is not used by v4 (no player's data may change what
+-- another player's opponent does). If it exists, take it away from the public key too.
+DO $$
+BEGIN
+    IF to_regclass('public.global_brain_weights') IS NOT NULL THEN
+        ALTER TABLE public.global_brain_weights ENABLE ROW LEVEL SECURITY;
+        DROP POLICY IF EXISTS "Public brain weights read"   ON public.global_brain_weights;
+        DROP POLICY IF EXISTS "Public brain weights upsert" ON public.global_brain_weights;
+        REVOKE ALL ON TABLE public.global_brain_weights FROM anon, authenticated;
+    END IF;
+END
+$$;
 
--- Grant privileges to anon, authenticated and service_role
-GRANT ALL ON TABLE public.player_profiles TO anon, authenticated, service_role;
-GRANT ALL ON TABLE public.match_telemetry TO anon, authenticated, service_role;
-GRANT ALL ON TABLE public.global_brain_weights TO anon, authenticated, service_role;
+-- --------------------------------------------- 3. the one thing anon may do
+CREATE OR REPLACE FUNCTION public.beatter_push_round(p_player text, p_round jsonb)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_moves   constant text[] := ARRAY['ROCK', 'PAPER', 'SCISSORS'];
+    v_pm      text := p_round->>'player_move';
+    v_am      text := p_round->>'ai_move';
+    v_out     text := p_round->>'outcome';
+    v_pred    text := p_round->>'early_predicted_move';
+    v_hash    text := p_round->>'seal_hash';
+    v_reason  text := p_round->>'ai_reasoning';
+    v_round   int;
+    v_lead    int;
+    v_conf    double precision;
+    v_angle   double precision;
+    v_vel     double precision;
+    v_games   int;
+    v_wins    int;
+    v_losses  int;
+    v_ties    int;
+BEGIN
+    -- shape and size
+    IF p_player IS NULL OR char_length(p_player) NOT BETWEEN 8 AND 64 OR p_player !~ '^[A-Za-z0-9_.:-]+$' THEN
+        RAISE EXCEPTION 'beatter: invalid player id' USING ERRCODE = '22023';
+    END IF;
+    IF p_round IS NULL OR jsonb_typeof(p_round) <> 'object' OR pg_column_size(p_round) > 4096 THEN
+        RAISE EXCEPTION 'beatter: invalid round document' USING ERRCODE = '22023';
+    END IF;
+
+    -- categorical fields
+    IF v_pm IS NULL OR NOT (v_pm = ANY (v_moves)) OR v_am IS NULL OR NOT (v_am = ANY (v_moves)) THEN
+        RAISE EXCEPTION 'beatter: invalid move' USING ERRCODE = '22023';
+    END IF;
+    IF v_out IS NULL OR v_out NOT IN ('AI', 'USER', 'TIE') THEN
+        RAISE EXCEPTION 'beatter: invalid outcome' USING ERRCODE = '22023';
+    END IF;
+    IF coalesce(p_round->>'game_mode', 'rps') <> 'rps' THEN
+        RAISE EXCEPTION 'beatter: invalid game mode' USING ERRCODE = '22023';
+    END IF;
+    IF v_pred IS NOT NULL AND NOT (v_pred = ANY (v_moves)) THEN
+        RAISE EXCEPTION 'beatter: invalid prediction' USING ERRCODE = '22023';
+    END IF;
+    -- the outcome must agree with the moves (ROCK beats SCISSORS, PAPER beats ROCK, SCISSORS beats PAPER)
+    IF v_out <> CASE
+            WHEN v_pm = v_am THEN 'TIE'
+            WHEN (v_am, v_pm) IN (('ROCK', 'SCISSORS'), ('PAPER', 'ROCK'), ('SCISSORS', 'PAPER')) THEN 'AI'
+            ELSE 'USER'
+        END THEN
+        RAISE EXCEPTION 'beatter: outcome does not match the moves' USING ERRCODE = '22023';
+    END IF;
+    IF v_hash IS NOT NULL AND v_hash !~ '^[0-9a-f]{64}$' THEN
+        RAISE EXCEPTION 'beatter: invalid seal hash' USING ERRCODE = '22023';
+    END IF;
+    IF v_reason IS NOT NULL AND v_reason !~ '^[A-Z_]{1,40}$' THEN
+        RAISE EXCEPTION 'beatter: invalid explanation code' USING ERRCODE = '22023';
+    END IF;
+
+    -- numbers: present and numeric, or absent / null (unknown stays unknown)
+    IF jsonb_typeof(p_round->'round_number') <> 'number' THEN
+        RAISE EXCEPTION 'beatter: round number missing' USING ERRCODE = '22023';
+    END IF;
+    v_round := (p_round->>'round_number')::numeric::int;
+    IF jsonb_typeof(p_round->'anticipation_ms') = 'number' THEN v_lead  := round((p_round->>'anticipation_ms')::numeric)::int; END IF;
+    IF jsonb_typeof(p_round->'confidence')      = 'number' THEN v_conf  := (p_round->>'confidence')::double precision; END IF;
+    IF jsonb_typeof(p_round->'v_angle')         = 'number' THEN v_angle := (p_round->>'v_angle')::double precision; END IF;
+    IF jsonb_typeof(p_round->'tendon_velocity') = 'number' THEN v_vel   := (p_round->>'tendon_velocity')::double precision; END IF;
+    IF v_round < 1 OR v_round > 1000000
+       OR (v_lead  IS NOT NULL AND (v_lead  < 0 OR v_lead  > 600000))   -- a single-stroke seal may stand for minutes
+       OR (v_conf  IS NOT NULL AND (v_conf  < 0 OR v_conf  > 1))
+       OR (v_angle IS NOT NULL AND (v_angle < 0 OR v_angle > 180))
+       OR (v_vel   IS NOT NULL AND (v_vel   < 0 OR v_vel   > 100000)) THEN
+        RAISE EXCEPTION 'beatter: value out of range' USING ERRCODE = '22023';
+    END IF;
+
+    -- profile counters
+    IF jsonb_typeof(p_round->'total_games') <> 'number' OR jsonb_typeof(p_round->'total_wins') <> 'number'
+       OR jsonb_typeof(p_round->'total_losses') <> 'number' OR jsonb_typeof(p_round->'total_ties') <> 'number' THEN
+        RAISE EXCEPTION 'beatter: counters missing' USING ERRCODE = '22023';
+    END IF;
+    v_games  := (p_round->>'total_games')::numeric::int;
+    v_wins   := (p_round->>'total_wins')::numeric::int;
+    v_losses := (p_round->>'total_losses')::numeric::int;
+    v_ties   := (p_round->>'total_ties')::numeric::int;
+    IF v_games < 0 OR v_wins < 0 OR v_losses < 0 OR v_ties < 0 OR v_games > 10000000
+       OR v_wins + v_losses + v_ties <> v_games THEN
+        RAISE EXCEPTION 'beatter: inconsistent counters' USING ERRCODE = '22023';
+    END IF;
+
+    -- counters only ever grow: a caller cannot zero or rewrite somebody's history
+    INSERT INTO public.player_profiles AS p (id, player_tag, updated_at, last_seen_at, total_games, total_wins, total_losses, total_ties)
+    VALUES (p_player, 'Oyuncu #' || upper(left(regexp_replace(p_player, '[^A-Za-z0-9]', '', 'g'), 4)), now(), now(), v_games, v_wins, v_losses, v_ties)
+    ON CONFLICT (id) DO UPDATE SET
+        updated_at   = now(),
+        last_seen_at = now(),
+        total_games  = GREATEST(p.total_games,  EXCLUDED.total_games),
+        total_wins   = GREATEST(p.total_wins,   EXCLUDED.total_wins),
+        total_losses = GREATEST(p.total_losses, EXCLUDED.total_losses),
+        total_ties   = GREATEST(p.total_ties,   EXCLUDED.total_ties);
+
+    INSERT INTO public.match_telemetry
+        (player_id, game_mode, round_number, player_move, ai_move, outcome, early_predicted_move,
+         anticipation_ms, feint_detected, v_angle, tendon_velocity, confidence, seal_hash, ai_reasoning)
+    VALUES
+        (p_player, 'rps', v_round, v_pm, v_am, v_out, v_pred,
+         v_lead, coalesce((p_round->>'feint_detected')::boolean, false), v_angle, v_vel, v_conf, v_hash, v_reason);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.beatter_push_round(text, jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.beatter_push_round(text, jsonb) TO anon, authenticated;
+
+-- -------------------------------------------------------------- 4. retention
+-- Per-round telemetry older than 180 days can be purged by a scheduled job, e.g.
+--   DELETE FROM public.match_telemetry WHERE created_at < now() - interval '180 days';

@@ -27,3 +27,6 @@ npm-debug.log*
 Thumbs.db
 
 .vercel
+
+# Local agent / preview tooling
+.claude/

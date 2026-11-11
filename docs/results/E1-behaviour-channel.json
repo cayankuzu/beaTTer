@@ -1,0 +1,179 @@
+{
+ "id": "E1-behaviour-channel",
+ "simulated": true,
+ "generatedBy": "experiments/run_all.mjs",
+ "quick": false,
+ "description": "Behavioural channel only (no camera), 300 rounds per session. Two closed-loop runs per seed: the AI plays the best response of the sequence model, or the budgeted safe mixture; in each run the model learns from, and the synthetic player reacts to, the moves that policy actually played.",
+ "rows": [
+  {
+   "player": "uniform",
+   "rounds": 12000,
+   "winPct": 33.74,
+   "winCI": [
+    32.9,
+    34.59
+   ],
+   "tiePct": 33.02,
+   "lossPct": 33.23,
+   "netPerRound": 0.0051,
+   "safeWinPct": 33.33,
+   "safeLossPct": 33.43,
+   "safeNetPerRound": -0.001,
+   "loglossBits": 1.5961,
+   "infoGainBits": -0.0112
+  },
+  {
+   "player": "biased",
+   "rounds": 12000,
+   "winPct": 34.06,
+   "winCI": [
+    33.22,
+    34.91
+   ],
+   "tiePct": 33.45,
+   "lossPct": 32.49,
+   "netPerRound": 0.0157,
+   "safeWinPct": 33.34,
+   "safeLossPct": 32.67,
+   "safeNetPerRound": 0.0067,
+   "loglossBits": 1.5947,
+   "infoGainBits": -0.0097
+  },
+  {
+   "player": "wsls",
+   "rounds": 12000,
+   "winPct": 36.42,
+   "winCI": [
+    35.56,
+    37.28
+   ],
+   "tiePct": 34.16,
+   "lossPct": 29.43,
+   "netPerRound": 0.0699,
+   "safeWinPct": 35.21,
+   "safeLossPct": 30.74,
+   "safeNetPerRound": 0.0447,
+   "loglossBits": 1.5794,
+   "infoGainBits": 0.0056
+  },
+  {
+   "player": "humanLike",
+   "rounds": 12000,
+   "winPct": 35.82,
+   "winCI": [
+    34.96,
+    36.68
+   ],
+   "tiePct": 34.4,
+   "lossPct": 29.78,
+   "netPerRound": 0.0603,
+   "safeWinPct": 34.02,
+   "safeLossPct": 31.69,
+   "safeNetPerRound": 0.0232,
+   "loglossBits": 1.5799,
+   "infoGainBits": 0.0051
+  },
+  {
+   "player": "wslsStrong",
+   "rounds": 12000,
+   "winPct": 46.11,
+   "winCI": [
+    45.22,
+    47
+   ],
+   "tiePct": 32.84,
+   "lossPct": 21.05,
+   "netPerRound": 0.2506,
+   "safeWinPct": 45.38,
+   "safeLossPct": 21.61,
+   "safeNetPerRound": 0.2377,
+   "loglossBits": 1.4287,
+   "infoGainBits": 0.1562
+  },
+  {
+   "player": "markov1",
+   "rounds": 12000,
+   "winPct": 67.81,
+   "winCI": [
+    66.97,
+    68.64
+   ],
+   "tiePct": 16.57,
+   "lossPct": 15.62,
+   "netPerRound": 0.5219,
+   "safeWinPct": 67.47,
+   "safeLossPct": 16.04,
+   "safeNetPerRound": 0.5142,
+   "loglossBits": 1.224,
+   "infoGainBits": 0.361
+  },
+  {
+   "player": "cycle",
+   "rounds": 12000,
+   "winPct": 92.38,
+   "winCI": [
+    91.9,
+    92.84
+   ],
+   "tiePct": 3.95,
+   "lossPct": 3.67,
+   "netPerRound": 0.8872,
+   "safeWinPct": 92.21,
+   "safeLossPct": 3.87,
+   "safeNetPerRound": 0.8834,
+   "loglossBits": 0.4748,
+   "infoGainBits": 1.1102
+  },
+  {
+   "player": "pattern",
+   "rounds": 12000,
+   "winPct": 98,
+   "winCI": [
+    97.73,
+    98.24
+   ],
+   "tiePct": 1,
+   "lossPct": 1,
+   "netPerRound": 0.97,
+   "safeWinPct": 98,
+   "safeLossPct": 1,
+   "safeNetPerRound": 0.97,
+   "loglossBits": 0.0755,
+   "infoGainBits": 1.5095
+  },
+  {
+   "player": "switcher",
+   "rounds": 12000,
+   "winPct": 51.44,
+   "winCI": [
+    50.55,
+    52.34
+   ],
+   "tiePct": 25.48,
+   "lossPct": 23.08,
+   "netPerRound": 0.2836,
+   "safeWinPct": 51.19,
+   "safeLossPct": 23.52,
+   "safeNetPerRound": 0.2767,
+   "loglossBits": 1.3175,
+   "infoGainBits": 0.2675
+  },
+  {
+   "player": "antiPredictor",
+   "rounds": 12000,
+   "winPct": 96.2,
+   "winCI": [
+    95.84,
+    96.53
+   ],
+   "tiePct": 2.09,
+   "lossPct": 1.71,
+   "netPerRound": 0.9449,
+   "safeWinPct": 95.51,
+   "safeLossPct": 2.25,
+   "safeNetPerRound": 0.9326,
+   "loglossBits": 0.1623,
+   "infoGainBits": 1.4226
+  }
+ ]
+}
