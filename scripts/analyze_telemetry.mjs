@@ -25,7 +25,9 @@ const LOCAL_JSONL = path.join(ROOT, '.local_telemetry', 'rounds.jsonl');
 const REMOTE_CACHE_JSONL = path.join(ROOT, '.local_telemetry', 'remote_diagnostics.jsonl');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://znfvjfafkcahpkkcbdjc.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_b31-r5x_nF3-r87-t5x2OQ_a2x5B1xI';
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnZqZmFma2NhaHBra2NiZGpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyOTQ2MDcsImV4cCI6MjEwODg3MDYwN30.ICVlzOkYFgl0qdxNKk7CWnCLdgVWuUHSRI3DK73ozoo';
 const MOVE_NAMES = ['ROCK', 'PAPER', 'SCISSORS'];
 
 async function fetchRemoteDiagnostics(limit = 100) {
