@@ -63,6 +63,38 @@ export function roundPayload(result, metrics) {
 }
 
 /**
+ * Compact diagnostic payload for any camera round (valid, foul, or void) or abort event.
+ * @param {any} result
+ */
+export function diagnosticPayload(result) {
+  if (!result || typeof result !== 'object') return null;
+  const k = result.kinematics ?? {};
+  const tm = result.timing ?? {};
+  const tr = result.trace ?? null;
+  const tail = (/** @type {any} */ a) => (Array.isArray(a) ? a.slice(-10) : []);
+  return {
+    round: numOrNull(result.round),
+    verdict: typeof result.verdict === 'string' ? result.verdict.slice(0, 32) : 'ABORT',
+    code: result.explanation && typeof result.explanation.code === 'string' ? result.explanation.code.slice(0, 40) : (typeof result.code === 'string' ? result.code.slice(0, 40) : null),
+    player_move: result.playerMove === 0 || result.playerMove === 1 || result.playerMove === 2 ? MOVES[result.playerMove] : null,
+    ai_move: result.aiMove === 0 || result.aiMove === 1 || result.aiMove === 2 ? MOVES[result.aiMove] : null,
+    lead_ms: numOrNull(tm.leadToLandingMs),
+    flight_ms: numOrNull(tm.flightMs),
+    fps: numOrNull(tm.fpsInFlight),
+    tracked_ratio: numOrNull(tm.trackedInFlight),
+    onset_front_ms: numOrNull(k.onsetLeadFrontMs),
+    onset_back_ms: numOrNull(k.onsetLeadBackMs),
+    v_spread_deg: numOrNull(k.vSpreadDeg),
+    peak_vel: numOrNull(k.peakFlexionVelDegS),
+    h_front: numOrNull(k.headingFront),
+    h_back: numOrNull(k.headingBack),
+    reanchored: !!k.reanchored,
+    trace_uf: tail(tr ? tr.uF : null),
+    trace_ub: tail(tr ? tr.uB : null),
+  };
+}
+
+/**
  * @param {{enabled:boolean, onStatus?: (s:'off'|'connecting'|'online'|'offline') => void, fetchImpl?: typeof fetch}} o
  */
 export function createCloud({ enabled, onStatus, fetchImpl }) {
@@ -93,6 +125,28 @@ export function createCloud({ enabled, onStatus, fetchImpl }) {
     }
   };
 
+  /** @param {string} path @param {any} body */
+  const postJson = async (path, body) => {
+    if (!on || !doFetch) return null;
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = ctl ? setTimeout(() => ctl.abort(), TIMEOUT_MS) : null;
+    try {
+      const res = await doFetch(`${URL_BASE}/${path}`, {
+        method: 'POST',
+        headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: ctl ? ctl.signal : undefined,
+      });
+      if (!res.ok) return null;
+      set('online');
+      return await res.json();
+    } catch {
+      return null;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+
   return {
     status: () => status,
     /** @param {boolean} v */
@@ -104,6 +158,24 @@ export function createCloud({ enabled, onStatus, fetchImpl }) {
     async pushRound(playerId, result, metrics) {
       if (!on || !result || !result.valid || result.simulated || typeof playerId !== 'string') return;
       await post('rpc/beatter_push_round', { p_player: playerId, p_round: roundPayload(result, metrics) });
+    },
+    /**
+     * Upload diagnostic trace (including fouls, voids, and learned model snapshot) for remote analysis.
+     * @param {string} playerId @param {any} result @param {any} [modelJson]
+     */
+    async pushDiagnostic(playerId, result, modelJson = null) {
+      if (!on || !result || result.simulated || typeof playerId !== 'string') return;
+      const diag = diagnosticPayload(result);
+      if (!diag) return;
+      await post('rpc/beatter_push_diagnostic', { p_player: playerId, p_diag: diag, p_model: modelJson });
+    },
+    /**
+     * Pull cloud-stored player model and global population priors if available.
+     * @param {string} playerId
+     */
+    async pullState(playerId) {
+      if (!on || typeof playerId !== 'string') return null;
+      return postJson('rpc/beatter_pull_state', { p_player: playerId });
     },
   };
 }

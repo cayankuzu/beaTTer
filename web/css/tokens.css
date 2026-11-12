@@ -8,52 +8,52 @@
   :root {
     color-scheme: dark;
 
-    /* Okabe-Ito base hues (colour-blind safe) */
-    --oi-sky: #56B4E9;
-    --oi-orange: #E69F00;
-    --oi-green: #009E73;
-    --oi-yellow: #F0E442;
-    --oi-vermilion: #D55E00;
+    /* Calm, high-contrast minimal palette */
+    --oi-sky: #67B7DC;
+    --oi-orange: #94A3B8;
+    --oi-green: #2DD4BF;
+    --oi-yellow: #E2E8F0;
+    --oi-vermilion: #F59E0B;
 
-    /* Surfaces: cool near-black */
-    --c-bg: #07090C;
-    --c-surface-1: #0C1015;
-    --c-surface-2: #12171E;
-    --c-surface-3: #1A212A;
+    /* Surfaces: clean matte slate */
+    --c-bg: #090B0E;
+    --c-surface-1: #0E1217;
+    --c-surface-2: #141920;
+    --c-surface-3: #1C222B;
     /* Rules */
-    --c-line-1: #1E262F;            /* hairline, decorative only */
-    --c-line-2: #2E3945;            /* panel edges */
-    --c-line-3: #6B7785;            /* control boundaries, >= 3:1 on every surface */
+    --c-line-1: #1C232D;            /* hairline, decorative only */
+    --c-line-2: #26303D;            /* panel edges */
+    --c-line-3: #526071;            /* control boundaries */
     /* Text */
-    --c-text-1: #E9EEF3;            /* 16.3:1 on surface-1 */
-    --c-text-2: #B2BCC7;            /*  9.9:1 */
-    --c-text-3: #8A96A3;            /*  6.3:1 (5.4:1 on surface-3) */
-    --c-ink: #07090C;               /* text on light / accent fills */
+    --c-text-1: #F1F5F9;
+    --c-text-2: #94A3B8;
+    --c-text-3: #64748B;
+    --c-ink: #090B0E;               /* text on light / accent fills */
     --c-white: #FFFFFF;
 
-    /* Semantic roles */
-    --c-player: var(--oi-sky);      /* the player: camera, skeleton, finger signals */
-    --c-player-tint: #162733;
-    --c-ai: var(--oi-orange);       /* the AI: belief, mechanical hand */
-    --c-ai-tint: #2B2412;
-    --c-seal: var(--oi-green);      /* sealed / verified: fills and rules */
-    --c-seal-ink: #34D1A3;          /* sealed / verified: text (7.9:1 on seal-tint) */
-    --c-seal-tint: #0A2A26;
-    --c-warn: var(--oi-vermilion);  /* foul / destructive: fills and rules */
-    --c-warn-ink: #FF8A4C;          /* foul / destructive: text (8.2:1) */
-    --c-warn-tint: #2C1C12;
-    --c-sim: #F0E442;               /* simulation label */
-    --c-sim-tint: #2A2810;
-    --c-focus: var(--oi-yellow);
+    /* Semantic roles (toned down, cohesive, low visual noise) */
+    --c-player: #67B7DC;            /* soft ice blue */
+    --c-player-tint: #11202A;
+    --c-ai: #CBD5E1;                /* calm silver-slate for AI */
+    --c-ai-tint: #1A202C;
+    --c-seal: #2DD4BF;              /* subtle teal-emerald */
+    --c-seal-ink: #5EEAD4;
+    --c-seal-tint: #0D2322;
+    --c-warn: #F59E0B;              /* warm amber */
+    --c-warn-ink: #FBBF24;
+    --c-warn-tint: #241B0E;
+    --c-sim: #CBD5E1;
+    --c-sim-tint: #1A202C;
+    --c-focus: #67B7DC;
 
-    /* Overlays, glows (restrained: live signals only) */
-    --c-chip-bg: rgb(7 9 12 / .84);
-    --c-scrim: rgb(4 6 8 / .8);
-    --c-gate: rgb(7 9 12 / .9);
-    --c-shadow: rgb(0 0 0 / .55);
-    --glow-player: 0 0 8px rgb(86 180 233 / .55);
-    --glow-seal: 0 0 10px rgb(52 209 163 / .45);
-    --glow-ai: 0 0 8px rgb(230 159 0 / .45);
+    /* Overlays, glows (subtle, no harsh neon) */
+    --c-chip-bg: rgb(9 11 14 / .86);
+    --c-scrim: rgb(5 7 9 / .82);
+    --c-gate: rgb(9 11 14 / .92);
+    --c-shadow: rgb(0 0 0 / .45);
+    --glow-player: none;
+    --glow-seal: none;
+    --glow-ai: none;
     --shadow-sheet: 0 -1.5rem 4rem var(--c-shadow);
     --shadow-drawer: -1.5rem 0 4rem var(--c-shadow);
     --shadow-text: 0 1px 2px var(--c-shadow), 0 0 12px var(--c-shadow);

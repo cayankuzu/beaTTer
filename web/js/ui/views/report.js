@@ -61,6 +61,111 @@ export function mountReport(ctx) {
         aiWin ? win() : null));
   };
 
+  // ------------------------------------------------------------------ (a2) plain-language step-by-step guide & series history
+  const plainGuide = (/** @type {any} */ r, /** @type {any} */ st) => {
+    const hid = nextId('rp-plain');
+    const lead = r.timing ? r.timing.leadToLandingMs : null;
+    const prog = r.progressAtCommit;
+    const firstCommit = Array.isArray(r.commits) && r.commits.length ? r.commits[0] : null;
+    const judgedCommit = Array.isArray(r.commits) ? r.commits.find((/** @type {any} */ c) => c.seq === r.judgedSeq) : null;
+    const youMove = r.playerMove === null || r.playerMove === undefined ? 'belirsiz' : moveName(r.playerMove);
+    const aiMove = moveName(r.aiMove);
+    const firstMove = firstCommit ? moveName(firstCommit.move) : aiMove;
+    const leadStr = Number.isFinite(lead) && lead >= 0 ? `${Math.round(lead)} ms önce` : 'iniş anında';
+    const progPct = Number.isFinite(prog) ? Math.round(Math.min(1, Math.max(0, prog)) * 100) : null;
+
+    let step1 = `Sen elini sallamaya başlarken yapay zekâ geçmiş hamle alışkanlığına bakarak ilk tahminini "${firstMove}" olarak kilitledi.`;
+    let step2 = '';
+    let mistakeBox = null;
+
+    if (r.valid) {
+      if (r.explanation && r.explanation.code === 'HELD_BEHAVIOUR') {
+        step2 = `Elin 4. vuruş için inerken parmakların kapalı kaldı veya ilk tahmini değiştirecek bir hareket olmadı. Yapay zekâ elin inmeden ${leadStr} "${aiMove}" kararını korudu.`;
+      } else if (r.playerMove === 0) {
+        step2 = `Elin aşağı inerken parmaklarının açılmadığını (yumruk kaldığını) elin inmeden ${leadStr} tespit etti; Taş geleceğini anlayıp "${aiMove}" hamlesini kilitledi.`;
+      } else {
+        const progText = progPct !== null ? ` (parmakların henüz %${progPct} açılmışken)` : '';
+        step2 = `Elin daha havadayken, yere inmeden ${leadStr}${progText} parmaklarının "${youMove}" için açıldığını gördü ve cevabını "${aiMove}" olarak kilitledi.`;
+      }
+    } else {
+      const code = r.explanation ? r.explanation.code : r.verdict;
+      let errTitle = 'Tur Geçersiz Sayıldı';
+      let errWhat = 'Bu turda el hareketi kurallara uygun tamamlanamadı.';
+      let errHow = 'Elini kameranın ortasında tutarak 3 kez yumruk salla ve 4. vuruşta elin havadayken hamleni aç.';
+      if (code === 'FOUL_LATE_OPEN') {
+        errTitle = 'Senin Hatan: El İndikten Sonra Açtın (Geç Hamle)';
+        errWhat = '4. vuruşta elin aşağı inerken yumruk halindeydi; parmaklarını elin durduktan sonra açtın.';
+        errHow = '1-Taş, 2-Kağıt, 3-Makas derken yumruk salla; 4. vuruşta ("VUR!" derken) elin daha havadayken parmaklarını aç.';
+      } else if (code === 'FOUL_LATE_CLOSE') {
+        errTitle = 'Senin Hatan: Son Anda Parmak Kapattın (Geç Hamle)';
+        errWhat = 'Elin havadayken parmakların açıktı (Kağıt gibi), ancak elin inerken son anda parmaklarını kapattın.';
+        errHow = '4. vuruşta seçtiğin şekli havada net olarak aç ve elin durana kadar şekli değiştirme.';
+      } else if (r.verdict === 'VOID_NO_HAND') {
+        errTitle = 'El Kamerada Net Görünmedi';
+        errWhat = 'Son vuruş sırasında elin kamera açısından çıktı ya da çok hızlı savrulduğu için takip edilemedi.';
+        errHow = 'Elini kameraya çok yaklaştırmadan, ekranın orta kısmında tutarak salla.';
+      } else if (r.verdict === 'VOID_NO_FIST') {
+        errTitle = 'Başlangıçta Elin Yumruk Değildi';
+        errWhat = 'Sayım vuruşlarını yaparken parmakların açık başladı; bu yüzden açılma hareketi ölçülemedi.';
+        errHow = 'İlk 3 vuruşta (Taş-Kağıt-Makas derken) elini kapalı yumruk tut, sadece 4. vuruşta aç.';
+      } else if (r.verdict === 'VOID_UNKNOWN') {
+        errTitle = 'El Şekli Anlaşılamadı';
+        errWhat = 'Elin durduğunda yaptığın şekil Taş, Kağıt veya Makas olarak net seçilemedi.';
+        errHow = 'Kağıt için 4 parmağını tam aç, Makas için işaret ve orta parmağını V şeklinde aç, Taş için tam yumruk yap.';
+      }
+      step2 = errWhat;
+      mistakeBox = h('div', { class: 'rp-plain__alert' },
+        h('p', { class: 'rp-plain__alert-title' }, icon('warning', 'ic--sm'), errTitle),
+        h('p', { class: 'rp-plain__alert-body' }, errWhat),
+        h('p', { class: 'rp-plain__alert-tip' }, h('b', null, 'Nasıl düzeltilir: '), errHow));
+    }
+
+    const step3 = judgedCommit
+      ? `Elin indiğinde yapay zekânın "${aiMove}" hamlesi çoktan kilitliydi (Mühür #${judgedCommit.seq}). Sonradan hamle değiştirme yapılmadı.`
+      : `Tur tamamlandığında tüm mühürler açıldı ve doğrulandı.`;
+
+    const prof = st.profile;
+    const adaptPct = prof && prof.diagnostics ? prof.diagnostics.adaptationPct : (prof && prof.rounds ? Math.min(100, Math.round(100 * (1 - Math.exp(-prof.rounds / 10)))) : 0);
+    const meanLead = prof && prof.onsetLeadFrontMs && prof.onsetLeadFrontMs.n > 0 ? Math.round(prof.onsetLeadFrontMs.mean) : null;
+    const favMove = prof && prof.diagnostics && prof.diagnostics.favMove !== null ? moveName(prof.diagnostics.favMove) : null;
+    const learnParts = [];
+    if (prof && prof.rounds > 0) {
+      learnParts.push(`Toplam ${prof.rounds} geçerli tur analiz edildi (Uyum: %${adaptPct}).`);
+      if (meanLead !== null) learnParts.push(`Parmaklarını inişten ortalama ${meanLead} ms önce açıyorsun.`);
+      if (favMove) learnParts.push(`En sık tercih ettiğin hamle: ${favMove}.`);
+    } else {
+      learnParts.push('İlk geçerli turunu tamamladığında el açılış hızın ve hamle alışkanlığın burada özetlenir.');
+    }
+
+    // Series round-by-round mini history
+    const sr = st.series;
+    const historyRows = sr && Array.isArray(sr.rounds) && sr.rounds.length
+      ? sr.rounds.map((/** @type {any} */ item, /** @type {number} */ idx) => {
+          const itemLead = Number.isFinite(item.leadMs) && item.leadMs >= 0 ? `${Math.round(item.leadMs)} ms önce okudu` : 'davranış tahmini';
+          const resLabel = item.verdict === 'AI' ? 'YZ Kazandı' : item.verdict === 'PLAYER' ? 'Sen Kazandın' : 'Berabere';
+          return h('li', { class: `rp-hist__item is-${item.verdict.toLowerCase()}` },
+            h('span', { class: 'rp-hist__n' }, `${idx + 1}. Tur`),
+            h('span', { class: 'rp-hist__moves' }, `Sen: ${moveName(item.playerMove)} · YZ: ${moveName(item.aiMove)}`),
+            h('span', { class: 'rp-hist__lead' }, itemLead),
+            h('b', { class: 'rp-hist__res' }, resLabel));
+        })
+      : [h('li', { class: 'rp-hist__empty' }, 'Bu seride henüz tamamlanmış geçerli tur yok.')];
+
+    return h('section', { class: 'rp rp--panel rp-plain', 'aria-labelledby': hid },
+      h('h3', { class: 'rp__h', id: hid }, 'Bu Turda Ne Oldu? (Adım Adım Özet)'),
+      mistakeBox,
+      h('ol', { class: 'rp-steps' },
+        h('li', { class: 'rp-step' }, h('b', null, '1. Başlangıç Tahmini: '), step1),
+        h('li', { class: 'rp-step' }, h('b', null, '2. Karar Anı: '), step2),
+        h('li', { class: 'rp-step' }, h('b', null, '3. Doğrulama: '), step3)),
+      h('div', { class: 'rp-coach' },
+        h('p', { class: 'rp-coach__title' }, 'Yapay Zekâ Senden Ne Öğrendi?'),
+        h('p', { class: 'rp-coach__text' }, learnParts.join(' '))),
+      h('div', { class: 'rp-hist' },
+        h('p', { class: 'rp-coach__title' }, `Bu Seride Tur Tur Geçmiş (${sr.rounds.length}/${sr.length} Geçerli Tur · ${sr.fouls} Faul)`),
+        h('ol', { class: 'rp-hist__list' }, historyRows)));
+  };
+
   // ------------------------------------------------------------------ (b) hero + timeline
   const hero = (/** @type {any} */ r) => {
     const lead = r.timing.leadToLandingMs, comp = r.timing.leadToCompletionMs, prog = r.progressAtCommit;
@@ -226,7 +331,11 @@ export function mountReport(ctx) {
     const bpm = st.engine && Number.isFinite(st.engine.periodMs) && st.engine.periodMs > 0 ? 60000 / st.engine.periodMs : null;
     meta.textContent = M.reportMeta(r.round, st.series.rounds.length + (r.valid ? 0 : 1), st.series.length, bpm);
     simSlot.hidden = st.boot.source !== 'demo';
-    fill(body, verdict(r, st.series), hero(r), why(r), chain(r), metrics(r));
+    const tech = h('details', { class: 'rp-tech' },
+      h('summary', { class: 'rp-tech__sum' }, icon('chevron', 'ic--sm verify__chev'), 'Detaylı Zaman Grafiği, Mühür Zinciri ve Teknik Ölçümler'),
+      h('div', { class: 'rp-tech__body' }, hero(r), why(r), chain(r), metrics(r)));
+    tech.addEventListener('toggle', () => { if (tech.open && surface) surface.invalidate(); });
+    fill(body, verdict(r, st.series), plainGuide(r, st), tech);
     body.scrollTop = 0;
     ctx.announce(M.outcomeAnnounce(r));
   });

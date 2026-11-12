@@ -68,6 +68,8 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
   let twin = createTwinPredictor();
   /** @type {any} */ let source = null;
   /** @type {any} */ let display = { image: null, demo: false };
+  let frameSeq = 0;
+  let lastThrowCueRound = -1;
   let lastSnapshotAt = -Infinity;
   /** @type {number[]} */ let frameTimes = [];
   let perf = freshPerf();
@@ -119,9 +121,25 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
 
   /** The optional statistics sync is on only for the real player, with consent, on an allowed host. */
   const syncCloud = () => {
+    const prev = cloudOn;
     cloudOn = !!cloud && settings().cloud && cloudAllowed && !isDemo;
     if (cloud) cloud.setEnabled(cloudOn);
     store.set({ cloud: cloudOn && cloud ? cloud.status() : 'off' });
+    if (cloudOn && !prev && cloud && typeof cloud.pullState === 'function') {
+      const pid = S().player.id;
+      cloud.pullState(pid).then((remote) => {
+        if (!remote || !remote.model || isDemo || S().player.id !== pid) return;
+        if (typeof remote.model.rounds === 'number' && remote.model.rounds > player.rounds) {
+          if (player.load(remote.model)) {
+            storage.savePlayer(pid, player.toJSON());
+            store.set({
+              metrics: player.metrics.summary(), profile: player.profile(),
+              player: { ...S().player, rounds: player.rounds },
+            });
+          }
+        }
+      }).catch(() => {});
+    }
   };
 
   const toast = (/** @type {string} */ code, /** @type {any} */ params = {}) => store.set({ ui: { ...S().ui, toast: { id: ++toastId, code, params } } });
@@ -138,10 +156,19 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
 
   const appendLive = (/** @type {any} */ frame) => {
     const snap = engine.snapshot();
-    if (!snap.hand || (snap.phase !== 'PRIMING' && snap.phase !== 'FLIGHT' && snap.phase !== 'ARMED' && snap.phase !== 'SETTLING')) return;
+    if (!snap.hand || snap.phase === 'RESOLVED') return;
     const live = S().live;
-    live.t.push(frame.t); live.cy.push(snap.hand.strokeY); live.uF.push(snap.hand.uF ?? 0); live.uB.push(snap.hand.uB ?? 0);
-    if (live.t.length > LIVE_CAP) { live.t.shift(); live.cy.shift(); live.uF.shift(); live.uB.shift(); }
+    live.t.push(frame.t);
+    live.cy.push(snap.hand.strokeY);
+    live.uF.push(snap.hand.uF ?? snap.hand.front ?? 0);
+    live.uB.push(snap.hand.uB ?? snap.hand.back ?? 0);
+    if (snap.phase === 'IDLE' && live.t0 === null) {
+      while (live.t.length > 2 && frame.t - live.t[0] > 2000) {
+        live.t.shift(); live.cy.shift(); live.uF.shift(); live.uB.shift();
+      }
+    } else if (live.t.length > LIVE_CAP) {
+      live.t.shift(); live.cy.shift(); live.uF.shift(); live.uB.shift();
+    }
     live.tLandHat = snap.tLandHat; live.now = frame.t;
   };
 
@@ -151,7 +178,7 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
         case 'beat': {
           if (e.n === 1 && !e.scheduled) store.set({ live: { ...emptyLive(), round: engine.snapshot().round, t0: e.t } });
           S().live.beats.push({ n: e.n, t: e.t });
-          if (!e.scheduled) audio.beat(e.n); // scheduled beats were already scheduled on the audio clock
+          if (!e.scheduled) audio.beat(e.n, settings().voice); // scheduled beats were already scheduled on the audio clock
           break;
         }
         case 'flightStart':
@@ -223,9 +250,13 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
     audio.verdict(result.verdict);
     if (settings().voice) audio.speakVerdict(result);
     if (!isDemo) {
-      storage.savePlayer(S().player.id, player.toJSON());
+      const modelJson = player.toJSON();
+      storage.savePlayer(S().player.id, modelJson);
       if (!storage.available && S().boot.storage) store.set({ boot: { ...S().boot, storage: false } });
-      if (cloudOn && cloud && result.valid) cloud.pushRound(S().player.id, result, player.metrics.summary());
+      if (cloudOn && cloud) {
+        if (result.valid) cloud.pushRound(S().player.id, result, player.metrics.summary());
+        if (typeof cloud.pushDiagnostic === 'function') cloud.pushDiagnostic(S().player.id, result, result.valid ? modelJson : null);
+      }
     }
     if (source) source.onResult(result);
     if (auto()) later(() => actions.nextRound(), /** @type {number} */ (options.autoAdvanceMs));
@@ -244,6 +275,7 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
   /** @param {import('../core/constants.js').HandFrame} frame @param {any} disp */
   const onFrame = (frame, disp) => {
     display = disp;
+    frameSeq += 1;
     frameTimes.push(frame.t);
     if (frameTimes.length > 45) frameTimes.shift();
     const t0 = now();
@@ -264,8 +296,15 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
     try { events = engine.pushFrame(frame); } catch (err) { recover(err); return; }
     appendLive(frame);
     if (events.length) handleEvents(events);
+    const snap = engine.snapshot();
+    let throwJustStarted = false;
+    if (snap.phase === 'FLIGHT' && snap.throwStarted && snap.primeBeats > 0 && lastThrowCueRound !== snap.round) {
+      lastThrowCueRound = snap.round;
+      throwJustStarted = true;
+      if (!snap.metronome && typeof audio.throwCue === 'function') audio.throwCue(settings().voice, snap.primeBeats);
+    }
     perf.engineMs = ema(perf.engineMs, now() - t0);
-    publishSnapshot(events.length > 0);
+    publishSnapshot(events.length > 0 || throwJustStarted);
   };
 
   // ------------------------------------------------------------------------------------------- sources
@@ -275,7 +314,7 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
     clearAuto();
     if (audio.cancelMetronome) audio.cancelMetronome();
     const src = source;
-    source = null; display = { image: null, demo: false }; frameTimes = []; perf = freshPerf(); sealLatency.clear();
+    source = null; display = { image: null, demo: false }; frameSeq = 0; frameTimes = []; perf = freshPerf(); sealLatency.clear();
     if (src) {
       try { src.stop(); } catch { /* ignore */ }
       if (src.kind === 'camera' && src.close) { try { src.close(); } catch { /* ignore */ } }
@@ -512,7 +551,7 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
     /** Drawing data for the canvases (read on requestAnimationFrame, not through the store). */
     // `picture`: the latest tracked camera frame (a canvas copy); `raw`: its unsmoothed landmarks, the sharp
     // region of the private picture
-    frame: () => ({ image: display.image, raw: display.raw ?? null, picture: display.picture ?? null, demo: !!display.demo, video: source && source.video ? source.video : null, source: S().boot.source }),
+    frame: () => ({ seq: frameSeq, image: display.image, raw: display.raw ?? null, picture: display.picture ?? null, demo: !!display.demo, video: source && source.video ? source.video : null, source: S().boot.source }),
     moves: MOVES,
     get sessionId() { return sessionId; },
     dispose() { stopSource(); storage.flushAll(); },

@@ -45,28 +45,28 @@ export const DEFAULTS = Object.freeze({
   /** Referee preset name (constants.RULES). */
   rules: DEFAULT_RULE,
   /** Time allowed after landing for the shape to settle (ms). */
-  settleMs: 450,
+  settleMs: 420,
   /**
    * A fist right after landing is confirmed as ROCK only if it is still a fist this long after landing
    * (ms). Fingers that open inside this window are a late throw. 250 ms is just above the simple visual
    * reaction time (about 213-231 ms [Woods2015]), so nobody can open in reaction to the revealed AI move
    * and still be inside the window.
    */
-  rockHoldMs: 250,
+  rockHoldMs: 215,
   /** Front-group opening that counts as "the fist has opened" after landing (two consecutive frames). */
-  lateOpenThreshold: 0.35,
+  lateOpenThreshold: 0.42,
   /** No kinematic revision before this many tracked in-flight frames. */
   minEvidenceFrames: 2,
   /**
    * A round is void unless the hand was tracked in >= minInAirTracked frames of the last
    * max(inAirWindowMs, inAirWindowFrames frame intervals) before landing ...
    */
-  inAirWindowMs: 160,
-  inAirWindowFrames: 2.6,
-  minInAirTracked: 2,
+  inAirWindowMs: 220,
+  inAirWindowFrames: 3.5,
+  minInAirTracked: 1,
   /** ... and the last of them is at most max(inAirMaxAgeMs, inAirMaxAgeFrames frame intervals) old. */
-  inAirMaxAgeMs: 45,
-  inAirMaxAgeFrames: 2.2,
+  inAirMaxAgeMs: 95,
+  inAirMaxAgeFrames: 2.5,
   /**
    * A tracked frame right after a tracking gap counts as "already landed" when the palm is within
    * max(arrivedMarginPL, arrivedFrac * stroke amplitude) of the landing height (palm lengths).
@@ -76,10 +76,10 @@ export const DEFAULTS = Object.freeze({
   /** ... and "right after" means this many tracked frames (the velocity filter needs one more to recover). */
   gapRecoveryFrames: 2,
   /** Soft landing: a weak throw stroke is accepted as the landing if no stronger one follows within this (ms). */
-  softLandingHoldMs: 90,
+  softLandingHoldMs: 65,
   /** Single-stroke mode: a steady fist (both groups below armMaxExtension) for this long arms the round (ms). */
   armHoldMs: 350,
-  armMaxExtension: 0.4,
+  armMaxExtension: 0.45,
   /** Single-stroke mode, while armed: slide the onset grid this often and keep this much history (ms). */
   armedSlideMs: 400,
   armedKeepMs: 1200,
@@ -93,7 +93,7 @@ export const DEFAULTS = Object.freeze({
   metronomePeriodMs: 600,
   /** In-motion noise sd of the group opening is estimated per round and kept inside these limits. */
   noiseFloorSd: 0.035,
-  noiseCapSd: 0.15,
+  noiseCapSd: 0.085,
   /** Samples used for the fist baseline. */
   baselineFrames: 20,
   /** The priming posture must be a fist: raw extension of both groups below this. */
@@ -116,7 +116,7 @@ export const DEFAULTS = Object.freeze({
   postureOpenMin: 0.55,
   postureStableRange: 0.25,
   /** Abort when the hand is missing for this long during a round (ms). */
-  handLostMs: 400,
+  handLostMs: 600,
   /** Stroke-threshold multiplier (user sensitivity). */
   sensitivity: 1,
 });
@@ -135,7 +135,7 @@ const round1 = (/** @type {number} */ x) => Math.round(x * 10) / 10;
  */
 export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
   const c = { ...DEFAULTS, ...cfg };
-  const stroke = createStrokeTracker({ sensitivity: c.sensitivity });
+  const stroke = createStrokeTracker({ sensitivity: c.sensitivity, lostMs: c.handLostMs });
   const flexKf = new Kalman1D({ q: 4e6, r: 60 }); // mean index+middle flexion (deg); velocity in deg/s
 
   // only the presets themselves: a plain `RULES[name]` lookup would also accept inherited keys such as
@@ -178,13 +178,13 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
       prior: [1 / 3, 1 / 3, 1 / 3], top: [], behaviour: null,
       tFlightStart: null, flightFrame: null, period: null, lastBeatT: null,
       commits: /** @type {any[]} */ ([]), kinematicCommits: 0,
-      F: createOpeningDetector(), B: createOpeningDetector(), clf: null,
+      F: createOpeningDetector({ legalProgress: 0.105, stayVar: 0.0032 }), B: createOpeningDetector({ legalProgress: 0.135, stayVar: 0.0042, closedMin: 0.20, reanchorFrames: 1 }), clf: null,
       belief: null, hF: 0, hB: 0, tLandHat: null, legalCount: 3,
       trace: { t: [], uF: [], uB: [], cy: [], hF: [], hB: [], pR: [], pP: [], pS: [], commitT: [], commitSeq: [] },
       samples: /** @type {import('./pose.js').PoseSample[]} */ ([]),
       inAir: /** @type {{t:number,index:number,hF:number,hB:number,u4:number[],y:number,afterGap:boolean,open:boolean}[]} */ ([]),
       flightFrames: /** @type {{t:number,index:number,tracked:boolean}[]} */ ([]),
-      trackedInFlight: 0, lastEvalT: null, gapRecovery: 0,
+      trackedInFlight: 0, lastEvalT: null, lastEvalIndex: /** @type {number|null} */ (null), gapRecovery: 0,
       descentStartT: null, apexT: null, reanchored: false, peakFlexVel: 0,
       soft: /** @type {{t:number,y:number,amplitudePL:number}|null} */ (null), openSinceT: null,
       landing: null, settle: /** @type {import('./pose.js').PoseSample[]} */ ([]), settleTheta: /** @type {number[][]} */ ([]), settleNeural: /** @type {string[]} */ ([]), vSpread: null,
@@ -279,6 +279,7 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     r.lastBeatT = s.lastBottomT;
     phase = into;
     r.lastEvalT = s0 ? frame.t : null;
+    r.lastEvalIndex = s0 ? frame.index : null;
     events.push({ type: 'flightStart', t: frame.t, round: r.round });
     // the opening measured on this very frame goes into the record (null without a hand): I4
     const u0 = s0 ? openingFromBaseline(s0.e, r.base) : null;
@@ -334,8 +335,12 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
   const evaluate = (/** @type {import('./kinematics.js').KinSample} */ s, /** @type {HandFrame} */ frame, /** @type {any[]} */ events, /** @type {boolean} */ mayRevise) => {
     const u = openingFromBaseline(s.e, r.base);
     const uF = (u[1] + u[2]) / 2, uB = (u[3] + u[4]) / 2;
+    const isScissorPose = uF >= 0.50 && uF - uB >= 0.24 && (uB < 0.40 || (uB < 0.52 && s.vSpread >= 18));
+    const enslaveGain = typeof player.enslaveRatio === 'number' ? player.enslaveRatio : 0.25;
+    const enslave = isScissorPose ? Math.min(uB, enslaveGain * uF + (s.vSpread >= 18 ? 0.16 : 0)) : 0;
+    const uBObs = uB - enslave;
     if (r.F.observe(s.t, uF, r.noiseVarF).reanchored) r.reanchored = true;
-    if (r.B.observe(s.t, uB, r.noiseVarB).reanchored) r.reanchored = true;
+    if (r.B.observe(s.t, uBObs, r.noiseVarB).reanchored) r.reanchored = true;
     const pl = predictLanding(stroke.state(), s.t, player.stroke);
     let tL = pl.tHat;
     if (schedule && (tL === null || Math.abs(tL - schedule.throwT) > c.metronomeWindowMs)) tL = schedule.throwT;
@@ -351,13 +356,19 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     r.belief = belief; r.hF = hF; r.hB = hB; r.tLandHat = tL;
     r.legalCount = legal.mass.filter((m) => m > 1e-9).length;
     r.trackedInFlight += 1;
-    // After a tracking gap the stroke velocity is an average over the gap, and the filter needs one
-    // more frame to recover: this frame and the next are marked, so that the landing rule can fall
-    // back on the palm HEIGHT for them (see land()).
-    if (r.lastEvalT === null || s.t - r.lastEvalT > 1.6 * frameDt) r.gapRecovery = c.gapRecoveryFrames;
+    // After a multi-frame tracking gap the stroke velocity is an average over the gap, and the filter needs
+    // one more frame to recover: this frame and the next are marked, so that the landing rule can fall
+    // back on the palm HEIGHT for them (see land()). Brief 1-3 frame webcam motion-blur drops during a
+    // rhythm round are not treated as full stroke gaps.
+    const missedFrames = r.lastEvalIndex === null
+      ? Math.max(0, frame.index - r.flightFrame - 1)
+      : Math.max(0, frame.index - r.lastEvalIndex - 1);
+    const gapMinFrames = mode.primeBeats === 0 && !schedule ? 1 : 4;
+    if (missedFrames >= gapMinFrames && (r.lastEvalT === null || s.t - r.lastEvalT > 1.6 * frameDt)) r.gapRecovery = c.gapRecoveryFrames;
     const afterGap = r.gapRecovery > 0;
     if (afterGap) r.gapRecovery -= 1;
     r.lastEvalT = s.t;
+    r.lastEvalIndex = frame.index;
     // `open`: the revision step below was carried out on this frame (not while a single-stroke round
     // merely waits armed, not before enough frames of the round have been seen). It is set at the END of
     // the step: if the step cannot complete, the frame never counts as one on which the AI could revise.
@@ -395,8 +406,10 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     const windowMs = Math.max(c.inAirWindowMs, c.inAirWindowFrames * frameDt);
     const trackedLate = inAir.filter((/** @type {any} */ f) => f.t >= L.t - windowMs).length;
     // the referee needs FRESH in-air evidence: a last look that is several frames old says nothing about
-    // what the fingers did just before landing, so such a round is void rather than a foul
-    const stale = !lastInAir || L.t - lastInAir.t > Math.max(c.inAirMaxAgeMs, c.inAirMaxAgeFrames * frameDt);
+    // what the fingers did just before landing, so such a round is void rather than a foul (when the hand
+    // was already seen open on lastInAir before a brief motion-blur drop, a slightly wider window applies)
+    const maxAgeMs = Math.max(c.inAirMaxAgeMs, c.inAirMaxAgeFrames * frameDt) * (lastInAir && lastInAir.open && lastInAir.hF >= 0.5 ? 1.65 : 1);
+    const stale = !lastInAir || L.t - lastInAir.t > maxAgeMs;
     // ... and it has to be a look at the THROW. In single-stroke mode the frames of the armed wait are
     // recorded as in-air frames, but the AI may not revise on them. If the landing is dated before any
     // frame of the stroke itself (a very fast stroke hidden by a dropped frame), nothing was seen of the
@@ -520,6 +533,8 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
       // sensor calibration only (I6): how this camera reads this hand's fist and open fingers
       if (verdict === 'VOID_NO_FIST') {
         player.learnPosture({ primingTheta: r.primingTheta, finalTheta: null, openFingers: [] });
+      } else if (verdict === 'FOUL_LATE' && code === 'FOUL_LATE_CLOSE' && playerMove === SCISSORS && finalTheta && r.vSpread !== null && r.vSpread >= 18) {
+        player.learnPosture({ primingTheta: r.primingTheta, finalTheta, openFingers: [1, 2] });
       } else if (verdict === 'VOID_UNKNOWN' && finalU4 && tail.length >= 3) {
         const steady = [0, 1, 2, 3].every((k) => { const v = tail.map((/** @type {any} */ x) => x.u4[k]); return Math.max(...v) - Math.min(...v) <= c.postureStableRange; });
         if (steady) player.learnPosture({ primingTheta: r.primingTheta, finalTheta, openFingers: [1, 2, 3, 4].filter((f) => finalU4[f - 1] >= c.postureOpenMin) });
@@ -554,7 +569,8 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
       if (!handPresent) { handPresent = true; events.push({ type: 'handSeen', t: frame.t }); }
       lastHandT = frame.t;
       flexKf.step((s.theta[1] + s.theta[2]) / 2, (frame.t - (hand ? hand.t : frame.t - frameDt)) / 1000);
-      hand = { t: frame.t, e: s.e, theta: s.theta, vSpreadDeg: s.vSpread, flexVelDegS: -flexKf.v, front: s.front, back: s.back, cy: s.cy, palm: s.palm };
+      const liveMove = s.front < 0.42 && s.back < 0.42 ? ROCK : s.front >= 0.55 && s.back >= 0.50 ? PAPER : s.front >= 0.55 && s.back < 0.42 ? SCISSORS : s.neural && s.neural.score >= 0.72 ? (s.neural.label === 'ROCK' ? ROCK : s.neural.label === 'PAPER' ? PAPER : s.neural.label === 'SCISSORS' ? SCISSORS : null) : null;
+      hand = { t: frame.t, e: s.e, theta: s.theta, vSpreadDeg: s.vSpread, flexVelDegS: -flexKf.v, front: s.front, back: s.back, liveMove, cy: s.cy, palm: s.palm };
       recent.push(s);
       if (recent.length > c.baselineFrames) recent.shift();
     } else if (handPresent) {
@@ -585,7 +601,7 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
         if (b && b.type === 'bottom') {
           if (b.index === 1 && s && s.front < c.primeStartMaxExtension && s.back < c.primeStartMaxExtension) {
             startRound(frame.t);
-            r.priming = recent.slice();
+            r.priming = recent.filter((x) => x.front < c.primeStartMaxExtension && x.back < c.primeStartMaxExtension);
             phase = 'PRIMING'; beat = 1;
             events.push({ type: 'beat', n: 1, t: b.t, periodMs: null });
           } else {
@@ -654,17 +670,27 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
       for (const e of strokeEvents) {
         if (e.type === 'apex') { if (r.apexT === null) r.apexT = e.t; }
         else if (e.type === 'descentStart') r.descentStartT = e.t;
-        else if (e.type === 'rhythmReset') { if (!schedule) { abort(e.reason === 'lost' ? 'HAND_LOST' : 'RHYTHM_TIMEOUT', frame.t, events); return events; } }
+        else if (e.type === 'rhythmReset') {
+          if (!schedule) {
+            if (e.reason === 'timeout' && !single && (r.soft !== null || r.hF >= 0.5 || (r.apexT !== null && r.trackedInFlight >= 4))) {
+              land(r.soft ? r.soft.t : frame.t, 'soft', frame, events, r.soft);
+              break;
+            }
+            abort(e.reason === 'lost' ? 'HAND_LOST' : 'RHYTHM_TIMEOUT', frame.t, events);
+            return events;
+          }
+        }
         else if (e.type === 'bottom') {
-          if (!schedule || Math.abs(e.t - schedule.throwT) <= c.metronomeWindowMs) { land(e.t, 'stroke', frame, events, { y: e.y, amplitudePL: e.amplitudePL }); break; }
+          const prematureBounce = !schedule && !single && r.apexT === null && e.t - r.tFlightStart < Math.min(200, 0.40 * (r.period ?? 500));
+          if (!prematureBounce && (!schedule || Math.abs(e.t - schedule.throwT) <= c.metronomeWindowMs)) { land(e.t, 'stroke', frame, events, { y: e.y, amplitudePL: e.amplitudePL }); break; }
         } else if (e.type === 'weakBottom' || e.type === 'falseStart') {
           if (single) {
             // one stroke decides a single-stroke round, so it has to be a clear one: anything less
             // (a twitch, landmark jitter) is not a throw and the round stays armed
             phase = 'ARMED'; r.descentStartT = null;
-          } else if (e.type === 'weakBottom' && !schedule && (r.apexT !== null || e.t - r.tFlightStart >= 0.5 * (r.period ?? 520))) {
-            // after the count-in a weak stroke is still a throw: candidate for a soft landing
-            r.soft = { t: e.t, y: e.y, amplitudePL: e.amplitudePL };
+          } else if (!schedule && (r.apexT !== null || e.t - r.tFlightStart >= 0.45 * (r.period ?? 520)) && (e.type === 'weakBottom' || r.hF >= 0.5 || r.apexT !== null)) {
+            // after the count-in a weak or gentle 4th stroke is still a throw: candidate for a soft landing
+            r.soft = { t: e.t, y: e.y, amplitudePL: e.amplitudePL ?? 0.12 };
           }
         }
       }
@@ -677,7 +703,11 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
         if (phase === 'IDLE') return events;
       }
       if (phase === 'FLIGHT' && !schedule) {
-        if (r.soft && frame.t - r.soft.t >= c.softLandingHoldMs && stroke.state().phase !== 'DOWN') {
+        const st = stroke.state();
+        if (!single && !r.soft && (r.hF >= 0.65 || r.apexT !== null) && frame.t - r.tFlightStart >= 0.65 * (r.period ?? 500) && st.stillSinceT !== null && frame.t - st.stillSinceT >= 85 && st.phase !== 'UP' && st.phase !== 'DOWN') {
+          r.soft = { t: frame.t, y: st.y, amplitudePL: 0.12 };
+        }
+        if (r.soft && frame.t - r.soft.t >= c.softLandingHoldMs && st.phase !== 'DOWN') {
           land(r.soft.t, 'soft', frame, events, r.soft);
           if (phase === 'IDLE') return events;
         } else if (single && r.descentStartT !== null && frame.t - r.descentStartT > c.singleStrokeTimeoutMs) {
@@ -750,8 +780,14 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     const idlePred = phase === 'IDLE' || phase === 'PRIMING' ? player.sequence.predict() : null;
     const standing = r && r.commits.length ? r.commits[r.commits.length - 1] : null;
     const inFlight = phase === 'FLIGHT' || phase === 'ARMED';
+    const throwStarted = phase === 'FLIGHT' && r !== null && (
+      mode.primeBeats === 0
+      || r.descentStartT !== null
+      || (lastT !== null && r.tFlightStart !== null && lastT - r.tFlightStart >= 0.42 * (r.period ?? 500))
+    );
     return {
       phase, round: r ? r.round : roundNo, beat, primeBeats: mode.primeBeats, metronome: !!mode.metronome,
+      throwStarted,
       rules: ruleName,
       periodMs: r && r.period ? r.period : stroke.state().periodMs,
       tLandHat: inFlight && r ? r.tLandHat : null,
@@ -759,6 +795,7 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
       handPresent,
       hand: handPresent && hand ? {
         e: hand.e.slice(), theta: hand.theta.slice(), vSpreadDeg: hand.vSpreadDeg, flexVelDegS: hand.flexVelDegS,
+        front: hand.front, back: hand.back, liveMove: hand.liveMove ?? null,
         uF: r && r.trace.uF.length ? r.trace.uF[r.trace.uF.length - 1] : null,
         uB: r && r.trace.uB.length ? r.trace.uB[r.trace.uB.length - 1] : null,
         noiseSd: r ? r.noiseSd : player.noiseSd, strokeY: stroke.state().y, strokeV: stroke.state().vy,

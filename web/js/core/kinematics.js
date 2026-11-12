@@ -161,12 +161,18 @@ export function palmCenter(image, aspect) {
 }
 
 /**
- * Palm size: wrist to middle-finger MCP in aspect-corrected image coordinates (units of image height).
+ * Palm size: the larger of wrist-to-middle-MCP and 1.45 x index-to-pinky-MCP in aspect-corrected image
+ * coordinates (units of image height). Because the longitudinal palm axis (0->9) and the transverse
+ * knuckle bridge (5->17) are orthogonal in 3-D, they cannot both foreshorten at the same time from any
+ * camera viewing angle.
  * @param {Vec3[]} image @param {number} aspect
  */
 export function palmSize(image, aspect) {
   const w = image[WRIST], m = image[FINGERS.middle[0]];
-  return Math.hypot((m.x - w.x) * aspect, m.y - w.y);
+  const len = Math.hypot((m.x - w.x) * aspect, m.y - w.y);
+  const i = image[FINGERS.index[0]], p = image[FINGERS.pinky[0]];
+  const span = Math.hypot((p.x - i.x) * aspect, p.y - i.y);
+  return Math.max(len, 1.45 * span);
 }
 
 /**

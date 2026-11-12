@@ -61,20 +61,30 @@ export function mountPlayerStage(ctx) {
   // ---- chips
   store.subscribe((st) => ({
     source: st.boot.source, mode: st.mode,
-    phase: st.engine ? st.engine.phase : 'IDLE', hand: st.mode === 'mindtwin' ? !!(st.twin && st.twin.present) : !!(st.engine && st.engine.handPresent),
+    phase: st.engine ? st.engine.phase : 'IDLE',
+    beat: st.engine ? st.engine.beat : 0,
+    primeBeats: st.engine ? st.engine.primeBeats : 3,
+    throwStarted: !!(st.engine && st.engine.throwStarted),
+    hand: st.mode === 'mindtwin' ? !!(st.twin && st.twin.present) : !!(st.engine && st.engine.handPresent),
+    liveMove: st.engine && st.engine.hand ? st.engine.hand.liveMove : null,
     uF: st.engine && st.engine.phase === 'FLIGHT' && st.engine.hand && st.engine.hand.uF !== null ? Math.round(Math.min(1, Math.max(0, st.engine.hand.uF)) * 100) : null,
     move: st.result ? st.result.playerMove : undefined,
   }), (v) => {
     let text = T.poseSearching, dim = true, live = false, long = '', val = '';
     if (v.source === 'none') text = T.poseNoSource;
     else if (!v.hand) text = T.poseSearching;
-    else if (v.mode === 'mindtwin') { text = T.poseSeen; dim = false; }
-    else if (v.phase === 'PRIMING') { text = T.poseFist; dim = false; }
-    else if (v.phase === 'ARMED') { text = T.poseArmed; dim = false; }
+    else if (v.mode === 'mindtwin') { text = T.poseSeen; dim = false; live = true; }
+    else if (v.phase === 'PRIMING') { text = T.poseFist; if (v.beat > 0 && v.primeBeats > 0) val = ` ${v.beat}/${v.primeBeats}`; dim = false; live = true; }
+    else if (v.phase === 'FLIGHT' && v.primeBeats > 0 && !v.throwStarted) { text = T.poseFist; val = ` ${v.primeBeats}/${v.primeBeats}`; dim = false; live = true; }
+    else if (v.phase === 'ARMED') { text = T.poseArmed; dim = false; live = true; }
     else if (v.phase === 'FLIGHT') { text = T.poseOpening; if (v.uF !== null) { long = ` · ${T.lgFront}`; val = ` %${v.uF}`; } dim = false; live = true; }
-    else if (v.phase === 'SETTLING') { text = T.poseLanded; dim = false; }
+    else if (v.phase === 'SETTLING') { text = T.poseLanded; dim = false; live = true; }
     else if (v.phase === 'RESOLVED' && v.move !== undefined) { text = v.move === null ? DASH : MOVE_UPPER[v.move]; dim = false; }
-    else { text = T.poseSeen; dim = false; }
+    else {
+      text = T.poseSeen;
+      if (v.liveMove === 0 || v.liveMove === 1 || v.liveMove === 2) val = ` · ${MOVE_UPPER[v.liveMove]}`;
+      dim = false; live = true;
+    }
     setText(poseTxt, text); setText(poseLong, long); setText(poseVal, val);
     toggle(poseTxt, 'chip__dim', dim);
     show(poseDot, live);
@@ -202,6 +212,8 @@ export function mountPlayerStage(ctx) {
 
   // ---- overlay canvas (requestAnimationFrame)
   /** @type {any} */ let lastImage = null;
+  let lastSeq = -1;
+  let lastVideoTime = -1;
   let lastSource = 'none';
   let lastBlur = false;
   let blank = true;
@@ -214,7 +226,7 @@ export function mountPlayerStage(ctx) {
       const dirty = surface.takeDirty();
       if (f.source === 'none') {
         if (!blank || dirty) { surface.beginRaw(); blank = true; }
-        lastSource = 'none'; lastImage = null; lastBlur = false;
+        lastSource = 'none'; lastImage = null; lastSeq = -1; lastVideoTime = -1; lastBlur = false;
         return;
       }
       const p = f.source === 'camera' ? ctx.privacy() : null;
@@ -223,10 +235,10 @@ export function mountPlayerStage(ctx) {
       const blur = !!(p && p.enabled === true && (f.picture ? f.picture.width > 0 : video.videoWidth > 0));
       const wasBlur = lastBlur;
       lastBlur = blur;
-      // without the private picture the canvas only changes when a new set of landmarks arrives - and once
-      // when the private picture has just been switched off, which must clear it
-      if (!blur && !wasBlur && !dirty && f.image === lastImage && f.source === lastSource) return;
-      lastImage = f.image; lastSource = f.source;
+      const vTime = !f.picture && f.source === 'camera' ? video.currentTime : -1;
+      // Skip redundant repaints when no new camera/demo frame, resize, or privacy state change has occurred
+      if (blur === wasBlur && !dirty && f.seq === lastSeq && f.image === lastImage && f.source === lastSource && vTime === lastVideoTime) return;
+      lastSeq = f.seq ?? -1; lastImage = f.image; lastSource = f.source; lastVideoTime = vTime;
       const c = surface.beginRaw();
       blank = false;
       if (blur && p) {

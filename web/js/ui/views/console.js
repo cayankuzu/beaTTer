@@ -85,12 +85,13 @@ export function mountConsole(ctx) {
   });
 
   // ---- lit beats
-  store.subscribe((st) => ({ phase: st.engine ? st.engine.phase : 'IDLE', beat: st.engine ? st.engine.beat : 0, pb: st.settings.primeBeats, open: st.result !== null }), (v) => {
+  store.subscribe((st) => ({ phase: st.engine ? st.engine.phase : 'IDLE', beat: st.engine ? st.engine.beat : 0, throwStarted: !!(st.engine && st.engine.throwStarted), pb: st.settings.primeBeats, open: st.result !== null }), (v) => {
     const n = beatEls.length; // priming beats + the throw
     for (let i = 0; i < n; i++) {
       const idx = i + 1;
       let done = false, active = false;
       if (v.phase === 'PRIMING') { done = idx < v.beat; active = idx === v.beat; }
+      else if (v.phase === 'FLIGHT' && v.pb > 0 && !v.throwStarted) { done = idx < v.pb; active = idx === v.pb; }
       else if (v.phase === 'FLIGHT' || v.phase === 'ARMED') { done = idx < n; active = idx === n; }
       else if (v.phase === 'SETTLING' || v.phase === 'RESOLVED' || v.open) done = true;
       toggle(beatEls[i], 'is-done', done);

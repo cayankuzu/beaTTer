@@ -22,7 +22,7 @@ export const DEFAULTS = Object.freeze({
   mean: Object.freeze([
     Object.freeze([0, 0, 0, 0]),
     Object.freeze([1, 1, 1, 1]),
-    Object.freeze([1, 1, 0.08, 0.06]),
+    Object.freeze([0.95, 0.95, 0.12, 0.08]),
   ]),
   /**
    * Class standard deviations per finger (rows ROCK, PAPER, SCISSORS). Closed fingers are tight. Open
@@ -32,7 +32,7 @@ export const DEFAULTS = Object.freeze({
   sd: Object.freeze([
     Object.freeze([0.16, 0.16, 0.18, 0.20]),
     Object.freeze([0.22, 0.22, 0.24, 0.26]),
-    Object.freeze([0.22, 0.22, 0.18, 0.20]),
+    Object.freeze([0.25, 0.25, 0.22, 0.22]),
   ]),
   /** OTHER: broad Gaussian per finger. */
   otherMean: 0.5,
@@ -84,11 +84,12 @@ export function createPoseClassifier(state = {}, cfg = {}) {
     }
     const li = neural ? NEURAL_LABELS.indexOf(neural.label) : -1;
     if (li >= 0) {
+      const nw = c.neuralWeight * (neural && Number.isFinite(neural.score) && neural.score >= 0.65 ? 0.6 + 0.9 * neural.score : 1);
       for (let y = 0; y < 3; y++) {
         const row = neuralCounts[y];
-        out[y] += c.neuralWeight * Math.log(row[li] / (row[0] + row[1] + row[2] + row[3]));
+        out[y] += nw * Math.log(row[li] / (row[0] + row[1] + row[2] + row[3]));
       }
-      out[OTHER] += c.neuralWeight * Math.log(0.25);
+      out[OTHER] += nw * Math.log(0.25);
     }
     return out;
   };

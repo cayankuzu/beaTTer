@@ -7,6 +7,7 @@ Multi-threaded so the 8 MB gesture model + JS modules load in parallel on mobile
 import datetime
 import http.server
 import ipaddress
+import json
 import os
 import socket
 import ssl
@@ -20,6 +21,8 @@ DIRECTORY = os.path.join(ROOT, "web")
 CERT_DIR = os.path.join(ROOT, ".localcert")
 CERT_FILE = os.path.join(CERT_DIR, "cert.pem")
 KEY_FILE = os.path.join(CERT_DIR, "key.pem")
+TELEMETRY_DIR = os.path.join(ROOT, ".local_telemetry")
+TELEMETRY_LOCK = threading.Lock()
 
 # Keep in sync with vercel.json (the model URLs carry ?v=..., so /models/ may be cached for long there).
 # script-src / connect-src name the one package version and the one Supabase project the app uses,
@@ -79,7 +82,31 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_POST(self):
-        # The app never posts to its own origin; answer quietly instead of the default 501.
+        if self.path == "/__local_telemetry":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if 0 < length <= 8 * 1024 * 1024:
+                    raw = self.rfile.read(length)
+                    payload = json.loads(raw.decode("utf-8"))
+                    with TELEMETRY_LOCK:
+                        os.makedirs(TELEMETRY_DIR, exist_ok=True)
+                        r = payload.get("round")
+                        if r is not None:
+                            with open(os.path.join(TELEMETRY_DIR, "rounds.jsonl"), "a", encoding="utf-8") as f:
+                                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+                        sess = payload.get("session")
+                        if sess is not None:
+                            with open(os.path.join(TELEMETRY_DIR, "latest_session.json"), "w", encoding="utf-8") as f:
+                                json.dump(sess, f, ensure_ascii=False, indent=2)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", "11")
+                    self.end_headers()
+                    self.wfile.write(b'{"ok":true}')
+                    return
+            except Exception:
+                pass
+        # The app never posts to other paths on its own origin; answer quietly instead of the default 501.
         self.send_response(404)
         self.send_header("Content-Length", "0")
         self.end_headers()

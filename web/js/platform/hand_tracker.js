@@ -22,8 +22,10 @@
 const VERSION = '0.10.14';
 const CDN = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VERSION}`;
 const LABELS = Object.freeze({ Closed_Fist: 'ROCK', Open_Palm: 'PAPER', Victory: 'SCISSORS' });
-/** Low on purpose: keeps the hand tracked through motion blur on fast strokes. */
-const MIN_CONFIDENCE = 0.28;
+/** Low on purpose: keeps the hand tracked through motion blur, backlight glare and steep viewing angles on fast strokes. */
+const MIN_DETECTION_CONFIDENCE = 0.12;
+const MIN_PRESENCE_CONFIDENCE = 0.06;
+const MIN_TRACKING_CONFIDENCE = 0.06;
 /** Consecutive run-time failures after which the tracker is rebuilt (on the other delegate). */
 const MAX_FAILURES = 15;
 
@@ -52,6 +54,7 @@ export function createHandTracker({ modelUrl }) {
   /** @type {'GPU'|'CPU'|null} */ let avoid = null; // a delegate that kept failing at run time
   let ready = false;
   let lastTs = 0;
+  let hadHand = false;
   let failures = 0;
   let frames = 0, inferSum = 0;
   /** @type {Promise<void>|null} */ let initing = null;
@@ -65,9 +68,9 @@ export function createHandTracker({ modelUrl }) {
       baseOptions: { modelAssetPath: modelUrl, delegate: d },
       runningMode: 'VIDEO',
       numHands: 1,
-      minHandDetectionConfidence: MIN_CONFIDENCE,
-      minHandPresenceConfidence: MIN_CONFIDENCE,
-      minTrackingConfidence: MIN_CONFIDENCE,
+      minHandDetectionConfidence: MIN_DETECTION_CONFIDENCE,
+      minHandPresenceConfidence: MIN_PRESENCE_CONFIDENCE,
+      minTrackingConfidence: MIN_TRACKING_CONFIDENCE,
     });
   };
 
@@ -129,6 +132,7 @@ export function createHandTracker({ modelUrl }) {
       res = recognizer.recognizeForVideo(source, ts);
       failures = 0;
     } catch (err) {
+      hadHand = false;
       failures += 1;
       if (failures > MAX_FAILURES) { // self-heal: rebuild the recogniser, on the other delegate
         console.warn(`[beaTTer] hand tracker: re-initialising after repeated failures on the ${delegate} delegate`, err);
@@ -143,9 +147,16 @@ export function createHandTracker({ modelUrl }) {
     }
     const inferenceMs = performance.now() - t0;
     frames += 1; inferSum += inferenceMs;
-    if (!res || !res.landmarks || res.landmarks.length === 0 || !res.worldLandmarks || res.worldLandmarks.length === 0) return null;
+    if (!res || !res.landmarks || !res.landmarks.length || !res.worldLandmarks || !res.worldLandmarks.length) {
+      hadHand = false;
+      return null;
+    }
     const image = res.landmarks[0], world = res.worldLandmarks[0];
-    if (!image || image.length < 21 || !world || world.length < 21) return null;
+    if (!image || image.length < 21 || !world || world.length < 21) {
+      hadHand = false;
+      return null;
+    }
+    hadHand = true;
     const hd = res.handednesses && res.handednesses[0] && res.handednesses[0][0] ? res.handednesses[0][0].categoryName : null;
     const g = res.gestures && res.gestures[0] && res.gestures[0][0] ? res.gestures[0][0] : null;
     const label = g && /** @type {any} */ (LABELS)[g.categoryName] ? /** @type {any} */ (LABELS)[g.categoryName] : 'NONE';

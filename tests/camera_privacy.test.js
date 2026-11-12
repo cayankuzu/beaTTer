@@ -131,6 +131,20 @@ test('camera source: opens without waiting for any face detector, reports the de
   tracker.delegate = 'CPU';
   /** @type {any} */ (frameFn)({ t: 1200, now: 1205 });
   assert.equal(got[got.length - 1].disp.delegate, 'CPU');
+  // a brief 1-frame tracker dropout (< 110 ms) reports present:false to the engine but holds display landmarks so the UI does not flicker
+  const origDetect = tracker.detect;
+  tracker.detect = () => null;
+  /** @type {any} */ (frameFn)({ t: 1233, now: 1238 });
+  const briefDrop = got[got.length - 1];
+  assert.equal(briefDrop.frame.present, false, 'engine always sees true frame presence');
+  assert.ok(briefDrop.disp.image && briefDrop.disp.raw, 'display grace keeps skeleton and focus mask steady across a single dropped frame');
+  // after the grace window (> 110 ms), display landmarks clear as well
+  /** @type {any} */ (frameFn)({ t: 1400, now: 1405 });
+  const longDrop = got[got.length - 1];
+  assert.equal(longDrop.frame.present, false);
+  assert.equal(longDrop.disp.image, null);
+  assert.equal(longDrop.disp.raw, null);
+  tracker.detect = origDetect;
 });
 
 test('the controller follows a tracker that moved to the other processor (status chip)', async () => {

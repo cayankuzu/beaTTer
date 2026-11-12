@@ -57,13 +57,22 @@ export function drawSkeleton(ctx, lm, pr, t, o = {}) {
   }
   ctx.stroke();
   ctx.shadowBlur = 0;
-  // joints: hollow dots, fingertips larger
+  // joints: hollow dots batched into two paths (regular joints + fingertips) to minimise draw calls
   ctx.fillStyle = t.bg; ctx.lineWidth = 1.5 * k;
+  const rJoint = 3.8 * k, rTip = 4.6 * k;
+  ctx.beginPath();
   for (let i = 0; i < 21; i++) {
-    ctx.beginPath();
-    ctx.arc(xs[i], ys[i], (TIPS.has(i) ? 4.6 : 3.8) * k, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
+    if (TIPS.has(i)) continue;
+    ctx.moveTo(xs[i] + rJoint, ys[i]);
+    ctx.arc(xs[i], ys[i], rJoint, 0, Math.PI * 2);
   }
+  ctx.fill(); ctx.stroke();
+  ctx.beginPath();
+  for (const i of TIPS) {
+    ctx.moveTo(xs[i] + rTip, ys[i]);
+    ctx.arc(xs[i], ys[i], rTip, 0, Math.PI * 2);
+  }
+  ctx.fill(); ctx.stroke();
   // tracking box: corner brackets
   if (o.box !== false) {
     const pad = 14 * k, a = 14 * k;

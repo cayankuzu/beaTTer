@@ -129,14 +129,10 @@ export function mountUI(root, deps) {
     lastSource = source;
   });
 
-  // ---- audio unlock on the first gesture (autoplay policies)
-  const unlockOnce = () => {
-    deps.unlockAudio();
-    window.removeEventListener('pointerdown', unlockOnce, true);
-    window.removeEventListener('keydown', unlockOnce, true);
-  };
-  window.addEventListener('pointerdown', unlockOnce, true);
-  window.addEventListener('keydown', unlockOnce, true);
+  // ---- audio unlock on user gestures (autoplay policies + post-camera-permission resume)
+  const unlockGesture = () => { deps.unlockAudio(); };
+  window.addEventListener('pointerdown', unlockGesture, { capture: true, passive: true });
+  window.addEventListener('keydown', unlockGesture, { capture: true, passive: true });
 
   // ---- keyboard
   const togglePanel = (/** @type {'lab'|'settings'} */ name) => { if (store.get().ui.panel === name) actions.closePanel(); else actions.openPanel(name); };

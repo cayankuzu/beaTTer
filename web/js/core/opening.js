@@ -31,7 +31,7 @@ export const DEFAULTS = Object.freeze({
    * Latent opening durations (ms). Fast throws complete in roughly 60-130 ms [Katsuki2015; Li2023];
    * relaxed ones take several hundred ms [Carpinella2011].
    */
-  durationsMs: Object.freeze([50, 70, 95, 130, 180, 250, 340]),
+  durationsMs: Object.freeze([45, 65, 90, 125, 175, 245, 340]),
   /** Time constant of the exponential forgetting of log-evidence (ms). */
   memoryMs: 140,
   /** Mean and variance of the final opening amplitude (baseline-relative units). */

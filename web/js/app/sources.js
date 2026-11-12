@@ -161,41 +161,88 @@ export function createCameraSource({ video, camera, tracker }) {
   // between, and the window trailed the hand on fast strokes.
   const snap = typeof document !== 'undefined' ? document.createElement('canvas') : null;
   const snapCtx = snap ? snap.getContext('2d') : null;
+  const trackSnap = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+  const trackCtx = trackSnap ? trackSnap.getContext('2d') : null;
+  const canFilter = !!(trackCtx && 'filter' in trackCtx);
+  /** Short display-only grace window (ms) so 1-2 motion-blurred frames do not flicker the skeleton/focus. */
+  const DISPLAY_GRACE_MS = 160;
+  /** @type {{x:number,y:number,z:number}[]|null} */ let lastSmooth = null;
+  /** @type {{x:number,y:number,z:number}[]|null} */ let lastRaw = null;
+  /** @type {number|null} */ let lastSeenT = null;
+  let busy = false;
   /** @returns {HTMLCanvasElement|null} the copy, or null when there is no frame to copy */
   const copyFrame = () => {
     const vw = video.videoWidth, vh = video.videoHeight;
     if (!snap || !snapCtx || !(vw > 0) || !(vh > 0) || video.readyState < 2) return null;
-    if (snap.width !== vw || snap.height !== vh) { snap.width = vw; snap.height = vh; }
-    snapCtx.drawImage(video, 0, 0, vw, vh);
+    const scale = Math.min(1, 640 / Math.max(vw, vh));
+    const sw = Math.max(1, Math.round(vw * scale)), sh = Math.max(1, Math.round(vh * scale));
+    if (snap.width !== sw || snap.height !== sh) { snap.width = sw; snap.height = sh; }
+    snapCtx.drawImage(video, 0, 0, sw, sh);
+    if (trackSnap && trackCtx) {
+      const ts = Math.min(1, 384 / Math.max(vw, vh));
+      const tw = Math.max(1, Math.round(vw * ts)), th = Math.max(1, Math.round(vh * ts));
+      if (trackSnap.width !== tw || trackSnap.height !== th) { trackSnap.width = tw; trackSnap.height = th; }
+      if (canFilter) trackCtx.filter = 'none';
+      trackCtx.drawImage(snap, 0, 0, tw, th);
+    }
     return snap;
   };
 
   /** @param {{t:number, now:number}} meta */
   const onVideoFrame = (meta) => {
-    if (running && tracker.ready) track(meta);
+    if (running && tracker.ready && !busy) track(meta);
   };
 
   /** @param {{t:number, now:number}} meta */
   const track = (meta) => {
-    const picture = copyFrame();
-    const out = tracker.detect(picture ?? video, meta.t);
-    const aspect = video.videoWidth > 0 && video.videoHeight > 0 ? video.videoWidth / video.videoHeight : 4 / 3;
-    /** @type {HandFrame} */
-    const frame = out
-      ? { t: meta.t, index: index++, present: true, image: out.image, world: out.world, aspect, handedness: out.handedness, neural: out.neural }
-      : { t: meta.t, index: index++, present: false, image: null, world: null, aspect, handedness: null, neural: null };
-    let smooth = null;
-    if (out) {
-      smooth = out.image.map((p, i) => ({ x: filters[2 * i].filter(p.x, meta.t), y: filters[2 * i + 1].filter(p.y, meta.t), z: p.z }));
-    } else {
-      for (const f of filters) f.reset();
+    busy = true;
+    try {
+      const picture = copyFrame();
+      const trackInput = (picture && trackSnap) ? trackSnap : (picture ?? video);
+      let out = tracker.detect(trackInput, meta.t);
+      // Fast-swing ROI / glare recovery: if the hand was just tracked on the preceding frame and was lost
+      // (either because it moved outside MediaPipe's previous ROI crop or because a bright window washed
+      // it out), the first detect() call cleared MediaPipe's internal ROI, so a single contrast-boosted
+      // retry immediately runs the full-frame palm detector without dropping the frame.
+      if (!out && picture && trackSnap && trackCtx && canFilter && lastSeenT !== null && meta.t - lastSeenT >= 0 && meta.t - lastSeenT <= 110) {
+        trackCtx.filter = 'contrast(1.42) brightness(0.85)';
+        trackCtx.drawImage(picture, 0, 0, trackSnap.width, trackSnap.height);
+        trackCtx.filter = 'none';
+        out = tracker.detect(trackSnap, meta.t + 1);
+      }
+      const aspect = video.videoWidth > 0 && video.videoHeight > 0 ? video.videoWidth / video.videoHeight : 4 / 3;
+      /** @type {HandFrame} */
+      const frame = out
+        ? { t: meta.t, index: index++, present: true, image: out.image, world: out.world, aspect, handedness: out.handedness, neural: out.neural }
+        : { t: meta.t, index: index++, present: false, image: null, world: null, aspect, handedness: null, neural: null };
+      let smooth = null;
+      let raw = null;
+      if (out) {
+        smooth = out.image.map((p, i) => ({ x: filters[2 * i].filter(p.x, meta.t), y: filters[2 * i + 1].filter(p.y, meta.t), z: p.z }));
+        raw = out.image;
+        lastSmooth = smooth;
+        lastRaw = raw;
+        lastSeenT = meta.t;
+      } else if (lastSeenT !== null && meta.t - lastSeenT >= 0 && meta.t - lastSeenT <= DISPLAY_GRACE_MS) {
+        // Keep the last visual skeleton and focus mask across a 1-2 frame motion-blur drop without
+        // altering `frame.present` (the engine always receives the unextrapolated truth).
+        smooth = lastSmooth;
+        raw = lastRaw;
+      } else {
+        for (const f of filters) f.reset();
+        lastSmooth = null;
+        lastRaw = null;
+        lastSeenT = null;
+      }
+      // `picture` is the tracked frame and `raw` (unsmoothed) marks the sharp region in it; the smoothed
+      // `image` only draws the skeleton. `delegate` follows a rebuild of the tracker on the other processor.
+      sink(frame, {
+        image: smooth, raw, picture, delegate: tracker.delegate ?? null,
+        demo: false, inferMs: out ? out.inferenceMs : null, latencyMs: Math.max(0, performance.now() - meta.t),
+      });
+    } finally {
+      busy = false;
     }
-    // `picture` is the tracked frame and `raw` (unsmoothed) marks the sharp region in it; the smoothed
-    // `image` only draws the skeleton. `delegate` follows a rebuild of the tracker on the other processor.
-    sink(frame, {
-      image: smooth, raw: out ? out.image : null, picture, delegate: tracker.delegate ?? null,
-      demo: false, inferMs: out ? out.inferenceMs : null, latencyMs: Math.max(0, performance.now() - meta.t),
-    });
   };
 
   return {

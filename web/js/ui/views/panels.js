@@ -17,9 +17,9 @@ export function mountOnboarding(ctx) {
   const titleId = nextId('onb-title'), rulesId = nextId('onb-rules'), optId = nextId('onb-opt');
   const skip = () => actions.finishOnboarding();
   const dialog = createDialog({ kind: 'modal', cls: 'onb scroll-y', wrapCls: 'dlg--dots', labelledby: titleId, onDismiss: skip });
-  // opt-in, unticked by default: sharing anonymous statistics is the player's explicit choice
-  const optin = createSwitch({ label: T.onbOptin, block: true, describedby: optId, onToggle: (v) => actions.setSetting('cloud', v) });
-  const openBtn = h('button', { class: 'btn btn--primary', type: 'button', on: { click: () => { ctx.unlockAudio(); actions.finishOnboarding(); actions.startCamera(); } } }, icon('camera'), T.onbOpen);
+  let userToggledOptin = false;
+  const optin = createSwitch({ label: T.onbOptin, block: true, describedby: optId, onToggle: (v) => { userToggledOptin = true; actions.setSetting('cloud', v); } });
+  const openBtn = h('button', { class: 'btn btn--primary', type: 'button', on: { click: () => { ctx.unlockAudio(); if (!userToggledOptin) actions.setSetting('cloud', true); actions.finishOnboarding(); actions.startCamera(); } } }, icon('camera'), T.onbOpen);
   const demoBtn = h('button', { class: 'btn', type: 'button', on: { click: () => { ctx.unlockAudio(); actions.finishOnboarding(); actions.startDemo(); } } }, T.onbDemo);
   const skipBtn = h('button', { class: 'btn btn--quiet btn--sm onb__skip', type: 'button', on: { click: skip } }, T.onbSkip);
   dialog.el.append(h('div', { class: 'onb__panel' },

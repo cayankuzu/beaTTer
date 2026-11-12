@@ -11,6 +11,7 @@ ENV/
 
 # Live Debug Telemetry & Captures
 debug_live/
+.local_telemetry/
 *.log
 
 # Temp & Screenshot files

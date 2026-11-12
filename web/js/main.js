@@ -76,6 +76,33 @@ const controller = createController({
 
 store.subscribe((s) => s.settings.privacy, (on) => { if (privacy) privacy.setEnabled(on); });
 
+// On local/LAN development hosts, automatically save every real camera round to /.local_telemetry
+// so playtest rounds can be inspected without manual file downloads.
+if (isDevelopmentHost(location.hostname)) {
+  let lastSavedRound = -1;
+  let lastSavedToast = -1;
+  store.subscribe((s) => s.result, (res) => {
+    if (!res || res.simulated || res.round === lastSavedRound) return;
+    lastSavedRound = res.round;
+    fetch('/__local_telemetry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ round: res, session: controller.actions.exportData() }),
+    }).catch(() => {});
+  });
+  store.subscribe((s) => s.ui.toast, (t) => {
+    if (!t || t.id === lastSavedToast || store.get().boot.source !== 'camera') return;
+    lastSavedToast = t.id;
+    if (typeof t.code === 'string' && t.code.startsWith('ABORT_')) {
+      fetch('/__local_telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ round: { event: 'ABORT', code: t.code, params: t.params, at: new Date().toISOString() }, session: controller.actions.exportData() }),
+      }).catch(() => {});
+    }
+  });
+}
+
 mountUI(/** @type {HTMLElement} */ (document.getElementById('app')), {
   store,
   actions: controller.actions,
@@ -93,3 +120,49 @@ else if (!store.get().settings.onboarded) controller.actions.openPanel('onboardi
 
 // handy for manual inspection and for the automated browser checks
 Object.assign(window, { __beatter: { store, controller } });
+
+// OTA (Over-The-Air) live version watcher: polls ./version.json and notifies active players when a new
+// AI build or calibration update has been deployed so they can refresh with one tap.
+{
+  /** @type {string|null} */ let currentBuildId = null;
+  /** @type {HTMLElement|null} */ let bannerEl = null;
+
+  const showOtaBanner = (/** @type {string} */ ver, /** @type {string} */ note) => {
+    if (bannerEl) return;
+    bannerEl = document.createElement('div');
+    bannerEl.className = 'ota-banner';
+    bannerEl.setAttribute('role', 'status');
+    const txt = document.createElement('span');
+    txt.textContent = `⚡ Yeni sürüm hazır (${ver})${note ? ` · ${note}` : ''}`;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ota-banner__btn';
+    btn.textContent = 'Şimdi Yenile';
+    btn.addEventListener('click', () => {
+      const url = new URL(location.href);
+      url.searchParams.set('v', String(Date.now()));
+      location.replace(url.toString());
+    });
+    bannerEl.append(txt, btn);
+    document.body.appendChild(bannerEl);
+  };
+
+  const checkVersion = async () => {
+    try {
+      const res = await fetch(`./version.json?t=${Date.now()}`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data || typeof data.buildId !== 'string') return;
+      if (currentBuildId === null) {
+        currentBuildId = data.buildId;
+      } else if (data.buildId !== currentBuildId) {
+        showOtaBanner(data.version || 'Yeni', data.note || '');
+      }
+    } catch { /* offline or transient error */ }
+  };
+
+  checkVersion();
+  setInterval(checkVersion, 35000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+  Object.assign(window.__beatter, { showOtaBanner, checkVersion });
+}

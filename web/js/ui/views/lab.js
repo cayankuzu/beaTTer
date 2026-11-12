@@ -216,6 +216,8 @@ export function mountLab(ctx) {
   const confirmBox = h('div', { class: 'data__confirm', hidden: true });
   const resetBtn = h('button', { class: 'btn btn--danger btn--block', type: 'button' }, icon('warning'), T.resetMemory);
   const exportBtn = h('button', { class: 'btn btn--block', type: 'button' }, icon('export'), T.exportJson);
+  const copyTxt = h('span', null, 'Veriyi panoya kopyala');
+  const copyBtn = h('button', { class: 'btn btn--block', type: 'button' }, icon('check'), copyTxt);
   const yesBtn = h('button', { class: 'btn btn--danger', type: 'button' }, T.resetYes);
   const noBtn = h('button', { class: 'btn', type: 'button' }, T.cancel);
   confirmBox.append(h('p', null, T.resetConfirm), h('div', null, yesBtn, noBtn));
@@ -228,6 +230,17 @@ export function mountLab(ctx) {
     const a = h('a', { href: url, download: `${T.exportName}-${new Date().toISOString().slice(0, 10)}.json`, hidden: true });
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
+  });
+  copyBtn.addEventListener('click', async () => {
+    try {
+      const data = actions.exportData();
+      await navigator.clipboard.writeText(JSON.stringify(data));
+      setText(copyTxt, 'Panoya kopyalandı ✓');
+      setTimeout(() => setText(copyTxt, 'Veriyi panoya kopyala'), 2200);
+    } catch {
+      setText(copyTxt, 'Kopyalanamadı — JSON indir kullanın');
+      setTimeout(() => setText(copyTxt, 'Veriyi panoya kopyala'), 2500);
+    }
   });
   const profList = h('ul', { class: 'profiles__list' });
   const profNote = h('p', { class: 'card__note', hidden: true }, T.profilesDemo);
@@ -246,7 +259,7 @@ export function mountLab(ctx) {
       where),
     h('div', { class: 'data__side' },
       cloud.el, h('p', { class: 'card__note', id: cloudDescId }, T.cloudNote),
-      h('div', { class: 'data__actions' }, exportBtn, resetBtn, confirmBox)),
+      h('div', { class: 'data__actions' }, exportBtn, copyBtn, resetBtn, confirmBox)),
     h('div', { class: 'profiles' }, h('h4', { class: 'card__h' }, T.profilesH), profList, profNote, profNew)));
   dataSlot.append(dataCard.el);
 

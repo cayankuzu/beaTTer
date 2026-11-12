@@ -205,3 +205,13 @@ test('kinematic player: deterministic, monotone timestamps, fist during priming,
   assert.ok(/** @type {any} */ (frameFeatures(/** @type {any} */ (mid), calib)).front > 0.5, 'feint shows paper in the air');
   assert.ok(/** @type {any} */ (frameFeatures(feint.frames[feint.frames.length - 1], calib)).front < 0.15, 'and ends as rock');
 });
+
+
+test('palmSize stays stable when the hand is pointed knuckles-first or sideways at the camera', () => {
+  const pFront = palmSize(handLandmarks({ e: [0, 0, 0, 0, 0], aspect: 4 / 3 }).image, 4 / 3);
+  for (const [rx, ry, rz] of [[90, 0, 0], [110, 35, -20], [180, 82, 0], [150, -65, 30]]) {
+    const angled = handLandmarks({ e: [0, 0, 0, 0, 0], R: rotationFromEuler(rx, ry, rz), aspect: 4 / 3 });
+    const ps = palmSize(angled.image, 4 / 3);
+    assert.ok(ps >= 0.7 * pFront && ps <= 1.35 * pFront, `angle (${rx},${ry},${rz}) palmSize ${ps.toFixed(3)} vs ${pFront.toFixed(3)}`);
+  }
+});

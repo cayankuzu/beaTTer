@@ -228,6 +228,139 @@ $$;
 REVOKE ALL ON FUNCTION public.beatter_push_round(text, jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.beatter_push_round(text, jsonb) TO anon, authenticated;
 
--- -------------------------------------------------------------- 4. retention
+-- -------------------------------------- 4. diagnostic & two-way model store
+ALTER TABLE public.player_profiles ADD COLUMN IF NOT EXISTS model_state JSONB DEFAULT NULL;
+
+CREATE TABLE IF NOT EXISTS public.diagnostic_telemetry (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    player_id TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    round_number INT,
+    verdict TEXT NOT NULL,
+    code TEXT,
+    player_move TEXT,
+    ai_move TEXT,
+    lead_ms DOUBLE PRECISION,
+    flight_ms DOUBLE PRECISION,
+    fps DOUBLE PRECISION,
+    tracked_ratio DOUBLE PRECISION,
+    onset_front_ms DOUBLE PRECISION,
+    onset_back_ms DOUBLE PRECISION,
+    v_spread_deg DOUBLE PRECISION,
+    peak_vel DOUBLE PRECISION,
+    h_front DOUBLE PRECISION,
+    h_back DOUBLE PRECISION,
+    reanchored BOOLEAN DEFAULT FALSE,
+    trace_uf JSONB DEFAULT '[]'::jsonb,
+    trace_ub JSONB DEFAULT '[]'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_diag_created_at ON public.diagnostic_telemetry(created_at DESC);
+ALTER TABLE public.diagnostic_telemetry ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.diagnostic_telemetry FROM anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.beatter_push_diagnostic(p_player text, p_diag jsonb, p_model jsonb DEFAULT NULL)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    IF p_player IS NULL OR char_length(p_player) NOT BETWEEN 8 AND 64 OR p_player !~ '^[A-Za-z0-9_.:-]+$' THEN
+        RETURN;
+    END IF;
+    IF p_diag IS NULL OR jsonb_typeof(p_diag) <> 'object' OR pg_column_size(p_diag) > 8192 THEN
+        RETURN;
+    END IF;
+
+    INSERT INTO public.diagnostic_telemetry (
+        player_id, round_number, verdict, code, player_move, ai_move,
+        lead_ms, flight_ms, fps, tracked_ratio, onset_front_ms, onset_back_ms,
+        v_spread_deg, peak_vel, h_front, h_back, reanchored, trace_uf, trace_ub
+    ) VALUES (
+        p_player,
+        CASE WHEN jsonb_typeof(p_diag->'round') = 'number' THEN (p_diag->>'round')::numeric::int ELSE NULL END,
+        coalesce(left(p_diag->>'verdict', 32), 'UNKNOWN'),
+        left(p_diag->>'code', 40),
+        left(p_diag->>'player_move', 16),
+        left(p_diag->>'ai_move', 16),
+        CASE WHEN jsonb_typeof(p_diag->'lead_ms') = 'number' THEN (p_diag->>'lead_ms')::double precision ELSE NULL END,
+        CASE WHEN jsonb_typeof(p_diag->'flight_ms') = 'number' THEN (p_diag->>'flight_ms')::double precision ELSE NULL END,
+        CASE WHEN jsonb_typeof(p_diag->'fps') = 'number' THEN (p_diag->>'fps')::double precision ELSE NULL END,
+        CASE WHEN jsonb_typeof(p_diag->'tracked_ratio') = 'number' THEN (p_diag->>'tracked_ratio')::double precision ELSE NULL END,
+        CASE WHEN jsonb_typeof(p_diag->'onset_front_ms') = 'number' THEN (p_diag->>'onset_front_ms')::double precision ELSE NULL END,
+        CASE WHEN jsonb_typeof(p_diag->'onset_back_ms') = 'number' THEN (p_diag->>'onset_back_ms')::double precision ELSE NULL END,
+        CASE WHEN jsonb_typeof(p_diag->'v_spread_deg') = 'number' THEN (p_diag->>'v_spread_deg')::double precision ELSE NULL END,
+        CASE WHEN jsonb_typeof(p_diag->'peak_vel') = 'number' THEN (p_diag->>'peak_vel')::double precision ELSE NULL END,
+        CASE WHEN jsonb_typeof(p_diag->'h_front') = 'number' THEN (p_diag->>'h_front')::double precision ELSE NULL END,
+        CASE WHEN jsonb_typeof(p_diag->'h_back') = 'number' THEN (p_diag->>'h_back')::double precision ELSE NULL END,
+        coalesce((p_diag->>'reanchored')::boolean, false),
+        CASE WHEN jsonb_typeof(p_diag->'trace_uf') = 'array' THEN p_diag->'trace_uf' ELSE '[]'::jsonb END,
+        CASE WHEN jsonb_typeof(p_diag->'trace_ub') = 'array' THEN p_diag->'trace_ub' ELSE '[]'::jsonb END
+    );
+
+    IF p_model IS NOT NULL AND jsonb_typeof(p_model) = 'object' AND pg_column_size(p_model) <= 32768 THEN
+        UPDATE public.player_profiles
+        SET model_state = p_model, updated_at = now(), last_seen_at = now()
+        WHERE id = p_player;
+    END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.beatter_push_diagnostic(text, jsonb, jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.beatter_push_diagnostic(text, jsonb, jsonb) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.beatter_pull_state(p_player text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_model jsonb := NULL;
+    v_global jsonb;
+BEGIN
+    IF p_player IS NOT NULL AND char_length(p_player) BETWEEN 8 AND 64 THEN
+        SELECT model_state INTO v_model FROM public.player_profiles WHERE id = p_player;
+    END IF;
+    SELECT jsonb_build_object(
+        'total_rounds', count(*),
+        'mean_lead_ms', round(avg(anticipation_ms)::numeric, 1),
+        'mean_v_angle', round(avg(v_angle)::numeric, 1)
+    ) INTO v_global
+    FROM public.match_telemetry;
+    RETURN jsonb_build_object('model', v_model, 'global', v_global);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.beatter_pull_state(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.beatter_pull_state(text) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.beatter_pull_recent_diagnostics(p_limit int DEFAULT 50)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_rows jsonb;
+BEGIN
+    SELECT coalesce(jsonb_agg(t), '[]'::jsonb) INTO v_rows
+    FROM (
+        SELECT created_at, player_id, round_number, verdict, code, player_move, ai_move,
+               lead_ms, flight_ms, fps, tracked_ratio, onset_front_ms, onset_back_ms,
+               v_spread_deg, peak_vel, h_front, h_back, reanchored, trace_uf, trace_ub
+        FROM public.diagnostic_telemetry
+        ORDER BY created_at DESC
+        LIMIT LEAST(GREATEST(coalesce(p_limit, 50), 1), 200)
+    ) t;
+    RETURN v_rows;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.beatter_pull_recent_diagnostics(int) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.beatter_pull_recent_diagnostics(int) TO anon, authenticated;
+
+-- -------------------------------------------------------------- 5. retention
 -- Per-round telemetry older than 180 days can be purged by a scheduled job, e.g.
 --   DELETE FROM public.match_telemetry WHERE created_at < now() - interval '180 days';

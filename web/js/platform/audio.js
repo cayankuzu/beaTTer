@@ -10,15 +10,15 @@
 
 /** Tone presets: [startHz, endHz, durationS, gain, wave]. */
 const TONES = Object.freeze({
-  beat: [[630, 630, 0.08, 0.22, 'sine'], [760, 760, 0.08, 0.22, 'sine'], [890, 890, 0.08, 0.22, 'sine'], [1020, 1020, 0.09, 0.26, 'sine']],
-  sealSoft: [520, 780, 0.07, 0.10, 'sine'],
-  sealHard: [880, 1760, 0.11, 0.28, 'sine'],
-  landing: [140, 34, 0.26, 0.5, 'sawtooth'],
-  win: [330, 220, 0.3, 0.2, 'triangle'],
-  lose: [523, 784, 0.3, 0.22, 'triangle'],
-  tie: [440, 440, 0.18, 0.16, 'triangle'],
-  foul: [240, 200, 0.22, 0.2, 'square'],
-  mode: [420, 840, 0.12, 0.2, 'sine'],
+  beat: [[587, 490, 0.11, 0.34, 'triangle'], [698, 587, 0.11, 0.34, 'triangle'], [880, 740, 0.11, 0.36, 'triangle'], [1046, 1175, 0.13, 0.40, 'triangle']],
+  sealSoft: [520, 780, 0.08, 0.16, 'sine'],
+  sealHard: [880, 1760, 0.12, 0.32, 'sine'],
+  landing: [160, 42, 0.24, 0.48, 'sawtooth'],
+  win: [330, 220, 0.3, 0.26, 'triangle'],
+  lose: [523, 784, 0.3, 0.28, 'triangle'],
+  tie: [440, 440, 0.18, 0.22, 'triangle'],
+  foul: [240, 190, 0.24, 0.26, 'square'],
+  mode: [420, 840, 0.12, 0.24, 'sine'],
 });
 
 const BEAT_WORDS = ['Taş', 'Kağıt', 'Makas', 'Vur'];
@@ -29,31 +29,49 @@ export function createAudio() {
   /** @type {GainNode|null} */ let master = null;
   let muted = false;
   /** @type {SpeechSynthesisVoice|null} */ let voice = null;
+  /** Keep a reference so Chromium GC never collects an active utterance mid-speech. */
+  /** @type {SpeechSynthesisUtterance|null} */ let activeUtterance = null;
   /** Pending count-in: oscillators and speech timers that can still be cancelled. */
   /** @type {{nodes: OscillatorNode[], timers: any[]}} */ let countIn = { nodes: [], timers: [] };
 
+  const pickVoice = () => {
+    if (!('speechSynthesis' in window)) return;
+    try {
+      const voices = speechSynthesis.getVoices();
+      voice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith('tr') && v.localService)
+        ?? voices.find((v) => v.lang && v.lang.toLowerCase().startsWith('tr'))
+        ?? null;
+    } catch { /* ignore */ }
+  };
+
   const unlock = () => {
     try {
-      if (!ctx) {
+      if (!ctx && typeof window !== 'undefined') {
         const AC = window.AudioContext || /** @type {any} */ (window).webkitAudioContext;
-        if (!AC) return;
-        ctx = new AC();
-        master = ctx.createGain();
-        master.gain.value = 0.9;
-        master.connect(ctx.destination);
+        if (AC) {
+          ctx = new AC();
+          master = ctx.createGain();
+          master.gain.value = 0.95;
+          master.connect(ctx.destination);
+        }
       }
-      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-      if (!voice && 'speechSynthesis' in window) {
-        const pick = () => { voice = speechSynthesis.getVoices().find((v) => v.lang && v.lang.toLowerCase().startsWith('tr')) ?? null; };
-        pick();
-        if (!voice) speechSynthesis.addEventListener('voiceschanged', pick, { once: true });
+      if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        if (!voice) {
+          pickVoice();
+          if (!voice) speechSynthesis.addEventListener('voiceschanged', pickVoice, { once: true });
+        }
+        if (speechSynthesis.paused) speechSynthesis.resume();
       }
     } catch { /* audio is optional */ }
   };
 
   /** @param {any[]} tone @param {number} [delayS] */
   const play = (tone, delayS = 0) => {
-    if (muted || !ctx || !master || ctx.state !== 'running') return;
+    if (muted) return null;
+    if (!ctx) unlock();
+    if (!ctx || !master) return null;
+    if (ctx.state === 'suspended') { try { ctx.resume().catch(() => {}); } catch { /* ignore */ } }
     try {
       const [f0, f1, dur, gain, wave] = tone;
       const t = ctx.currentTime + Math.max(0, delayS);
@@ -70,16 +88,23 @@ export function createAudio() {
     return null;
   };
 
-  /** @param {string} text @param {number} [delayMs] */
-  const speak = (text, delayMs = 0) => {
-    if (muted || !('speechSynthesis' in window)) return null;
+  /** @param {string} text @param {number} [delayMs] @param {number} [rate] */
+  const speak = (text, delayMs = 0, rate = 1.38) => {
+    if (muted || typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
     const say = () => {
       if (muted) return; // muted while the word was waiting
       try {
-        speechSynthesis.cancel();
+        if (!voice) pickVoice();
+        if (speechSynthesis.paused) speechSynthesis.resume();
+        if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'tr-TR'; u.rate = 1.35;
+        u.lang = 'tr-TR';
+        u.rate = rate;
+        u.volume = 1;
         if (voice) u.voice = voice;
+        activeUtterance = u;
+        u.onend = () => { if (activeUtterance === u) activeUtterance = null; };
+        u.onerror = () => { if (activeUtterance === u) activeUtterance = null; };
         speechSynthesis.speak(u);
       } catch { /* ignore */ }
     };
@@ -97,10 +122,19 @@ export function createAudio() {
   return {
     unlock,
     /** @param {boolean} m */
-    setMuted(m) { muted = !!m; if (muted) { cancelMetronome(); if ('speechSynthesis' in window) { try { speechSynthesis.cancel(); } catch { /* ignore */ } } } },
+    setMuted(m) { muted = !!m; if (muted) { cancelMetronome(); if (typeof window !== 'undefined' && 'speechSynthesis' in window) { try { speechSynthesis.cancel(); } catch { /* ignore */ } } } },
     get muted() { return muted; },
-    /** A detected (player-led) beat. @param {number} n 1-based */
-    beat(n) { play(TONES.beat[Math.min(3, Math.max(0, n - 1))]); },
+    /** A detected (player-led) beat. @param {number} n 1-based @param {boolean} [withVoice] */
+    beat(n, withVoice = false) {
+      const idx = Math.min(3, Math.max(0, n - 1));
+      play(TONES.beat[idx]);
+      if (withVoice) speak(BEAT_WORDS[idx], 0, 1.5);
+    },
+    /** Cue when the throw stroke itself begins after priming beats. @param {boolean} [withVoice] @param {number} [primeBeats] */
+    throwCue(withVoice = false, primeBeats = 3) {
+      play(TONES.beat[3]);
+      if (withVoice) speak(primeBeats === 2 ? BEAT_WORDS[2] : BEAT_WORDS[3], 0, 1.5);
+    },
     /** A seal was made. @param {boolean} kinematic false = the pre-movement behavioural seal */
     seal(kinematic) { play(kinematic ? TONES.sealHard : TONES.sealSoft); },
     landing() { play(TONES.landing); },

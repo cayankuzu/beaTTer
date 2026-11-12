@@ -53,24 +53,26 @@ export const DEFAULTS = Object.freeze({
   /** ... or when speed <= vStopFloor (PL/s). */
   vStopFloor: 0.4,
   /** A descent is not ended before it has lasted this long (ms): real strokes take >= 100 ms. */
-  minDescentMs: 40,
+  minDescentMs: 28,
   /** The palm counts as "still" while |vS| <= stillSpeed (PL/s). */
   stillSpeed: 0.8,
   /** Minimum descent amplitude for a stroke to count as a beat (PL). */
-  minAmplitudePL: 0.45,
+  minAmplitudePL: 0.43,
   /** Minimum peak descent speed for a stroke to count as a beat (PL/s). */
-  minPeakSpeedPL: 2.5,
+  minPeakSpeedPL: 2.3,
   /** A descent below the beat thresholds is still a (weak) stroke from this amplitude and peak speed. */
   weakAmplitudePL: 0.15,
   weakPeakSpeedPL: 1.5,
   /** Rhythm is dropped after maxGapFactor * period without a bottom (dimensionless). */
-  maxGapFactor: 1.9,
+  maxGapFactor: 2.2,
+  /** Minimum timeout before the rhythm is dropped when only one beat has been seen (ms). */
+  firstBeatTimeoutMs: 1750,
   /** Period assumed before two bottoms exist (ms). */
   defaultPeriodMs: 520,
   /** Descent duration assumed before any stroke of this player has been timed (ms). An assumption. */
   defaultDescentMs: 200,
   /** A gap between samples longer than this resets the tracker (ms). */
-  lostMs: 350,
+  lostMs: 420,
   /** Threshold multiplier chosen by the user (1 = normal; < 1 more sensitive). */
   sensitivity: 1,
 });
@@ -132,6 +134,7 @@ export function createStrokeTracker(cfg = {}) {
   /** @type {{t:number, Y:number}[]} */ let win = [];
   let vSlow = 0;
   let topY = Infinity; // smallest Y (highest point) since the last bottom
+  let maxY = -Infinity; // largest Y (lowest point) reached during the current descent
   let yStart = 0;
   let vPeak = 0;
 
@@ -142,7 +145,7 @@ export function createStrokeTracker(cfg = {}) {
 
   const reset = () => {
     resetRhythm();
-    phase = 'REST'; lastT = null; palmEma = null; stillSinceT = null; topY = Infinity; vPeak = 0;
+    phase = 'REST'; lastT = null; palmEma = null; stillSinceT = null; topY = Infinity; maxY = -Infinity; vPeak = 0;
     win = []; vSlow = 0;
     kf.reset();
   };
@@ -195,8 +198,9 @@ export function createStrokeTracker(cfg = {}) {
     if (y < topY) topY = y;
 
     if (phase === 'REST' || phase === 'TOP') {
-      if (vy > vDown && vSlow >= c.confirmFrac * vDown) {
-        phase = 'DOWN'; descentStartT = t; yStart = Math.min(topY, y); vPeak = vy;
+      const confirmedDown = vSlow >= c.confirmFrac * vDown || (phase === 'TOP' && y - topY >= 0.1 * s && vSlow > -0.15 * vDown);
+      if (vy > vDown && confirmedDown) {
+        phase = 'DOWN'; descentStartT = t; yStart = Math.min(topY, y); maxY = y; vPeak = vy;
         ev.push({ type: 'descentStart', t, y });
       } else if (vy < -vUp && vSlow <= -c.confirmFrac * vUp) {
         phase = 'UP';
@@ -208,9 +212,10 @@ export function createStrokeTracker(cfg = {}) {
       }
     } else if (phase === 'DOWN') {
       if (vy > vPeak) vPeak = vy;
+      if (y > maxY) maxY = y;
       const lasted = descentStartT === null ? Infinity : t - descentStartT;
       if (lasted >= c.minDescentMs && vy <= Math.max(c.stopFrac * vPeak, c.vStopFloor)) {
-        const amplitude = y - yStart;
+        const amplitude = Math.max(y, maxY) - yStart;
         const descentMs = descentStartT === null ? null : t - descentStartT;
         if (amplitude >= minAmp && vPeak >= minPeak) {
           beatCount += 1;
@@ -232,9 +237,11 @@ export function createStrokeTracker(cfg = {}) {
       }
     }
 
-    if (beatCount > 0 && bottoms.length) {
+    if (beatCount > 0 && bottoms.length && phase !== 'DOWN') {
       const gap = t - bottoms[bottoms.length - 1];
-      if (gap > c.maxGapFactor * (periodMs() ?? c.defaultPeriodMs)) {
+      const p = periodMs();
+      const maxGap = p === null ? Math.max(c.firstBeatTimeoutMs, c.maxGapFactor * c.defaultPeriodMs) : Math.max(1250, c.maxGapFactor * p);
+      if (gap > maxGap) {
         resetRhythm();
         ev.push({ type: 'rhythmReset', t, reason: 'timeout' });
       }
