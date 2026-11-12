@@ -870,8 +870,20 @@
     padding: var(--sp-1) var(--sp-3); border-radius: var(--r-pill);
     background: var(--c-seal-ink); color: var(--c-ink); font: var(--fw-bold) var(--fs-12)/var(--lh-flat) var(--font-ui);
   }
-  @media (max-width: 37.5rem), (orientation: landscape) and (max-height: 30rem) {
+  @media (max-width: 37.5rem), (orientation: landscape) and (max-height: 32rem) {
     .rp--panel { padding: var(--sp-3); }
+    .ota-banner { font-size: var(--fs-12); padding: var(--sp-15) var(--sp-25); }
+  }
+  @media (max-width: 25rem) {
+    .rp-verdict { gap: var(--sp-2); padding: var(--sp-2); }
+    .rp-move__glyph { inline-size: 2.75rem; block-size: 2.75rem; }
+    .rp-move__glyph .glyph { --g: 1.85rem; }
+    .rp-move__name { font-size: var(--fs-15); }
+    .rp-steps { padding-inline-start: var(--sp-3); font-size: var(--fs-13); gap: var(--sp-15); }
+    .rp-plain__alert { padding: var(--sp-2) var(--sp-3); }
+    .rp-plain__alert-title { font-size: var(--fs-14); }
+    .rp-plain__alert-body { font-size: var(--fs-13); }
+    .rp-hist__item { font-size: var(--fs-12); padding: var(--sp-15) var(--sp-2); }
   }
   @media (max-width: 37.5rem) {
     .chain { font-size: var(--fs-12); }

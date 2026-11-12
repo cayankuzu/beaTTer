@@ -335,9 +335,9 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
   const evaluate = (/** @type {import('./kinematics.js').KinSample} */ s, /** @type {HandFrame} */ frame, /** @type {any[]} */ events, /** @type {boolean} */ mayRevise) => {
     const u = openingFromBaseline(s.e, r.base);
     const uF = (u[1] + u[2]) / 2, uB = (u[3] + u[4]) / 2;
-    const isScissorPose = uF >= 0.50 && uF - uB >= 0.24 && (uB < 0.40 || (uB < 0.52 && s.vSpread >= 18));
-    const enslaveGain = typeof player.enslaveRatio === 'number' ? player.enslaveRatio : 0.25;
-    const enslave = isScissorPose ? Math.min(uB, enslaveGain * uF + (s.vSpread >= 18 ? 0.16 : 0)) : 0;
+    const isScissorPose = uF >= 0.44 && (uF - uB >= 0.16 || (s.vSpread >= 16 && uB < 0.55)) && uB < 0.58;
+    const enslaveGain = Math.max(0.28, Math.min(0.65, (player.enslaveRatio ?? 0.20) + 0.20));
+    const enslave = isScissorPose ? Math.min(uB, enslaveGain * uF + (s.vSpread >= 16 ? 0.18 : 0.08)) : 0;
     const uBObs = uB - enslave;
     if (r.F.observe(s.t, uF, r.noiseVarF).reanchored) r.reanchored = true;
     if (r.B.observe(s.t, uBObs, r.noiseVarB).reanchored) r.reanchored = true;
@@ -417,9 +417,48 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     const unseen = !!lastInAir && !lastInAir.open;
     const R = rules();
 
+    const tail = r.settle.slice(-5);
+    const finalU4 = tail.length ? [0, 1, 2, 3].map((k) => median(tail.map((/** @type {any} */ s) => s.u4[k]))) : null;
+    const thetaTail = r.settleTheta.slice(-5);
+    const finalTheta = thetaTail.length ? [0, 1, 2, 3, 4].map((f) => thetaTail.reduce((/** @type {number} */ a, /** @type {number[]} */ th) => a + th[f], 0) / thetaTail.length) : null;
+
     /** @type {string} */ let verdict;
     /** @type {0|1|2|null} */ let playerMove = decision.move;
     let code = 'KINEMATIC';
+
+    // Robust in-air heading resolution for the referee:
+    // Protects against single-frame webcam motion blur drops and biomechanical extensor enslaving
+    let refHF = lastInAir ? lastInAir.hF : 0;
+    let refHB = lastInAir ? lastInAir.hB : 0;
+    if (lastInAir && playerMove !== null) {
+      const recentOpen = inAir.filter((/** @type {any} */ f) => f.open && f.t >= L.t - Math.max(340, 3.5 * frameDt));
+      if (recentOpen.length > 0) {
+        const maxHF = Math.max(...recentOpen.map((/** @type {any} */ f) => f.hF));
+        const maxHB = Math.max(...recentOpen.map((/** @type {any} */ f) => f.hB));
+        const finalFront = finalU4 ? (finalU4[0] + finalU4[1]) / 2 : 0;
+        const finalBack = finalU4 ? (finalU4[2] + finalU4[3]) / 2 : 0;
+        const noRecloseFront = !r.reanchored && (tail.length === 0 || finalFront >= 0.35);
+        const noRecloseBack = !r.reanchored && (tail.length === 0 || finalBack >= 0.35);
+
+        // 1. If fingers were confirmed open during in-air descent (where AI evaluated/revised)
+        // without re-closing, don't let single-frame motion blur right at landing void or foul:
+        if (maxHF >= 1 - R.epsF && noRecloseFront) refHF = Math.max(refHF, maxHF);
+        if (maxHB >= 1 - R.epsB && noRecloseBack) refHB = Math.max(refHB, maxHB);
+      }
+
+      // 2. Biomechanical extensor enslaving on SCISSORS:
+      // Index + Middle extending naturally pulls ring/pinky extensor tendons, causing slight
+      // back-finger elevation that is purely anatomical, not late paper or late close.
+      if (playerMove === SCISSORS) {
+        const finalFront = finalU4 ? (finalU4[0] + finalU4[1]) / 2 : 0;
+        const finalBack = finalU4 ? (finalU4[2] + finalU4[3]) / 2 : 0;
+        const vSp = r.vSpread ?? 0;
+        if (finalFront >= 0.40 && (finalFront - finalBack >= 0.15 || vSp >= 15 || finalBack <= 0.48)) {
+          refHB = Math.min(refHB, 0.05);
+        }
+      }
+    }
+
     if (r.baseRaw && (r.baseRaw.front > c.fistMaxExtension || r.baseRaw.back > c.fistMaxExtension)) {
       verdict = 'VOID_NO_FIST'; code = 'VOID_NO_FIST';
     } else if (trackedLate < c.minInAirTracked || !lastInAir || stale || unseen || decision.reason === 'NO_HAND') {
@@ -428,11 +467,11 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
       verdict = 'FOUL_LATE'; code = 'FOUL_LATE_OPEN'; // the hand landed as a fist and opened afterwards
     } else if (playerMove === null) {
       verdict = 'VOID_UNKNOWN'; code = 'VOID_UNKNOWN';
-    } else if (foulNow(lastInAir.hF, lastInAir.hB, R)[playerMove]) {
+    } else if (foulNow(refHF, refHB, R)[playerMove]) {
       // I5: only the pre-landing headings and the settled shape decide; the AI's move is not consulted
       verdict = 'FOUL_LATE';
       const frontMustOpen = playerMove !== ROCK;
-      code = (frontMustOpen && lastInAir.hF < R.epsF) || (playerMove === PAPER && lastInAir.hB < R.epsB) ? 'FOUL_LATE_OPEN' : 'FOUL_LATE_CLOSE';
+      code = (frontMustOpen && refHF < R.epsF) || (playerMove === PAPER && refHB < R.epsB) ? 'FOUL_LATE_OPEN' : 'FOUL_LATE_CLOSE';
     } else {
       const p = payoff(/** @type {0|1|2} */ (judged.move), playerMove);
       verdict = p > 0 ? 'AI' : p < 0 ? 'PLAYER' : 'TIE';
@@ -454,10 +493,6 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     const nBefore = before.length;
     const spanMs = nBefore >= 2 ? before[nBefore - 1].t - before[0].t : 0;
     const firstKin = r.commits.find((/** @type {any} */ k) => k.reason !== 'BEHAVIOUR' && !k.postLanding);
-    const tail = r.settle.slice(-5);
-    const finalU4 = tail.length ? [0, 1, 2, 3].map((k) => median(tail.map((/** @type {any} */ s) => s.u4[k]))) : null;
-    const thetaTail = r.settleTheta.slice(-5);
-    const finalTheta = thetaTail.length ? [0, 1, 2, 3, 4].map((f) => thetaTail.reduce((/** @type {number} */ a, /** @type {number[]} */ th) => a + th[f], 0) / thetaTail.length) : null;
     let progressAtCommit = null;
     if (valid && playerMove !== ROCK && finalU4 && judged.u4) {
       const den = finalU4.reduce((a, v) => a + v * v, 0);
@@ -499,8 +534,8 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
         openingMsFront: mF && mF.opened && mF.durationMs !== null ? round1(mF.durationMs) : null,
         peakFlexionVelDegS: r.peakFlexVel > 0 ? Math.round(r.peakFlexVel) : null,
         vSpreadDeg: r.vSpread === null ? null : round1(r.vSpread),
-        headingFront: lastInAir ? +lastInAir.hF.toFixed(3) : null,
-        headingBack: lastInAir ? +lastInAir.hB.toFixed(3) : null,
+        headingFront: lastInAir ? +refHF.toFixed(3) : null,
+        headingBack: lastInAir ? +refHB.toFixed(3) : null,
         noiseSd: +r.noiseSd.toFixed(3),
         reanchored: r.reanchored,
       },

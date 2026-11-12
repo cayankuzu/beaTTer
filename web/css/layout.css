@@ -190,6 +190,11 @@
   }
 
   /* ---- responsive page frame ---- */
+  /* ultrawide screens: center content to keep cameras within comfortable ergonomic view */
+  @media (min-width: 110rem) {
+    .arena, .console { max-inline-size: 105rem; margin-inline: auto; }
+  }
+
   /* the status chip keeps its text only on wide screens; below that it is an icon with a title */
   @media (max-width: 87.49rem) {
     .status__txt { display: none; }
@@ -212,9 +217,9 @@
     .series__score { font-size: var(--fs-15); }
     .pip { inline-size: .625rem; block-size: .625rem; }
   }
-  /* portrait: stack the two stages, console in rows */
+  /* tablets & medium screens portrait (e.g. iPad 768px, 834px, 1024px) */
   @media (orientation: portrait) {
-    .arena { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.25fr) minmax(0, 1fr); }
+    .arena { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.15fr) minmax(0, 1fr); }
     .console { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "beats tempo action" "scope scope scope" "thought thought thought"; }
     .console--twin { grid-template-columns: minmax(0, 1fr); grid-template-areas: "twin" "thought"; }
   }
@@ -230,18 +235,34 @@
   }
   /* phones, portrait */
   @media (orientation: portrait) and (max-width: 37.5rem) {
-    .modes__tab { font-size: var(--fs-13); }
-    .arena { grid-template-rows: minmax(0, 1fr) minmax(0, 1.12fr); }
-    .console { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "beats beats" "scope scope" "thought thought" "tempo action"; gap: var(--sp-2); padding: var(--sp-2); }
+    .modes__tab { font-size: var(--fs-13); padding-inline: var(--sp-15); }
+    .arena { grid-template-rows: minmax(0, 1fr) minmax(0, 1.05fr); }
+    .console { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "beats beats" "scope scope" "thought thought" "tempo action"; gap: var(--sp-15); padding: var(--sp-2); }
     .console--twin { grid-template-columns: minmax(0, 1fr); grid-template-areas: "twin" "thought"; }
   }
+  /* compact phones, portrait (e.g. iPhone SE, 360-390px width) */
+  @media (orientation: portrait) and (max-width: 25rem) {
+    .topbar { padding-inline: var(--sp-2) var(--sp-1); }
+    .wordmark { font-size: var(--fs-16); }
+    .modes__tab { font-size: var(--fs-12); padding-inline: var(--sp-1); }
+    .pips { display: none; }
+    .series__score { font-size: var(--fs-14); }
+    .series__whotxt { display: none; }
+    .console { padding: var(--sp-15); margin-inline: var(--sp-2); }
+    .console__action .btn { min-inline-size: 7.5rem; }
+  }
+  /* extra small screens (< 330px width) */
+  @media (max-width: 21rem) {
+    .wordmark { display: none; }
+    .topbar { justify-content: space-between; }
+  }
   /* phones, landscape */
-  @media (orientation: landscape) and (max-height: 30rem) {
-    .topbar { gap: var(--sp-2); }
-    .wordmark { font-size: var(--fs-18); }
-    .modes__tab { padding-inline: var(--sp-2); font-size: var(--fs-13); }
+  @media (orientation: landscape) and (max-height: 32rem) {
+    .topbar { gap: var(--sp-2); min-block-size: 2.5rem; }
+    .wordmark { font-size: var(--fs-16); }
+    .modes__tab { padding-inline: var(--sp-2); font-size: var(--fs-12); }
     .modes__tab::after { inset-inline: var(--sp-2); }
-    .console { grid-template-areas: "beats scope action" "tempo thought thought"; gap: var(--sp-1) var(--sp-3); padding: var(--sp-15) var(--sp-2); }
+    .console { grid-template-areas: "beats scope action" "tempo thought thought"; gap: var(--sp-1) var(--sp-2); padding: var(--sp-1) var(--sp-2); }
     .console--twin { grid-template-columns: minmax(0, 1fr); grid-template-areas: "twin" "thought"; }
   }
   @media (orientation: landscape) and (max-width: 56rem) {
@@ -261,13 +282,9 @@
     .pips--dense { gap: var(--sp-0); }
     .pips--dense .pip { inline-size: .5rem; block-size: .5rem; }
   }
-  @media (max-width: 23.75rem) {
-    .wordmark { font-size: var(--fs-18); }
-    .series__whotxt { display: none; }
-  }
 
   /* sheets and panels become full-screen on phones (either orientation) */
-  @media (max-width: 37.5rem), (orientation: landscape) and (max-height: 30rem) {
+  @media (max-width: 37.5rem), (orientation: landscape) and (max-height: 32rem) {
     .dlg { background: var(--c-bg); }
     .dlg--modal { padding: 0; }
     .sheet { inline-size: 100%; block-size: 100%; max-block-size: none; border: 0; border-radius: 0; box-shadow: none; }
