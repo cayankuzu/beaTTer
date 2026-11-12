@@ -48,8 +48,10 @@ export function mountConsole(ctx) {
     h('span', { class: 'btn__row' }, icon('play'), T.startCount), h('kbd', { class: 'kbd' }, T.keySpace));
   const nextBtn = h('button', { class: 'btn btn--primary', type: 'button', on: { click: () => actions.nextRound() } },
     h('span', { class: 'btn__row' }, T.nextRound, icon('next')), h('kbd', { class: 'kbd' }, T.keySpace));
+  const camBtn = h('button', { class: 'btn btn--primary', type: 'button', on: { click: () => { ctx.unlockAudio(); actions.startCamera(''); } } },
+    h('span', { class: 'btn__row' }, icon('camera'), T.gateOpen));
   const hint = h('p', { class: 'hint' });
-  action.append(startBtn, nextBtn, hint);
+  action.append(startBtn, nextBtn, camBtn, hint);
 
   // ---- MindTwin meters
   /** @type {{now: HTMLElement, ahead: HTMLElement, vNow: HTMLElement, vAhead: HTMLElement}[]} */
@@ -115,11 +117,16 @@ export function mountConsole(ctx) {
 
   // ---- primary action
   store.subscribe((st) => ({ source: st.boot.source, rhythm: st.settings.rhythm, phase: st.engine ? st.engine.phase : 'IDLE', open: st.result !== null }), (v) => {
-    const start = !v.open && v.source !== 'none' && v.rhythm === 'metronome' && v.phase === 'IDLE';
-    show(startBtn, start); show(nextBtn, v.open); show(hint, !start && !v.open);
-    setText(hint, v.source === 'none' ? T.hintNoSource
-      : v.phase === 'IDLE' ? T.hintFree
+    const isNoSource = v.source === 'none';
+    const start = !v.open && !isNoSource && v.rhythm === 'metronome' && v.phase === 'IDLE';
+    show(camBtn, isNoSource && !v.open);
+    show(startBtn, start);
+    show(nextBtn, v.open);
+    show(hint, !start && !v.open && !isNoSource);
+    if (!isNoSource) {
+      setText(hint, v.phase === 'IDLE' ? T.hintFree
         : v.phase === 'PRIMING' ? T.hintCounting : T.hintInRound);
+    }
   });
 
   // ---- MindTwin meters

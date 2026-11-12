@@ -98,6 +98,7 @@
     grid-template-columns: minmax(0, 1.06fr) minmax(0, 1fr);
     gap: var(--gap-app);
     min-block-size: 0; min-inline-size: 0;
+    inline-size: 100%;
     padding-inline: max(var(--pad-app), env(safe-area-inset-left)) max(var(--pad-app), env(safe-area-inset-right));
   }
   .arena:focus { outline: none; }
@@ -125,6 +126,7 @@
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas: "beats scope action" "tempo thought action";
     gap: var(--sp-2) var(--sp-4);
+    inline-size: 100%;
     margin-inline: max(var(--pad-app), env(safe-area-inset-left)) max(var(--pad-app), env(safe-area-inset-right));
     padding: var(--sp-3);
     border: var(--bw-1) solid var(--c-line-2); border-radius: var(--r-2);
@@ -192,7 +194,7 @@
   /* ---- responsive page frame ---- */
   /* ultrawide screens: center content to keep cameras within comfortable ergonomic view */
   @media (min-width: 110rem) {
-    .arena, .console { max-inline-size: 105rem; margin-inline: auto; }
+    .arena, .console { inline-size: 100%; max-inline-size: 105rem; margin-inline: auto; }
   }
 
   /* the status chip keeps its text only on wide screens; below that it is an icon with a title */

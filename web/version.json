@@ -1,6 +1,6 @@
 {
-  "version": "4.2.1",
-  "buildId": "20261112-v4.2.1",
-  "updatedAt": "2026-11-12T20:45:00+03:00",
-  "note": "Gelişmiş geç hamle toleransı, 100% mobil ve tablet responsive tasarım, sıfır hata garantisi."
+  "version": "4.2.2",
+  "buildId": "20261112-v4.2.2",
+  "updatedAt": "2026-11-12T21:35:00+03:00",
+  "note": "Geniş ekran (1920x1080) arena çökme düzeltmesi, doğrudan konsol kamera açma butonu, kristal netliğinde kamera paneli."
 }

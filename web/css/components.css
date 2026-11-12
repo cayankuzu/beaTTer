@@ -207,7 +207,15 @@
   /* behind the gate the read-outs are empty: take them out instead of letting them ghost through */
   .cam--gated .cam__chips, .cam--gated .meters, .cam--gated .cam__prompt { display: none; }
   .cam--gated .stage__tag { z-index: 6; }
-  .gate__box { display: grid; justify-items: center; gap: var(--sp-2); inline-size: min(100%, 30rem); text-align: center; }
+  .gate__box {
+    display: grid; justify-items: center; gap: var(--sp-3);
+    inline-size: min(100%, 28rem); text-align: center;
+    padding: var(--sp-4);
+    background: var(--c-surface-2);
+    border: var(--bw-1) solid var(--c-line-3);
+    border-radius: var(--r-3);
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.5);
+  }
   .gate__title { font: var(--fw-bold) var(--fs-18)/var(--lh-tight) var(--font-ui); text-wrap: balance; }
   .gate__text { font: var(--fw-regular) var(--fs-13)/var(--lh-snug) var(--font-ui); color: var(--c-text-2); text-wrap: pretty; }
   .gate__code { font: var(--fw-medium) var(--fs-12)/var(--lh-snug) var(--font-mono); color: var(--c-text-3); overflow-wrap: anywhere; }
