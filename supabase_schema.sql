@@ -160,11 +160,15 @@ BEGIN
         RAISE EXCEPTION 'beatter: invalid prediction' USING ERRCODE = '22023';
     END IF;
     -- the outcome must agree with the moves (ROCK beats SCISSORS, PAPER beats ROCK, SCISSORS beats PAPER)
-    IF v_out <> CASE
+    IF v_out <> (
+        CASE
             WHEN v_pm = v_am THEN 'TIE'
-            WHEN (v_am, v_pm) IN (('ROCK', 'SCISSORS'), ('PAPER', 'ROCK'), ('SCISSORS', 'PAPER')) THEN 'AI'
+            WHEN (v_am = 'ROCK' AND v_pm = 'SCISSORS')
+              OR (v_am = 'PAPER' AND v_pm = 'ROCK')
+              OR (v_am = 'SCISSORS' AND v_pm = 'PAPER') THEN 'AI'
             ELSE 'USER'
-        END THEN
+        END
+    ) THEN
         RAISE EXCEPTION 'beatter: outcome does not match the moves' USING ERRCODE = '22023';
     END IF;
     IF v_hash IS NOT NULL AND v_hash !~ '^[0-9a-f]{64}$' THEN
