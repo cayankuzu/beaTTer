@@ -10,22 +10,42 @@
 -- The browser ships a PUBLIC anon key: whoever opens the page can use it. The
 -- database is therefore the only protection, and the rule is simple:
 --
---     the anon role can do exactly ONE thing: call beatter_push_round().
+--     the anon role can do exactly TWO things: call beatter_push_round() and
+--     call beatter_push_diagnostic(). Both only write.
 --
--- It cannot read, change or delete any table. The function validates every
--- field, writes one telemetry row and keeps the profile counters monotone.
--- Nothing is ever read back by the application.
+-- It cannot read, change or delete any table, and no function returns stored
+-- data to it. The functions validate their input, write one row each and keep
+-- the profile counters monotone. Nothing is read back by the application.
 --
--- What is stored (only for valid rounds of real players who opted in):
---   moves, outcome, the measured decision lead, two measured kinematic scalars,
---   the belief's confidence when a kinematic prediction was made, the SHA-256
---   of the judged seal, the explanation code, and round counters.
--- Never stored: camera frames, landmarks, nonces, anything from the demo.
+-- What is stored, only for camera rounds of real players who switched the
+-- optional sharing on (it is off by default):
+--   per VALID round (match_telemetry): moves, outcome, the measured decision
+--     lead, two measured kinematic scalars, the belief's confidence when a
+--     kinematic prediction was made, the SHA-256 of the judged seal, the
+--     explanation code, and round counters;
+--   per JUDGED round, valid, foul or void (diagnostic_telemetry): verdict,
+--     explanation code, moves, timings, the referee headings and the last ten
+--     values of the two finger-group openings.
+-- Never stored: camera frames, landmarks, nonces, anything from the demo, and
+-- (from v4.2.3 on) the learned player model.
 -- Unknown measurements are NULL - never a made-up 0.
 --
--- Known limit: a write-only anonymous endpoint can be spammed by anyone who
--- reads the page source. The checks below bound the size and the values of a
--- row; if abuse appears, add Supabase rate limiting in front of the function.
+-- History you should know before applying this file to an existing database:
+--   v4.2.0-v4.2.2 granted anon two more functions. beatter_pull_recent_diagnostics
+--   returned the diagnostics of ALL players with their ids, and beatter_pull_state
+--   returned the stored player model (move history, hand calibration) of any id;
+--   beatter_push_diagnostic let any caller overwrite the model of any id. If the
+--   v4.2.0 schema was applied, player ids and models were readable with the
+--   public key until this file is run again. This file withdraws both grants and
+--   stops storing models; section 6 at the end shows how to erase the stored
+--   ones (left commented out: your data, your decision).
+--
+-- Known limits: (1) a write-only anonymous endpoint can be spammed by anyone
+-- who reads the page source; the checks below bound the size and the values of
+-- a row; if abuse appears, add Supabase rate limiting in front of the functions.
+-- (2) Rows cannot be erased from the browser: a player who wants their rows
+-- removed has to ask the database owner, naming the random player id shown in
+-- the app's data export.
 -- ============================================================================
 
 -- ---------------------------------------------------------------- 1. tables
@@ -232,7 +252,9 @@ $$;
 REVOKE ALL ON FUNCTION public.beatter_push_round(text, jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.beatter_push_round(text, jsonb) TO anon, authenticated;
 
--- -------------------------------------- 4. diagnostic & two-way model store
+-- -------------------------------------- 4. diagnostics (write-only)
+-- model_state held the player model uploaded by v4.2.0-v4.2.2. Nothing writes or reads it any more; the
+-- column is kept so that this file never drops anything (see section 6 for erasing its contents).
 ALTER TABLE public.player_profiles ADD COLUMN IF NOT EXISTS model_state JSONB DEFAULT NULL;
 
 CREATE TABLE IF NOT EXISTS public.diagnostic_telemetry (
@@ -303,11 +325,8 @@ BEGIN
         CASE WHEN jsonb_typeof(p_diag->'trace_ub') = 'array' THEN p_diag->'trace_ub' ELSE '[]'::jsonb END
     );
 
-    IF p_model IS NOT NULL AND jsonb_typeof(p_model) = 'object' AND pg_column_size(p_model) <= 32768 THEN
-        UPDATE public.player_profiles
-        SET model_state = p_model, updated_at = now(), last_seen_at = now()
-        WHERE id = p_player;
-    END IF;
+    -- p_model is accepted and IGNORED: pages of v4.2.0-v4.2.2 that are still open send it. Storing it let
+    -- any caller overwrite the model of any player id, and the old client loaded that model back.
 END;
 $$;
 
@@ -337,8 +356,11 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.beatter_pull_state(text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.beatter_pull_state(text) TO anon, authenticated;
+-- Owner only since v4.2.3: the application no longer reads anything back. With the grant of v4.2.0 the
+-- stored model of ANY player id was readable with the public key. Supabase grants new functions to anon
+-- and authenticated by default, hence the explicit REVOKE; running this file again withdraws the old grant.
+REVOKE ALL ON FUNCTION public.beatter_pull_state(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.beatter_pull_state(text) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.beatter_pull_recent_diagnostics(p_limit int DEFAULT 50)
 RETURNS jsonb
@@ -362,9 +384,25 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.beatter_pull_recent_diagnostics(int) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.beatter_pull_recent_diagnostics(int) TO anon, authenticated;
+-- Owner only. The diagnostics of ALL players, with their player ids, must not be readable with the public
+-- anon key: with an id from this list anyone could also read that player's model (beatter_pull_state).
+-- Supabase grants new functions to anon and authenticated by default, hence the explicit REVOKE; running
+-- this file again also withdraws the grant of the v4.2.0 schema. scripts/analyze_telemetry.mjs calls it
+-- with the service-role key from the environment (SUPABASE_SERVICE_ROLE_KEY), never from the browser.
+REVOKE ALL ON FUNCTION public.beatter_pull_recent_diagnostics(int) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.beatter_pull_recent_diagnostics(int) TO service_role;
 
 -- -------------------------------------------------------------- 5. retention
 -- Per-round telemetry older than 180 days can be purged by a scheduled job, e.g.
 --   DELETE FROM public.match_telemetry WHERE created_at < now() - interval '180 days';
+--   DELETE FROM public.diagnostic_telemetry WHERE created_at < now() - interval '180 days';
+
+-- ------------------------------------- 6. erasing what v4.2.0-v4.2.2 collected
+-- NOT run by this file. The player models uploaded by v4.2.0-v4.2.2 (move history, hand calibration) are
+-- used by nothing any more, and their player ids were listable with the public key while the v4.2.0
+-- grants were in place. To erase them, run this statement yourself:
+--   UPDATE public.player_profiles SET model_state = NULL WHERE model_state IS NOT NULL;
+-- To erase one player's rows on request (the id is in that player's data export):
+--   DELETE FROM public.diagnostic_telemetry WHERE player_id = '<id>';
+--   DELETE FROM public.match_telemetry WHERE player_id = '<id>';
+--   DELETE FROM public.player_profiles WHERE id = '<id>';

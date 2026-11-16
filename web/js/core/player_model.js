@@ -320,9 +320,12 @@ export function createPlayerModel(cfg = {}) {
   /** Human-readable summary of what has been learned (numbers only; the UI formats them). */
   const profile = () => {
     const beh = sequence.stats();
+    // Diagnostic only (the engine reads the groups as measured): how far ring and little finger rise with
+    // index and middle finger in this player's settled scissors. Not clamped to a floor: v4.2.0 reported
+    // at least 0.15 whatever had been measured.
     const scissorFront = Math.max(0.45, (m.pose.mean[2][0] + m.pose.mean[2][1]) / 2);
     const scissorBack = Math.max(0, (m.pose.mean[2][2] + m.pose.mean[2][3]) / 2);
-    const enslaveRatio = clamp(scissorBack / scissorFront, [0.15, 0.42]);
+    const enslaveRatio = clamp(scissorBack / scissorFront, [0, 1]);
     let favMove = null;
     if (m.rounds >= 3 && beh.freq && beh.freq.length === 3) {
       const top = Math.max(...beh.freq);
@@ -341,7 +344,6 @@ export function createPlayerModel(cfg = {}) {
       behaviour: beh,
       diagnostics: {
         enslaveRatio: +enslaveRatio.toFixed(3),
-        adaptationPct: Math.min(100, Math.round(100 * (1 - Math.exp(-m.rounds / 10)))),
         dominantChannel: m.fusion.wKin >= m.fusion.wPrior ? 'kinematic' : 'behaviour',
         favMove,
         calibratedRounds: m.calibration.n,
@@ -354,11 +356,6 @@ export function createPlayerModel(cfg = {}) {
     get fusion() { return m.fusion; },
     get calibration() { return m.calibration; },
     get poseState() { return { mean: m.pose.mean, variance: m.pose.variance, neuralCounts: m.neuralCounts }; },
-    get enslaveRatio() {
-      const sf = Math.max(0.45, (m.pose.mean[2][0] + m.pose.mean[2][1]) / 2);
-      const sb = Math.max(0, (m.pose.mean[2][2] + m.pose.mean[2][3]) / 2);
-      return clamp(sb / sf, [0.18, 0.38]);
-    },
     get stroke() { return m.stroke; },
     get noiseSd() { return m.noiseSd; },
     get rounds() { return m.rounds; },

@@ -2,9 +2,12 @@
 /**
  * beaTTer v4 — adversarial fuzz of the "unbeatable by rule" guarantee (SIMULATION, seeded).
  *
- *     node experiments/fuzz_guarantee.mjs [sessions = 2500] [--save]
+ *     node experiments/fuzz_guarantee.mjs [sessions = 2500] [--save] [--seeds=5774,6735]
  *
  * --save writes the summary to docs/results/fuzz-guarantee.json (the thesis quotes the 15000-session run).
+ * --seeds replays the given sessions only (the summary of a run lists the sessions with a violation in
+ * `violationSeeds`). `runFuzz` is exported, so the test suite replays the sessions that once found a hole.
+ * Exit codes: 0 nothing found, 1 a violation, 2 the arguments could not be read (nothing was run).
  *
  * Under the `turnuva` preset no round the referee declares valid may be won by the player (thesis,
  * Theorem 1). This script tries to break that against the real engine with everything the round
@@ -25,7 +28,7 @@
  * and it says nothing about real cameras.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { makeRng } from '../web/js/core/rng.js';
@@ -35,18 +38,23 @@ import { createRoundEngine } from '../web/js/core/round_engine.js';
 import { simulateThrow } from '../web/js/sim/kinematic_player.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const args = process.argv.slice(2);
-const SAVE = args.includes('--save');
-const N = Math.max(1, Math.floor(Number(args.find((a) => !a.startsWith('--')) ?? 2500)) || 2500);
 const FPS = [12, 15, 20, 24, 30, 45, 60, 90, 120, 144];
 const MODES = ['beats3', 'beats3', 'beats2', 'single', 'metro3', 'metro3', 'metro0'];
 
+/**
+ * Run the fuzz for the sessions `seeds` (default: 1..sessions).
+ * @param {{sessions?: number, seeds?: number[]|null, onRound?: null|((x: any) => void)}} [o] onRound is called
+ *   for every judged round with the seed, the staging and the result (for looking into one session)
+ */
+export function runFuzz({ sessions = 2500, seeds = null, onRound = null } = {}) {
 /** @type {Record<string, number>} */ const tally = {};
 /** @type {Record<string, {judged:number, valid:number, loss:number}>} */ const byMode = {};
 let losses = 0, exceptions = 0, orderViolations = 0, judgedRounds = 0, validRounds = 0;
 /** @type {any[]} */ const examples = [];
+/** @type {Set<number>} */ const violationSeeds = new Set();
+const list = seeds ?? Array.from({ length: sessions }, (_, i) => i + 1);
 
-for (let seed = 1; seed <= N; seed++) {
+for (const seed of list) {
   const rng = makeRng(90000 + seed);
   const pick = (/** @type {any[]} */ a) => a[rng.int(a.length)];
   const fps = pick(FPS);
@@ -102,7 +110,7 @@ for (let seed = 1; seed <= N; seed++) {
     try {
       for (const f of frames) for (const e of engine.pushFrame(f)) if (e.type === 'result') res = e.result;
     } catch (err) {
-      exceptions += 1;
+      exceptions += 1; violationSeeds.add(seed);
       if (examples.length < 5) examples.push({ seed, k, modeName, fps, error: String(/** @type {any} */ (err)?.message) });
       break;
     }
@@ -110,6 +118,7 @@ for (let seed = 1; seed <= N; seed++) {
     if (!res) { engine.abortRound(); tally.none = (tally.none ?? 0) + 1; continue; }
     engine.acknowledge();
     judgedRounds += 1; tally[res.verdict] = (tally[res.verdict] ?? 0) + 1;
+    if (onRound) onRound({ seed, k, modeName, fps, move, truth: sim.truth, result: res });
     const m = (byMode[modeName] = byMode[modeName] ?? { judged: 0, valid: 0, loss: 0 });
     m.judged += 1;
     const judged = res.commits.find((/** @type {any} */ c) => c.seq === res.judgedSeq);
@@ -117,25 +126,67 @@ for (let seed = 1; seed <= N; seed++) {
       && res.commits.every((/** @type {any} */ c) => c.postLanding === (c.frame >= res.landingFrame))
       && res.sealOk && res.chainOk && res.timing.leadToLandingMs >= 0;
     if (!ordered) {
-      orderViolations += 1;
+      orderViolations += 1; violationSeeds.add(seed);
       if (examples.length < 5) examples.push({ seed, k, modeName, fps, kind: 'order', lead: res.timing.leadToLandingMs, landingFrame: res.landingFrame, commits: res.commits.map((/** @type {any} */ c) => `${c.reason}@f${c.frame}${c.postLanding ? '*' : ''}`) });
     }
     if (res.valid) { validRounds += 1; m.valid += 1; }
     if (res.verdict === 'PLAYER') {
-      losses += 1; m.loss += 1;
+      losses += 1; m.loss += 1; violationSeeds.add(seed);
       if (examples.length < 5) examples.push({ seed, k, modeName, fps, kind: 'LOSS', source: res.landingSource, ai: res.aiMove, player: res.playerMove, hF: res.kinematics.headingFront, hB: res.kinematics.headingBack, lastInAirAgeMs: res.timing.lastInAirAgeMs, judgedReason: judged && judged.reason, landingFrame: res.landingFrame, commits: res.commits.map((/** @type {any} */ c) => `${c.reason}@f${c.frame}${c.postLanding ? '*' : ''}:${c.move}`) });
     }
   }
 }
 
-const summary = {
+return {
   id: 'fuzz-guarantee', simulated: true, generatedBy: 'experiments/fuzz_guarantee.mjs', rules: 'turnuva',
   description: 'Adversarial fuzz of the turnuva guarantee: random modes, frame rates, feints, late throws, weak strokes, drop-outs, extra gaps, model mismatch, decision freeze, random behavioural moves and frames placed within hundredths of a millisecond of scheduled beats and of the true landing. Seeds 90001..90000+sessions. "none" counts attempts that produced no judged round (aborted or never started).',
-  sessions: N, judgedRounds, validRounds, losses, exceptions, orderViolations, tally, byMode, examples,
+  sessions: list.length, judgedRounds, validRounds, losses, exceptions, orderViolations, tally, byMode, examples,
+  violationSeeds: [...violationSeeds],
 };
-console.log(JSON.stringify(summary, null, 1));
-if (SAVE) {
-  mkdirSync(join(ROOT, 'docs/results'), { recursive: true });
-  writeFileSync(join(ROOT, 'docs/results', 'fuzz-guarantee.json'), JSON.stringify(summary, null, 1));
 }
-process.exitCode = losses || exceptions || orderViolations ? 1 : 0;
+
+/**
+ * Is this file the script that was started (and not imported by a test)? Both paths are resolved first:
+ * Node loads the entry module from its real path but leaves a link in process.argv[1], so comparing the
+ * two as they are skips the run - silently, with exit code 0 - when the checkout is reached through a
+ * directory junction or a symbolic link.
+ */
+const isMain = () => { try { return !!process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; } };
+
+/**
+ * Read the command line. A release check must not pass because nothing was run: anything that cannot be
+ * read is an error.
+ * @param {string[]} args @returns {{sessions:number, seeds:number[]|null, save:boolean}|{error:string}}
+ */
+export function parseFuzzArgs(args) {
+  /** @type {number[]|null} */ let seeds = null;
+  let sessions = 2500, save = false, sawCount = false;
+  for (const a of args) {
+    if (a === '--save') save = true;
+    else if (a.startsWith('--seeds=')) {
+      const parts = a.slice(8).split(',');
+      seeds = parts.map(Number);
+      if (!parts.length || parts.some((x) => !/^[1-9][0-9]*$/.test(x))) return { error: `--seeds needs positive whole numbers separated by commas (got "${a.slice(8)}")` };
+    } else if (a.startsWith('--')) return { error: `unknown option ${a} (did you mean --seeds=1,2,3 ?)` };
+    else if (!sawCount && /^[1-9][0-9]*$/.test(a)) { sessions = Number(a); sawCount = true; }
+    else return { error: `cannot read "${a}": the number of sessions is one positive whole number` };
+  }
+  if (seeds && sawCount) return { error: 'give either a number of sessions or --seeds, not both' };
+  return { sessions, seeds, save };
+}
+
+if (isMain()) {
+  const parsed = parseFuzzArgs(process.argv.slice(2));
+  if ('error' in parsed) {
+    console.error(`fuzz_guarantee: ${parsed.error}. Nothing was run.`);
+    process.exitCode = 2;
+  } else {
+    const summary = runFuzz({ sessions: parsed.sessions, seeds: parsed.seeds });
+    console.log(JSON.stringify(summary, null, 1));
+    if (parsed.save && !parsed.seeds) {
+      mkdirSync(join(ROOT, 'docs/results'), { recursive: true });
+      writeFileSync(join(ROOT, 'docs/results', 'fuzz-guarantee.json'), JSON.stringify(summary, null, 1));
+    }
+    process.exitCode = summary.losses || summary.exceptions || summary.orderViolations ? 1 : 0;
+  }
+}

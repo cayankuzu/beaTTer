@@ -16,6 +16,7 @@ import { createSession, runSession } from '../web/js/sim/session.js';
 import { ROCK, PAPER, SCISSORS, RULES, payoff } from '../web/js/core/constants.js';
 import { minJerk } from '../web/js/core/math.js';
 import { genFrames, strokePlan, fingerPlan, absent, freshEngine, feed, FIST } from './helpers/frames.js';
+import { runFuzz, parseFuzzArgs } from '../experiments/fuzz_guarantee.mjs';
 
 const VALID = new Set(['AI', 'PLAYER', 'TIE']);
 const resultOf = (/** @type {any[]} */ events) => { const e = events.find((x) => x.type === 'result'); return e ? e.result : null; };
@@ -227,6 +228,226 @@ test('the legal set never holds three throws under turnuva, not even at a headin
   // exactly one half counts as "open": ROCK is a foul, PAPER and SCISSORS are judged on the back group
   assert.deepEqual(foulNow(0.5, 0.5, t), [true, false, false]);
   assert.deepEqual(foulNow(0.5 - Number.EPSILON, 0.5, t), [false, true, true]);
+});
+
+test('the scissors rule: the AI decides against every throw the referee could still accept', () => {
+  // v4.2.1 lets the referee accept a hand that settles as a clear scissors whenever the front group was
+  // open, whatever the back heading says (ring and little finger rise with the other two). In the air
+  // the AI therefore counts scissors as acceptable whenever the front group is open.
+  const t = RULES.turnuva;
+  assert.deepEqual(foulNow(0.9, 0.95, t), [true, false, true], 'front and back open: only paper, by the headings alone');
+  assert.deepEqual(foulNow(0.9, 0.95, t, { coupledScissors: true }), [true, false, false], 'with the scissors rule: paper or scissors');
+  assert.deepEqual(foulNow(0.2, 0.95, t, { coupledScissors: true }), [true, true, true], 'front closed: the rule does not apply');
+  for (const hF of [0, 0.25, 0.5 - Number.EPSILON, 0.5, 0.5 + Number.EPSILON, 0.75, 1, NaN]) for (const hB of [0, 0.15 - 1e-12, 0.15, 0.5, 0.85 - 1e-12, 0.85, 1, NaN]) {
+    const plain = foulNow(hF, hB, t), sup = foulNow(hF, hB, t, { coupledScissors: true });
+    for (let y = 0; y < 3; y++) assert.ok(!sup[y] || plain[y], 'the superset contains every throw the plain rule accepts');
+    const legal = sup.filter((f) => !f).length;
+    assert.ok(legal <= 2, `hF ${hF}, hB ${hB}: ${legal} acceptable throws`);
+    if (legal > 0) {
+      const lm = legalMassFor({ pLegal: [1e-300, 1e-300, 1e-300], pLate: 1, post: [1 / 3, 1 / 3, 1 / 3], kinLik: [1 / 3, 1 / 3, 1 / 3] }, hF, hB, t, { coupledScissors: true });
+      const choice = chooseAction(lm.mass, t, lm.legal);
+      for (let y = 0; y < 3; y++) if (!sup[y]) assert.ok(payoff(/** @type {0|1|2} */ (choice.action), /** @type {0|1|2} */ (y)) >= 0, `hF ${hF}, hB ${hB}: AI ${choice.action} loses to acceptable ${y}`);
+    }
+  }
+});
+
+/** Two-pass staging: find the engine's landing frame on clean frames, then alter single frames before it. */
+function stageBeforeLanding(/** @type {number} */ seed, /** @type {number} */ fps, /** @type {(t:number) => number[]} */ ext, /** @type {(tAt:(back:number) => number|null) => ((t:number) => number[])} */ alter) {
+  const plan = strokePlan({ t0: 1000, beats: 4 });
+  const mk = (/** @type {(t:number) => number[]} */ e) => genFrames({ rng: makeRng(700 + seed), fps, t0: 1000, tEnd: plan.tLanding + 800, yPL: plan.yPL, ext: e });
+  const fresh = () => { const pl = createPlayerModel(); pl.safety.load({ v: 4, budget: 0, rounds: 0, expectedPayoff: 0 }); return freshEngine(seed, { rules: 'turnuva' }, pl).engine; };
+  const clean = mk(ext);
+  const res0 = resultOf(feed(fresh(), clean));
+  if (!res0) return null;
+  const tAt = (/** @type {number} */ back) => { const f = clean.find((x) => x.index === res0.landingFrame - back); return f && f.present ? f.t : null; };
+  const res = resultOf(feed(fresh(), mk(alter(tAt))));
+  if (!res) return null;
+  // raw heading of the last in-air frame (the trace keeps the detector's own values)
+  let k = -1;
+  for (let i = 0; i < res.trace.t.length; i++) if (res.trace.t[i] < res.timing.tLanding) k = i;
+  return { res, rawFront: k >= 0 ? res.trace.hF[k] : null };
+}
+
+test('turnuva: a scissors on time with one blurred frame right before the landing is neither fouled nor lost', () => {
+  // The hole of v4.2.1, at the frame rate of the first real-camera sessions (20 fps): index and middle
+  // finger are opening during the descent, the last in-air frame is blurred and reads almost closed, the
+  // hand lands as a scissors. v4.0 called this a late throw (a false foul). v4.2.1 let the referee keep
+  // the group open - but the AI had decided against the last frame alone, held PAPER, and LOST a valid
+  // round (24 of 60 here, 7 of 16 911 valid rounds in the guarantee fuzz). Now both read the same
+  // referee headings.
+  const plan = strokePlan({ t0: 1000, beats: 4 });
+  const L = plan.tLanding;
+  const scissors = fingerPlan(FIST, [[], [{ t0: L - 240, dur: 260, to: 0.95 }], [{ t0: L - 240, dur: 260, to: 0.95 }], [], []]);
+  let staged = 0, kept = 0;
+  /** @type {Record<string, number>} */ const tally = {};
+  for (let seed = 1; seed <= 60; seed++) {
+    const out = stageBeforeLanding(seed, 20, scissors, (tAt) => { const tb = tAt(1); return (t) => (tb !== null && Math.abs(t - tb) < 1 ? [FIST[0], 0.05, 0.05, FIST[3], FIST[4]] : scissors(t)); });
+    if (!out) continue;
+    staged += 1;
+    const { res, rawFront } = out;
+    tally[res.verdict] = (tally[res.verdict] ?? 0) + 1;
+    assert.notEqual(res.verdict, 'PLAYER', `seed ${seed}: the AI lost a valid round`);
+    assert.notEqual(res.verdict, 'FOUL_LATE', `seed ${seed}: an on-time scissors was fouled for one blurred frame`);
+    if (rawFront !== null && rawFront < 0.5 && res.kinematics.headingFront >= 0.5) {
+      kept += 1; // the referee kept the front group open through the blurred frame
+      assert.ok(res.valid, `seed ${seed}: an on-time scissors is not fouled or voided for one blurred frame (${res.verdict})`);
+      assert.equal(res.playerMove, SCISSORS);
+    }
+  }
+  console.log(`  blurred last frame: ${staged} rounds, the referee kept the group open in ${kept}; ${JSON.stringify(tally)}`);
+  assert.ok(staged >= 50 && kept >= 15, `staged ${staged}, kept ${kept}`);
+});
+
+test('contradictory in-air frames void the round under a code of its own: never a foul, never a loss', () => {
+  // A throw is fouled only when no look at the hand in the air supports it. Two stagings, both honest:
+  // (a) a fist all the way; two frames before the landing index and middle finger read 0.45 on one noisy
+  //     frame. Where the referee headings still hold the group for open and the last frame reads it
+  //     closed, the looks disagree. v4.2.1 judged such a round on the last frame alone, which is how
+  //     the AI could lose once it decided against the referee headings.
+  // (b) a scissors on time whose last TWO in-air frames are blurred (30 fps). The detector sees the
+  //     fingers go back and no heading holds them open; but frames before showed them opening and the
+  //     hand lands open. v4.0 called that a late throw.
+  // In both the round is void with the code VOID_CONFLICT: the hand was tracked on every frame.
+  const fist = fingerPlan(FIST, []);
+  const plan = strokePlan({ t0: 1000, beats: 4 });
+  const L = plan.tLanding;
+  const scissors = fingerPlan(FIST, [[], [{ t0: L - 240, dur: 260, to: 0.95 }], [{ t0: L - 240, dur: 260, to: 0.95 }], [], []]);
+  const blurred = [FIST[0], 0.05, 0.05, FIST[3], FIST[4]];
+  /** @type {[string, number, (t:number) => number[], (tAt:(back:number) => number|null) => ((t:number) => number[]), number][]} */
+  const stagings = [
+    ['a noisy frame on a fist', 20, fist, (tAt) => { const a = tAt(2); return (t) => (a !== null && Math.abs(t - a) < 1 ? [FIST[0], 0.45, 0.45, FIST[3], FIST[4]] : fist(t)); }, 20],
+    ['two blurred frames on a scissors', 30, scissors, (tAt) => { const a = tAt(1), b2 = tAt(2); return (t) => ((a !== null && Math.abs(t - a) < 1) || (b2 !== null && Math.abs(t - b2) < 1) ? blurred : scissors(t)); }, 40],
+  ];
+  for (const [name, fps, ext, alter, atLeast] of stagings) {
+    let staged = 0, conflicts = 0;
+    /** @type {Record<string, number>} */ const tally = {};
+    for (let seed = 1; seed <= 60; seed++) {
+      const out = stageBeforeLanding(seed + 200, fps, ext, alter);
+      if (!out) continue;
+      staged += 1;
+      const { res } = out;
+      const key = res.valid ? res.verdict : res.explanation.code;
+      tally[key] = (tally[key] ?? 0) + 1;
+      assert.notEqual(res.verdict, 'PLAYER', `${name}, seed ${seed}: the AI lost a valid round`);
+      assert.notEqual(res.verdict, 'FOUL_LATE', `${name}, seed ${seed}: an honest throw was fouled for bad frames`);
+      if (!res.valid) {
+        conflicts += 1;
+        assert.deepEqual([res.verdict, res.explanation.code], ['VOID_NO_HAND', 'VOID_CONFLICT'], `${name}, seed ${seed}`);
+        assert.equal(res.timing.trackedInFlight, 1, `${name}, seed ${seed}: the hand was tracked on every in-flight frame`);
+      }
+    }
+    console.log(`  ${name} (${fps} fps): ${staged} rounds, ${JSON.stringify(tally)}`);
+    assert.ok(staged >= 50 && conflicts >= atLeast, `${name}: staged ${staged}, conflicts ${conflicts}`);
+  }
+});
+
+test('an on-time PAPER whose last in-air frame is blurred is not fouled for it', () => {
+  // Index and middle finger open from 240 ms before the landing, ring and little finger from 225 ms; on the
+  // last in-air frame all four read closed. v4.2.0 made the back-group detector re-anchor after a single
+  // closed frame, so that one frame wiped out what had been seen: v4.2.0-v4.2.2 fouled this throw 59 or
+  // 60 times out of 60 (20 and 30 fps), and so did the first v4.2.3 draft, whose protection switched
+  // itself off on the very frame that needed it. v4.0: 0 of 60 at 30 fps, 30 of 60 at 20 fps.
+  const plan = strokePlan({ t0: 1000, beats: 4 });
+  const L = plan.tLanding;
+  const front = { t0: L - 240, dur: 260, to: 0.95 }, back = { t0: L - 225, dur: 260, to: 0.95 };
+  const paper = fingerPlan(FIST, [[], [front], [front], [back], [back]]);
+  for (const [fps, minValid] of /** @type {const} */ ([[30, 55], [20, 25]])) {
+    let staged = 0, valid = 0;
+    /** @type {Record<string, number>} */ const tally = {};
+    for (let seed = 1; seed <= 60; seed++) {
+      const out = stageBeforeLanding(seed, fps, paper, (tAt) => { const tb = tAt(1); return (t) => (tb !== null && Math.abs(t - tb) < 1 ? [FIST[0], 0.05, 0.05, 0.05, 0.05] : paper(t)); });
+      if (!out) continue;
+      staged += 1;
+      const { res } = out;
+      const key = res.valid ? res.verdict : res.explanation.code;
+      tally[key] = (tally[key] ?? 0) + 1;
+      assert.notEqual(res.verdict, 'PLAYER', `${fps} fps seed ${seed}: the AI lost a valid round`);
+      assert.notEqual(res.verdict, 'FOUL_LATE', `${fps} fps seed ${seed}: an on-time paper was fouled for one blurred frame`);
+      if (res.valid) { valid += 1; assert.equal(res.playerMove, PAPER); }
+    }
+    console.log(`  paper, blurred last frame, ${fps} fps: ${staged} rounds, ${JSON.stringify(tally)}`);
+    assert.ok(staged >= 50 && valid >= minValid, `${fps} fps: staged ${staged}, valid ${valid}`);
+  }
+});
+
+test('the report shows the referee headings as they were measured; the clear-scissors rule is a flag', () => {
+  // A scissors whose ring and little finger rise with the other two (to 0.6) and settle back after the
+  // landing. The back heading of the last in-air frame is open, the AI covers PAPER and SCISSORS with
+  // SCISSORS, the referee accepts the clear scissors: a tie. v4.2.1 and the first v4.2.3 draft then
+  // reported the back heading as 0.05 - a number nobody had measured (I4) - which made the correct
+  // SCISSORS look like a mistake (with the back group closed, ROCK would have won).
+  let ties = 0;
+  for (let seed = 1; seed <= 12; seed++) {
+    const plan = strokePlan({ t0: 1000, beats: 4 });
+    const L = plan.tLanding;
+    const front = { t0: L - 240, dur: 260, to: 0.95 };
+    const back = [{ t0: L - 225, dur: 200, to: 0.6 }, { t0: L + 30, dur: 120, to: 0.25 }];
+    const frames = genFrames({ rng: makeRng(700 + seed), fps: 30, t0: 1000, tEnd: L + 800, yPL: plan.yPL, ext: fingerPlan(FIST, [[], [front], [front], back, back]) });
+    const pl = createPlayerModel(); pl.safety.load({ v: 4, budget: 0, rounds: 0, expectedPayoff: 0 });
+    const res = resultOf(feed(freshEngine(seed, { rules: 'turnuva' }, pl).engine, frames));
+    assert.ok(res, `seed ${seed}: a round is judged`);
+    assert.notEqual(res.verdict, 'PLAYER');
+    if (res.verdict !== 'TIE') continue;
+    ties += 1;
+    assert.deepEqual([res.playerMove, res.aiMove], [SCISSORS, SCISSORS]);
+    let k = -1;
+    for (let i = 0; i < res.trace.t.length; i++) if (res.trace.t[i] < res.timing.tLanding) k = i;
+    assert.ok(res.kinematics.headingBack >= 1 - RULES.turnuva.epsB, `seed ${seed}: reported back heading ${res.kinematics.headingBack}`);
+    assert.ok(res.kinematics.headingBack >= res.trace.hB[k] - 1e-9, 'never below the heading of the last in-air frame');
+    assert.equal(res.kinematics.coupledScissors, true, 'the rule that accepted the throw is reported');
+  }
+  assert.ok(ties >= 8, `ties ${ties}`);
+});
+
+test('an honest PAPER whose ring and little finger lag behind the other two is not fouled for it', () => {
+  // Index and middle finger open 260 ms before the landing (done 60 ms before it), ring and little finger
+  // start 170 ms before it. v4.2.0-v4.2.2 subtracted an assumed extensor coupling from the back group
+  // whenever the front group led it, so the back group read "still closed" and the referee fouled this
+  // throw. Out of 60, under Turnuva at 30 / 20 fps and under Serbest at 30 fps: v4.2.0 fouled 1 / 16 and
+  // lost 4 under Serbest; v4.2.1 and v4.2.2 (a larger subtraction) fouled 58 / 26, and 57 with one loss
+  // under Serbest. v4.0 and v4.2.3 read the groups as measured: 60 of 60 valid in each of these settings.
+  for (const [fps, rules] of /** @type {const} */ ([[30, 'turnuva'], [20, 'turnuva'], [30, 'serbest']])) {
+    /** @type {Record<string, number>} */ const tallyLag = {};
+    let valid = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      const plan = strokePlan({ t0: 1000, beats: 4 });
+      const L = plan.tLanding;
+      const front = { t0: L - 260, dur: 200, to: 0.95 }, back = { t0: L - 170, dur: 260, to: 0.95 };
+      const paper = fingerPlan(FIST, [[], [front], [front], [back], [back]]);
+      const frames = genFrames({ rng: makeRng(500 + seed), fps, t0: 1000, tEnd: L + 800, yPL: plan.yPL, ext: paper });
+      const pl = createPlayerModel(); pl.safety.load({ v: 4, budget: 0, rounds: 0, expectedPayoff: 0 });
+      const res = resultOf(feed(freshEngine(seed, { rules }, pl).engine, frames));
+      assert.ok(res, `${rules} ${fps} fps seed ${seed}: a round is judged`);
+      tallyLag[res.verdict] = (tallyLag[res.verdict] ?? 0) + 1;
+      assert.notEqual(res.verdict, 'PLAYER', `${rules} ${fps} fps seed ${seed}: the AI lost to an honest paper it could read`);
+      if (res.valid) { valid += 1; assert.equal(res.playerMove, PAPER); }
+    }
+    console.log(`  lagging ring and little finger, ${rules} ${fps} fps: ${JSON.stringify(tallyLag)}`);
+    assert.ok(valid >= 55, `${rules} ${fps} fps: only ${valid} of 60 honest papers valid`);
+  }
+});
+
+test('the guarantee fuzz finds nothing: the seven sessions that broke v4.2.1, and the first 150 sessions', () => {
+  // experiments/fuzz_guarantee.mjs is part of the release check (npm run fuzz); v4.2.1 was released
+  // without it and lost 7 valid rounds in these sessions. They are replayed here on every test run.
+  const broke = runFuzz({ seeds: [151, 3629, 4391, 5774, 6735, 7979, 9438] });
+  assert.deepEqual([broke.losses, broke.exceptions, broke.orderViolations], [0, 0, 0], JSON.stringify(broke.examples));
+  // (not vacuous: the seven sessions hold 15 judged rounds; in v4.2.2 seven of them were lost)
+  assert.ok(broke.judgedRounds >= 12 && broke.validRounds >= 5, `judged ${broke.judgedRounds}, valid ${broke.validRounds}`);
+  const smoke = runFuzz({ sessions: 150 });
+  assert.deepEqual([smoke.losses, smoke.exceptions, smoke.orderViolations], [0, 0, 0], JSON.stringify(smoke.examples));
+  assert.ok(smoke.validRounds >= 100, `valid rounds ${smoke.validRounds}`);
+});
+
+test('the release check cannot pass by running nothing: unreadable fuzz arguments are an error', () => {
+  // `--seeds=abc`, `--seeds=151;3629` and `--seeds 151` used to run zero sessions (or 151 of them) and exit 0
+  assert.deepEqual(parseFuzzArgs([]), { sessions: 2500, seeds: null, save: false });
+  assert.deepEqual(parseFuzzArgs(['15000', '--save']), { sessions: 15000, seeds: null, save: true });
+  assert.deepEqual(parseFuzzArgs(['--seeds=151,3629']), { sessions: 2500, seeds: [151, 3629], save: false });
+  for (const bad of [['--seeds=abc'], ['--seeds=151;3629'], ['--seeds='], ['--seeds', '151'], ['--seeds=1,,2'], ['--seeds=0'], ['0'], ['12.5'], ['3', '4'], ['3', '--seeds=1'], ['--bogus']]) {
+    assert.ok('error' in parseFuzzArgs(bad), `accepted: ${bad.join(' ')}`);
+  }
+  assert.equal(runFuzz({ seeds: [] }).sessions, 0, '(an empty list really runs nothing, which is why the command line refuses it)');
 });
 
 test('frames must advance in index as well as in time (frame order is what I1 rests on)', () => {

@@ -22,6 +22,10 @@
  * I5  The referee (fouls / voids) reads only pre-landing headings under a fixed prior and the settled
  *     shape — never the AI's commitment. Without fresh in-air evidence OF THE THROW (a tracked frame
  *     shortly before landing on which the AI was free to revise) the round is void, never a foul.
+ *     The headings the referee reads are the REFEREE HEADINGS stored with the last in-air frame
+ *     (refereeHeadings): the very numbers the AI decided against on that frame. Nothing that becomes
+ *     known after that frame may make a throw legal that the AI's legal set did not contain; it may
+ *     only turn a round void (see judge(): VOID_CONFLICT when the two looks at the hand disagree).
  * I6  Everything about the game is learned only from valid rounds (verdict AI / PLAYER / TIE). Sensor
  *     calibration alone may also adapt on VOID_NO_FIST / VOID_UNKNOWN rounds (player_model.learnPosture).
  */
@@ -48,9 +52,11 @@ export const DEFAULTS = Object.freeze({
   settleMs: 420,
   /**
    * A fist right after landing is confirmed as ROCK only if it is still a fist this long after landing
-   * (ms). Fingers that open inside this window are a late throw. 250 ms is just above the simple visual
-   * reaction time (about 213-231 ms [Woods2015]), so nobody can open in reaction to the revealed AI move
-   * and still be inside the window.
+   * (ms). Fingers that open inside this window (lateOpenThreshold on two consecutive frames) are a late
+   * throw. The window must stay shorter than a reaction to what the screen shows at landing: the simple
+   * visual reaction time is about 213-231 ms [Woods2015], and the opening still has to pass the threshold
+   * on two frames after that, so a hand that opens in reaction cannot turn a lost ROCK into a foul. v4.0
+   * used 250 ms; v4.2.0 shortened it to 215 ms (a verdict 35 ms sooner, the argument holds a fortiori).
    */
   rockHoldMs: 215,
   /** Front-group opening that counts as "the fist has opened" after landing (two consecutive frames). */
@@ -64,6 +70,16 @@ export const DEFAULTS = Object.freeze({
   inAirWindowMs: 220,
   inAirWindowFrames: 3.5,
   minInAirTracked: 1,
+  /**
+   * Referee headings: the heading of a finger group cannot fall below what a revision frame of the last
+   * max(latchWindowMs, latchWindowFrames frame intervals) showed with the group measurably opened (raw
+   * opening at least latchMinOpening), unless the group's detector has been re-anchored since (it saw
+   * the group go back). Blurred frames right before the landing must not turn an open hand into a closed
+   * one. The window ends at the frame itself.
+   */
+  latchWindowMs: 340,
+  latchWindowFrames: 3.5,
+  latchMinOpening: 0.42,
   /** ... and the last of them is at most max(inAirMaxAgeMs, inAirMaxAgeFrames frame intervals) old. */
   inAirMaxAgeMs: 95,
   inAirMaxAgeFrames: 2.5,
@@ -122,7 +138,7 @@ export const DEFAULTS = Object.freeze({
 });
 
 export const THOUGHT_CODES = Object.freeze(['WAITING_HAND', 'PRIOR_READY', 'COUNTING', 'ARMED', 'FLIGHT_WATCHING', 'ONSET_FRONT', 'PAPER_LIKELY', 'SCISSORS_LIKELY', 'ROCK_BY_ABSENCE', 'LANDED', 'RESULT']);
-export const EXPLANATION_CODES = Object.freeze(['HELD_BEHAVIOUR', 'ROCK_BY_ABSENCE', 'RESOLVED_PAPER', 'RESOLVED_SCISSORS', 'SAFE_SCISSORS', 'REVISED_AFTER_FEINT', 'GAMBLE_AMBIGUOUS', 'KINEMATIC', 'FOUL_LATE_OPEN', 'FOUL_LATE_CLOSE', 'VOID_NO_HAND', 'VOID_UNKNOWN', 'VOID_NO_FIST']);
+export const EXPLANATION_CODES = Object.freeze(['HELD_BEHAVIOUR', 'ROCK_BY_ABSENCE', 'RESOLVED_PAPER', 'RESOLVED_SCISSORS', 'SAFE_SCISSORS', 'REVISED_AFTER_FEINT', 'GAMBLE_AMBIGUOUS', 'KINEMATIC', 'FOUL_LATE_OPEN', 'FOUL_LATE_CLOSE', 'VOID_NO_HAND', 'VOID_CONFLICT', 'VOID_UNKNOWN', 'VOID_NO_FIST']);
 
 const round1 = (/** @type {number} */ x) => Math.round(x * 10) / 10;
 
@@ -178,14 +194,14 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
       prior: [1 / 3, 1 / 3, 1 / 3], top: [], behaviour: null,
       tFlightStart: null, flightFrame: null, period: null, lastBeatT: null,
       commits: /** @type {any[]} */ ([]), kinematicCommits: 0,
-      F: createOpeningDetector({ legalProgress: 0.105, stayVar: 0.0032 }), B: createOpeningDetector({ legalProgress: 0.135, stayVar: 0.0042, closedMin: 0.20, reanchorFrames: 1 }), clf: null,
+      F: createOpeningDetector({ legalProgress: 0.105, stayVar: 0.0032 }), B: createOpeningDetector({ legalProgress: 0.135, stayVar: 0.0042, closedMin: 0.20 }), clf: null,
       belief: null, hF: 0, hB: 0, tLandHat: null, legalCount: 3,
       trace: { t: [], uF: [], uB: [], cy: [], hF: [], hB: [], pR: [], pP: [], pS: [], commitT: [], commitSeq: [] },
       samples: /** @type {import('./pose.js').PoseSample[]} */ ([]),
-      inAir: /** @type {{t:number,index:number,hF:number,hB:number,u4:number[],y:number,afterGap:boolean,open:boolean}[]} */ ([]),
+      inAir: /** @type {{t:number,index:number,hF:number,hB:number,rHF:number,rHB:number,u4:number[],y:number,afterGap:boolean,open:boolean}[]} */ ([]),
       flightFrames: /** @type {{t:number,index:number,tracked:boolean}[]} */ ([]),
       trackedInFlight: 0, lastEvalT: null, lastEvalIndex: /** @type {number|null} */ (null), gapRecovery: 0,
-      descentStartT: null, apexT: null, reanchored: false, peakFlexVel: 0,
+      descentStartT: null, apexT: null, reanchored: false, reanchorTF: -Infinity, reanchorTB: -Infinity, peakFlexVel: 0,
       soft: /** @type {{t:number,y:number,amplitudePL:number}|null} */ (null), openSinceT: null,
       landing: null, settle: /** @type {import('./pose.js').PoseSample[]} */ ([]), settleTheta: /** @type {number[][]} */ ([]), settleNeural: /** @type {string[]} */ ([]), vSpread: null,
     };
@@ -331,16 +347,73 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     events.push({ type: 'landing', t: landT, source });
   };
 
+  /**
+   * Referee headings of an in-air frame (I5): the frame's own headings, except that the heading of a
+   * finger group cannot fall below the heading of a recent revision frame on which the group was
+   * measurably opened (raw opening at least latchMinOpening; fingers that merely loosen during the
+   * stroke do not count). Such a frame counts only if the group's detector has not been re-anchored since
+   * (reanchorTF / reanchorTB): a detector re-anchors when it sees its group closed on two frames in a row
+   * while it still held it for open, i.e. when the fingers really went back (a feint). Closed-looking
+   * frames that do not re-anchor it - motion blur, speed-dependent noise - change nothing. The headings
+   * depend on the in-air frames up to this one only and are stored with the frame; both sides use the
+   * stored values - the AI decides against them on this frame, the referee reads them from the last
+   * in-air frame.
+   * History: v4.2.1 computed this in the referee, after the landing and from the settled shape, so the
+   * referee could accept a throw that the AI's last decision had been told was a foul, and the turnuva
+   * guarantee broke (7 player wins in 16 911 valid rounds of the guarantee fuzz). The first v4.2.3 draft
+   * switched the rule off for the rest of the round as soon as either detector re-anchored, and v4.2.0
+   * had made the back detector re-anchor after a single closed frame: the blurred frame itself switched
+   * the rule off, and an on-time PAPER with a blurred last frame was fouled 60 times out of 60. The draft
+   * also held any open heading, whatever the fingers showed: closed fingers that loosen during the throw
+   * stroke then voided an honest ROCK (thesis, section 5.1.8).
+   * @param {number} t @param {number} hF @param {number} hB raw headings of the frame
+   */
+  const refereeHeadings = (t, hF, hB) => {
+    let rHF = hF, rHB = hB;
+    const from = t - Math.max(c.latchWindowMs, c.latchWindowFrames * frameDt);
+    for (let i = r.inAir.length - 1; i >= 0 && r.inAir[i].t >= from; i--) {
+      const f = r.inAir[i];
+      if (!f.open) continue; // revision frames only
+      if (f.t > r.reanchorTF && f.hF > rHF && (f.u4[0] + f.u4[1]) / 2 >= c.latchMinOpening) rHF = f.hF;
+      if (f.t > r.reanchorTB && f.hB > rHB && (f.u4[2] + f.u4[3]) / 2 >= c.latchMinOpening) rHB = f.hB;
+    }
+    return { hF: rHF, hB: rHB };
+  };
+
+  /**
+   * The widest look at the in-air frames (referee only, after the landing): the highest raw heading of
+   * each group on any revision frame of the latch window that ends with frame `last`. It can never make
+   * a throw valid; judge() uses it to tell contradictory evidence (void) from a late throw (foul).
+   * @param {any[]} inAir in-air frames before the landing @param {any} last the last of them
+   */
+  const widestHeadings = (inAir, last) => {
+    let wHF = last.hF, wHB = last.hB;
+    const from = last.t - Math.max(c.latchWindowMs, c.latchWindowFrames * frameDt);
+    for (let i = inAir.length - 1; i >= 0 && inAir[i].t >= from; i--) {
+      const f = inAir[i];
+      if (!f.open) continue;
+      if (f.hF > wHF) wHF = f.hF;
+      if (f.hB > wHB) wHB = f.hB;
+    }
+    return { hF: wHF, hB: wHB };
+  };
+
   // ------------------------------------------------------------------------------- in-flight evaluation
   const evaluate = (/** @type {import('./kinematics.js').KinSample} */ s, /** @type {HandFrame} */ frame, /** @type {any[]} */ events, /** @type {boolean} */ mayRevise) => {
     const u = openingFromBaseline(s.e, r.base);
     const uF = (u[1] + u[2]) / 2, uB = (u[3] + u[4]) / 2;
-    const isScissorPose = uF >= 0.44 && (uF - uB >= 0.16 || (s.vSpread >= 16 && uB < 0.55)) && uB < 0.58;
-    const enslaveGain = Math.max(0.28, Math.min(0.65, (player.enslaveRatio ?? 0.20) + 0.20));
-    const enslave = isScissorPose ? Math.min(uB, enslaveGain * uF + (s.vSpread >= 16 ? 0.18 : 0.08)) : 0;
-    const uBObs = uB - enslave;
-    if (r.F.observe(s.t, uF, r.noiseVarF).reanchored) r.reanchored = true;
-    if (r.B.observe(s.t, uBObs, r.noiseVarB).reanchored) r.reanchored = true;
+    // The finger groups are read as measured, by the AI and by the referee alike. v4.2.0-v4.2.2 subtracted
+    // an assumed extensor coupling from the back group whenever the pose looked like a scissors (in v4.2.1
+    // at least 0.38 x uF + 0.08, whatever the player showed; the settled scissors of the first real-camera
+    // player had a ratio of at most 0.15). An honest PAPER whose ring and little finger lagged then read as
+    // "back group still closed": the referee fouled it (matched simulation, Turnuva, normal openers, 30 fps:
+    // 1.76 % of clear honest throws in v4.2.0 and 2.71 % in v4.2.1/v4.2.2, against 0.55 % in v4.0), and
+    // in a draft of v4.2.3 that confined the subtraction to the
+    // belief, the AI took it for a SCISSORS and lost it under Serbest and Standart. The coupling is the
+    // referee's business: a hand that settles as a clear scissors is accepted whenever the front group was
+    // open (judge), and the AI's legal set allows for that (foulNow, coupledScissors).
+    if (r.F.observe(s.t, uF, r.noiseVarF).reanchored) { r.reanchored = true; r.reanchorTF = s.t; }
+    if (r.B.observe(s.t, uB, r.noiseVarB).reanchored) { r.reanchored = true; r.reanchorTB = s.t; }
     const pl = predictLanding(stroke.state(), s.t, player.stroke);
     let tL = pl.tHat;
     if (schedule && (tL === null || Math.abs(tL - schedule.throwT) > c.metronomeWindowMs)) tL = schedule.throwT;
@@ -351,7 +424,10 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     const eBp = opened ? r.B.evidence(tL, player.coupledBackPrior(/** @type {number} */ (eF.meanOnsetT))) : eBs;
     const belief = fuse({ prior: r.prior, F: eF, Bstay: eBs, Bopen: eBp, wPrior: player.fusion.wPrior, wKin: player.fusion.wKin });
     const hF = r.F.headingNow(), hB = r.B.headingNow();
-    const legal = legalMassFor(belief, hF, hB, rules());
+    // the legal set of the decision is the referee's: its headings for this frame, and scissors counted
+    // as acceptable whenever the front group is open (the referee may accept a clear scissors then)
+    const ref = refereeHeadings(s.t, hF, hB);
+    const legal = legalMassFor(belief, ref.hF, ref.hB, rules(), { coupledScissors: true });
     const choice = chooseAction(legal.mass, rules(), legal.legal);
     r.belief = belief; r.hF = hF; r.hB = hB; r.tLandHat = tL;
     r.legalCount = legal.mass.filter((m) => m > 1e-9).length;
@@ -372,7 +448,7 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     // `open`: the revision step below was carried out on this frame (not while a single-stroke round
     // merely waits armed, not before enough frames of the round have been seen). It is set at the END of
     // the step: if the step cannot complete, the frame never counts as one on which the AI could revise.
-    const inAirEntry = { t: s.t, index: frame.index, hF, hB, u4: [u[1], u[2], u[3], u[4]], y: stroke.state().y, afterGap, open: false };
+    const inAirEntry = { t: s.t, index: frame.index, hF, hB, rHF: ref.hF, rHB: ref.hB, u4: [u[1], u[2], u[3], u[4]], y: stroke.state().y, afterGap, open: false };
     r.inAir.push(inAirEntry);
     r.samples.push({ t: s.t, u4: [u[1], u[2], u[3], u[4]], neural: s.neural });
     const tr = r.trace;
@@ -426,38 +502,19 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
     /** @type {0|1|2|null} */ let playerMove = decision.move;
     let code = 'KINEMATIC';
 
-    // Robust in-air heading resolution for the referee:
-    // Protects against single-frame webcam motion blur drops and biomechanical extensor enslaving
-    let refHF = lastInAir ? lastInAir.hF : 0;
-    let refHB = lastInAir ? lastInAir.hB : 0;
-    if (lastInAir && playerMove !== null) {
-      const recentOpen = inAir.filter((/** @type {any} */ f) => f.open && f.t >= L.t - Math.max(340, 3.5 * frameDt));
-      if (recentOpen.length > 0) {
-        const maxHF = Math.max(...recentOpen.map((/** @type {any} */ f) => f.hF));
-        const maxHB = Math.max(...recentOpen.map((/** @type {any} */ f) => f.hB));
-        const finalFront = finalU4 ? (finalU4[0] + finalU4[1]) / 2 : 0;
-        const finalBack = finalU4 ? (finalU4[2] + finalU4[3]) / 2 : 0;
-        const noRecloseFront = !r.reanchored && (tail.length === 0 || finalFront >= 0.35);
-        const noRecloseBack = !r.reanchored && (tail.length === 0 || finalBack >= 0.35);
-
-        // 1. If fingers were confirmed open during in-air descent (where AI evaluated/revised)
-        // without re-closing, don't let single-frame motion blur right at landing void or foul:
-        if (maxHF >= 1 - R.epsF && noRecloseFront) refHF = Math.max(refHF, maxHF);
-        if (maxHB >= 1 - R.epsB && noRecloseBack) refHB = Math.max(refHB, maxHB);
-      }
-
-      // 2. Biomechanical extensor enslaving on SCISSORS:
-      // Index + Middle extending naturally pulls ring/pinky extensor tendons, causing slight
-      // back-finger elevation that is purely anatomical, not late paper or late close.
-      if (playerMove === SCISSORS) {
-        const finalFront = finalU4 ? (finalU4[0] + finalU4[1]) / 2 : 0;
-        const finalBack = finalU4 ? (finalU4[2] + finalU4[3]) / 2 : 0;
-        const vSp = r.vSpread ?? 0;
-        if (finalFront >= 0.40 && (finalFront - finalBack >= 0.15 || vSp >= 15 || finalBack <= 0.48)) {
-          refHB = Math.min(refHB, 0.05);
-        }
-      }
-    }
+    // I5: the referee reads the referee headings stored with the last in-air frame - the numbers the AI
+    // decided against on that very frame (refereeHeadings: a group seen open a moment earlier stays open
+    // through a blurred frame) - and the settled shape. Nothing else, and never the AI's commitment.
+    const refHF = lastInAir ? lastInAir.rHF : 0;
+    const refHB = lastInAir ? lastInAir.rHB : 0;
+    // Extensor coupling on SCISSORS: index and middle finger pull ring and little finger up a little.
+    // That is anatomy, not a late paper or a late close, so a hand that settles as a clear scissors is
+    // accepted whenever the front group was open, whatever the back heading says. The AI's legal set
+    // counts scissors as acceptable whenever the front group is open, so this cannot surprise it.
+    const finalFront = finalU4 ? (finalU4[0] + finalU4[1]) / 2 : 0;
+    const finalBack = finalU4 ? (finalU4[2] + finalU4[3]) / 2 : 0;
+    const clearScissors = !!lastInAir && playerMove === SCISSORS
+      && finalFront >= 0.40 && (finalFront - finalBack >= 0.15 || (r.vSpread ?? 0) >= 15 || finalBack <= 0.48);
 
     if (r.baseRaw && (r.baseRaw.front > c.fistMaxExtension || r.baseRaw.back > c.fistMaxExtension)) {
       verdict = 'VOID_NO_FIST'; code = 'VOID_NO_FIST';
@@ -467,11 +524,25 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
       verdict = 'FOUL_LATE'; code = 'FOUL_LATE_OPEN'; // the hand landed as a fist and opened afterwards
     } else if (playerMove === null) {
       verdict = 'VOID_UNKNOWN'; code = 'VOID_UNKNOWN';
-    } else if (foulNow(refHF, refHB, R)[playerMove]) {
+    } else if (foulNow(refHF, refHB, R, { coupledScissors: clearScissors })[playerMove]) {
       // I5: only the pre-landing headings and the settled shape decide; the AI's move is not consulted
-      verdict = 'FOUL_LATE';
-      const frontMustOpen = playerMove !== ROCK;
-      code = (frontMustOpen && refHF < R.epsF) || (playerMove === PAPER && refHB < R.epsB) ? 'FOUL_LATE_OPEN' : 'FOUL_LATE_CLOSE';
+      const wide = widestHeadings(inAir, lastInAir);
+      if (!foulNow(lastInAir.hF, lastInAir.hB, R, { coupledScissors: clearScissors })[playerMove]
+        || !foulNow(wide.hF, wide.hB, R, { coupledScissors: clearScissors })[playerMove]) {
+        // The looks at the hand disagree. The referee headings reject the throw, but either the last
+        // in-air frame alone would accept it (a group that a recent frame showed open reads closed
+        // there, and the hand has settled closed), or a frame of the latch window showed open what the
+        // throw needs open (the fingers were seen opening, the last frames read them closed, and the
+        // hand has settled open: blurred frames). That is unreliable evidence, not a late throw: void.
+        // A throw is fouled only when no look at the hand in the air supports it. (Accepting the throw
+        // here is what broke the guarantee in v4.2.1: the AI had decided against the referee headings.)
+        // The hand WAS tracked, so the round carries a code of its own.
+        verdict = 'VOID_NO_HAND'; code = 'VOID_CONFLICT';
+      } else {
+        verdict = 'FOUL_LATE';
+        const frontMustOpen = playerMove !== ROCK;
+        code = (frontMustOpen && refHF < R.epsF) || (playerMove === PAPER && refHB < R.epsB) ? 'FOUL_LATE_OPEN' : 'FOUL_LATE_CLOSE';
+      }
     } else {
       const p = payoff(/** @type {0|1|2} */ (judged.move), playerMove);
       verdict = p > 0 ? 'AI' : p < 0 ? 'PLAYER' : 'TIE';
@@ -534,8 +605,11 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
         openingMsFront: mF && mF.opened && mF.durationMs !== null ? round1(mF.durationMs) : null,
         peakFlexionVelDegS: r.peakFlexVel > 0 ? Math.round(r.peakFlexVel) : null,
         vSpreadDeg: r.vSpread === null ? null : round1(r.vSpread),
+        // the referee headings as stored with the last in-air frame (I4: measured, never adjusted)
         headingFront: lastInAir ? +refHF.toFixed(3) : null,
         headingBack: lastInAir ? +refHB.toFixed(3) : null,
+        // true when the clear-scissors rule decided: the back heading did not count against the throw
+        coupledScissors: clearScissors,
         noiseSd: +r.noiseSd.toFixed(3),
         reanchored: r.reanchored,
       },
@@ -740,6 +814,11 @@ export function createRoundEngine({ player, commitLog, rng, cfg = {} }) {
       if (phase === 'FLIGHT' && !schedule) {
         const st = stroke.state();
         if (!single && !r.soft && (r.hF >= 0.65 || r.apexT !== null) && frame.t - r.tFlightStart >= 0.65 * (r.period ?? 500) && st.stillSinceT !== null && frame.t - st.stillSinceT >= 85 && st.phase !== 'UP' && st.phase !== 'DOWN') {
+          // A 4th stroke too gentle for any stroke event (v4.2.0): the hand "lands" when these conditions
+          // first hold. Known limit (thesis, Section 5.1.8): after a small stroke the tracker did not see,
+          // this is up to ~100 ms after the palm stopped, and seals made in between count as made before
+          // the landing. Dating it at the start of the stillness instead would foul a hand that opens up in
+          // the air and stays there; the palm alone cannot tell the two apart.
           r.soft = { t: frame.t, y: st.y, amplitudePL: 0.12 };
         }
         if (r.soft && frame.t - r.soft.t >= c.softLandingHoldMs && st.phase !== 'DOWN') {

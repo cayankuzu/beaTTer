@@ -76,9 +76,16 @@ const controller = createController({
 
 store.subscribe((s) => s.settings.privacy, (on) => { if (privacy) privacy.setEnabled(on); });
 
-// On local/LAN development hosts, automatically save every real camera round to /.local_telemetry
-// so playtest rounds can be inspected without manual file downloads.
-if (isDevelopmentHost(location.hostname)) {
+// Local playtest log (serve_web.py writes it to .local_telemetry/, which is never committed or deployed):
+// every judged camera round and abort, with the export of the session, is POSTed to the serving machine.
+// On by itself only when the page is opened on that machine (loopback): there the player is the developer.
+// A device that reaches the development server over the network (the LAN address serve_web.py prints for
+// phones) is somebody's own device: nothing is recorded from it unless the address says ?telemetry=1.
+// (v4.2.0-v4.2.2 recorded from every development host, whatever the sharing switch said.)
+const isLoopbackHost = (/** @type {string} */ host) => host === 'localhost' || host === '[::1]' || host.endsWith('.localhost') || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
+const localTelemetry = isDevelopmentHost(location.hostname) && params.get('telemetry') !== '0'
+  && (isLoopbackHost(location.hostname) || params.get('telemetry') === '1');
+if (localTelemetry) {
   let lastSavedRound = -1;
   let lastSavedToast = -1;
   store.subscribe((s) => s.result, (res) => {

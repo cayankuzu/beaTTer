@@ -4,12 +4,12 @@
  "generatedBy": "experiments/run_all.mjs",
  "quick": false,
  "description": "Belief at the judged seal versus the truth; preset turnuva, normal openers, 30 fps.",
- "n": 2257,
- "accuracyPct": 78.33,
- "brier": 0.2821,
- "loglossBits": 0.6836,
- "infoGainBits": 0.9013,
- "ece": 0.0649,
+ "n": 2270,
+ "accuracyPct": 76.83,
+ "brier": 0.2897,
+ "loglossBits": 0.7003,
+ "infoGainBits": 0.8846,
+ "ece": 0.0558,
  "reliability": [
   {
    "bin": "0-0.1",
@@ -31,44 +31,44 @@
   },
   {
    "bin": "0.3-0.4",
-   "n": 514,
-   "confidence": 0.377,
-   "accuracy": 0.446
+   "n": 508,
+   "confidence": 0.375,
+   "accuracy": 0.421
   },
   {
    "bin": "0.4-0.5",
-   "n": 205,
-   "confidence": 0.429,
-   "accuracy": 0.449
+   "n": 228,
+   "confidence": 0.431,
+   "accuracy": 0.443
   },
   {
    "bin": "0.5-0.6",
-   "n": 167,
-   "confidence": 0.543,
-   "accuracy": 0.665
+   "n": 184,
+   "confidence": 0.542,
+   "accuracy": 0.636
   },
   {
    "bin": "0.6-0.7",
-   "n": 135,
-   "confidence": 0.65,
-   "accuracy": 0.815
+   "n": 122,
+   "confidence": 0.651,
+   "accuracy": 0.787
   },
   {
    "bin": "0.7-0.8",
-   "n": 159,
-   "confidence": 0.752,
-   "accuracy": 0.969
+   "n": 168,
+   "confidence": 0.746,
+   "accuracy": 0.958
   },
   {
    "bin": "0.8-0.9",
-   "n": 155,
-   "confidence": 0.85,
-   "accuracy": 0.981
+   "n": 174,
+   "confidence": 0.852,
+   "accuracy": 0.983
   },
   {
    "bin": "0.9-1",
-   "n": 922,
-   "confidence": 0.987,
+   "n": 886,
+   "confidence": 0.988,
    "accuracy": 0.998
   }
  ]

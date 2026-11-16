@@ -51,7 +51,7 @@ export function mountReport(ctx) {
         h('p', { class: 'rp-move__name' }, r.playerMove === null || r.playerMove === undefined ? T.notRecognised : moveName(r.playerMove)),
         youWin ? win() : null),
       h('div', { class: 'rp-verdict__mid' },
-        h('h3', { class: 'rp-verdict__title', id: hid }, r.valid ? null : icon('warning', 'ic--lg'), verdictHeadline(r.verdict)),
+        h('h3', { class: 'rp-verdict__title', id: hid }, r.valid ? null : icon('warning', 'ic--lg'), verdictHeadline(r.verdict, r.explanation ? r.explanation.code : null)),
         h('p', { class: 'rp-verdict__rule' }, verdictSentence(r)),
         h('p', { class: 'rp-move__meta' }, M.seriesLine(series.player, series.ai))),
       h('div', { class: `rp-move rp-move--ai${aiWin ? ' is-winner' : ''}` },
@@ -93,13 +93,18 @@ export function mountReport(ctx) {
       let errWhat = 'Bu turda el hareketi kurallara uygun tamamlanamadı.';
       let errHow = 'Elini kameranın ortasında tutarak 3 kez yumruk salla ve 4. vuruşta elin havadayken hamleni aç.';
       if (code === 'FOUL_LATE_OPEN') {
-        errTitle = 'Senin Hatan: El İndikten Sonra Açtın (Geç Hamle)';
-        errWhat = '4. vuruşta elin aşağı inerken yumruk halindeydi; parmaklarını elin durduktan sonra açtın.';
-        errHow = '1-Taş, 2-Kağıt, 3-Makas derken yumruk salla; 4. vuruşta ("VUR!" derken) elin daha havadayken parmaklarını aç.';
+        // no blame in the title: honest throws are fouled too (a late-starting opening, a low frame rate)
+        errTitle = 'Geç Hamle: Açılma İnişten Önce Görülmedi';
+        errWhat = 'Hakem, elin inmeden önceki karelerin hiçbirinde parmaklarını açık okuyamadı; açılma inişten sonra göründü. Geç açmış olabilirsin; açılmanın başını kamera da kaçırmış olabilir (düşük kare hızı, bulanık kare).';
+        errHow = '1-Taş, 2-Kağıt, 3-Makas derken yumruk salla; 4. vuruşta ("VUR!" derken) parmaklarını elin daha havadayken, biraz daha erken aç. Daha çok ışık hareket bulanıklığını azaltır.';
       } else if (code === 'FOUL_LATE_CLOSE') {
-        errTitle = 'Senin Hatan: Son Anda Parmak Kapattın (Geç Hamle)';
-        errWhat = 'Elin havadayken parmakların açıktı (Kağıt gibi), ancak elin inerken son anda parmaklarını kapattın.';
+        errTitle = 'Geç Hamle: Şekil İnişte Değişti';
+        errWhat = 'Elin havadayken parmakların açık okundu, el indiğinde ise kapalıydı.';
         errHow = '4. vuruşta seçtiğin şekli havada net olarak aç ve elin durana kadar şekli değiştirme.';
+      } else if (code === 'VOID_CONFLICT') {
+        errTitle = 'Kareler Birbirini Tutmadı';
+        errWhat = 'Elin izlendi, ama inişten hemen önceki karelerde parmakların okunuşu çelişti: bir karede açık, bir başkasında kapalı. Bu çoğunlukla bulanık ya da gürültülü bir karedir. Hakem çelişkili kanıtla faul vermez; tur sayılmadı.';
+        errHow = 'Bu senin hatan değil. Daha çok ışık ve elini kameraya çok yaklaştırmamak hareket bulanıklığını azaltır.';
       } else if (r.verdict === 'VOID_NO_HAND') {
         errTitle = 'El Kamerada Net Görünmedi';
         errWhat = 'Son vuruş sırasında elin kamera açısından çıktı ya da çok hızlı savrulduğu için takip edilemedi.';
@@ -125,12 +130,11 @@ export function mountReport(ctx) {
       : `Tur tamamlandığında tüm mühürler açıldı ve doğrulandı.`;
 
     const prof = st.profile;
-    const adaptPct = prof && prof.diagnostics ? prof.diagnostics.adaptationPct : (prof && prof.rounds ? Math.min(100, Math.round(100 * (1 - Math.exp(-prof.rounds / 10)))) : 0);
     const meanLead = prof && prof.onsetLeadFrontMs && prof.onsetLeadFrontMs.n > 0 ? Math.round(prof.onsetLeadFrontMs.mean) : null;
     const favMove = prof && prof.diagnostics && prof.diagnostics.favMove !== null ? moveName(prof.diagnostics.favMove) : null;
     const learnParts = [];
     if (prof && prof.rounds > 0) {
-      learnParts.push(`Toplam ${prof.rounds} geçerli tur analiz edildi (Uyum: %${adaptPct}).`);
+      learnParts.push(`Toplam ${prof.rounds} geçerli turdan öğrenildi.`);
       if (meanLead !== null) learnParts.push(`Parmaklarını inişten ortalama ${meanLead} ms önce açıyorsun.`);
       if (favMove) learnParts.push(`En sık tercih ettiğin hamle: ${favMove}.`);
     } else {
@@ -308,6 +312,7 @@ export function mountReport(ctx) {
       [T.mLandingSrc, r.landingSource ? T.landingSources[r.landingSource] ?? String(r.landingSource) : DASH],
       [T.mHeadFront, fmt.pct(k.headingFront)],
       [T.mHeadBack, fmt.pct(k.headingBack)],
+      ...(k.coupledScissors ? [/** @type {[string, string]} */ ([T.mCoupled, T.coupledYes])] : []),
       [T.mFlight, fmt.ms(tm.flightMs)],
       [T.mToLanding, fmt.ms(tm.leadToLandingMs)],
       [T.mSealLatency, fmt.ms(tm.sealLatencyMs)],

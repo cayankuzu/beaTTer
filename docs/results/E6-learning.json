@@ -13,7 +13,7 @@
     234,
     265,
     236,
-    232,
+    233,
     267,
     264,
     266
@@ -25,30 +25,30 @@
    "roundsPerBlock": 15,
    "medianLeadMsByBlock": [
     135,
-    136,
-    198,
-    166,
-    167,
+    135,
+    182,
     164,
-    168,
-    166
+    135,
+    164,
+    167,
+    164
    ],
-   "learnedOnsetLeadMs": 199
+   "learnedOnsetLeadMs": 196
   },
   {
    "style": "late",
    "roundsPerBlock": 15,
    "medianLeadMsByBlock": [
-    400,
-    101,
-    101,
-    117,
-    117,
-    431,
-    117,
-    100
+    116,
+    118,
+    416,
+    98,
+    102,
+    102,
+    268,
+    99
    ],
-   "learnedOnsetLeadMs": 126
+   "learnedOnsetLeadMs": 125
   }
  ]
 }

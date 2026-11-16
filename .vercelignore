@@ -4,6 +4,8 @@ docs/
 tests/
 experiments/
 debug_live/
+.local_telemetry/
+scripts/
 .claude/
 .localcert/
 *.py

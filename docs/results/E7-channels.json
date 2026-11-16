@@ -7,18 +7,18 @@
  "rows": [
   {
    "system": "behaviour channel only (the seal made before any movement)",
-   "n": 2260,
-   "winPct": 38.58,
+   "n": 2276,
+   "winPct": 37.79,
    "winCI": [
-    36.6,
-    40.61
+    35.82,
+    39.8
    ],
-   "tiePct": 35.22,
-   "lossPct": 26.19
+   "tiePct": 34.71,
+   "lossPct": 27.5
   },
   {
    "system": "behaviour + kinematics (judged seal)",
-   "n": 2260,
+   "n": 2276,
    "winPct": 99.96,
    "winCI": [
     99.75,
@@ -28,5 +28,5 @@
    "lossPct": 0
   }
  ],
- "heldBehaviourPct": 13.05
+ "heldBehaviourPct": 13.4
 }

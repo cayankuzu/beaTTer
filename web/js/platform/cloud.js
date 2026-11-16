@@ -1,22 +1,31 @@
 // @ts-check
 /**
- * beaTTer v4 — optional, anonymous statistics sync (Supabase REST). Never required, never blocking.
+ * beaTTer v4 — optional statistics sync under a random player id (Supabase REST). Opt-in, never
+ * required, never blocking.
  *
- * What is sent, and only for VALID rounds of the real (camera) player:
- *   - one telemetry row per round: moves, outcome, the MEASURED decision lead, the measured V-spread and
- *     peak finger velocity, the confidence of the belief at the judged seal, the full SHA-256 of that seal
- *     and the explanation code;
- *   - a profile summary: counts and move frequencies.
- * Never sent: camera frames, landmarks, nonces/payloads of unrevealed seals, anything from demo rounds.
+ * What is sent, only for rounds of the real (camera) player:
+ *   - for every VALID round, one telemetry row: moves, outcome, the MEASURED decision lead, the measured
+ *     V-spread and peak finger velocity, the confidence of the belief at the judged seal, the full SHA-256
+ *     of that seal and the explanation code, with the profile counts (pushRound);
+ *   - for EVERY judged round, valid, foul or void, one diagnostic row: verdict, explanation code, moves,
+ *     timings, the referee headings and the last ten values of the two finger-group openings
+ *     (diagnosticPayload, pushDiagnostic).
+ * Nothing is read back. Never sent: camera frames, the face, landmarks, the learned player model, nonces
+ * or payloads of unrevealed seals, anything from demo rounds.
+ * (v4.2.0-v4.2.2 also uploaded the whole player model after every valid round and loaded it back from the
+ * server when it held more rounds than the local one. Whoever knew a player id could overwrite that model,
+ * and the client then judged that player's throws through it; a memory reset was undone by the next page
+ * load. v4.2.3 neither sends nor reads the model.)
  *
  * Unknown measurements are sent as null, never as a made-up 0, and a prediction is reported only when the
  * belief at the judged seal was informative (honesty invariant I4).
  *
  * The anon key is public by design (it is shipped to every browser); what it may do is decided entirely
- * by the database: with supabase_schema.sql applied, the key can only call one validating function and
- * cannot read, change or delete any table. The application decides WHETHER to sync in exactly one place
- * (controller.syncCloud): the settings switch, never in demo mode, never on a development host unless
- * ?cloud=1. Nothing is read back.
+ * by the database: with supabase_schema.sql applied, the key can call the two validating write functions
+ * and nothing else - it cannot read any table or function result. The application decides WHETHER to sync
+ * in exactly one place
+ * (controller.syncCloud): the settings switch (off until the player turns it on), never in demo mode,
+ * never on a development host unless ?cloud=1.
  */
 
 const URL_BASE = 'https://znfvjfafkcahpkkcbdjc.supabase.co/rest/v1';
@@ -125,28 +134,6 @@ export function createCloud({ enabled, onStatus, fetchImpl }) {
     }
   };
 
-  /** @param {string} path @param {any} body */
-  const postJson = async (path, body) => {
-    if (!on || !doFetch) return null;
-    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
-    const timer = ctl ? setTimeout(() => ctl.abort(), TIMEOUT_MS) : null;
-    try {
-      const res = await doFetch(`${URL_BASE}/${path}`, {
-        method: 'POST',
-        headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: ctl ? ctl.signal : undefined,
-      });
-      if (!res.ok) return null;
-      set('online');
-      return await res.json();
-    } catch {
-      return null;
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
-  };
-
   return {
     status: () => status,
     /** @param {boolean} v */
@@ -160,22 +147,14 @@ export function createCloud({ enabled, onStatus, fetchImpl }) {
       await post('rpc/beatter_push_round', { p_player: playerId, p_round: roundPayload(result, metrics) });
     },
     /**
-     * Upload diagnostic trace (including fouls, voids, and learned model snapshot) for remote analysis.
-     * @param {string} playerId @param {any} result @param {any} [modelJson]
+     * Upload the diagnostic row of one judged camera round (valid, foul or void). No model, no frames.
+     * @param {string} playerId @param {any} result
      */
-    async pushDiagnostic(playerId, result, modelJson = null) {
+    async pushDiagnostic(playerId, result) {
       if (!on || !result || result.simulated || typeof playerId !== 'string') return;
       const diag = diagnosticPayload(result);
       if (!diag) return;
-      await post('rpc/beatter_push_diagnostic', { p_player: playerId, p_diag: diag, p_model: modelJson });
-    },
-    /**
-     * Pull cloud-stored player model and global population priors if available.
-     * @param {string} playerId
-     */
-    async pullState(playerId) {
-      if (!on || typeof playerId !== 'string') return null;
-      return postJson('rpc/beatter_pull_state', { p_player: playerId });
+      await post('rpc/beatter_push_diagnostic', { p_player: playerId, p_diag: diag });
     },
   };
 }

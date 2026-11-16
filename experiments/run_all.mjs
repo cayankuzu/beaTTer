@@ -65,7 +65,9 @@ function pool(/** @type {any} */ o, /** @type {number} */ rounds, /** @type {num
   const voids = c('VOID_NO_HAND') + c('VOID_UNKNOWN') + c('VOID_NO_FIST');
   return {
     attempts, aborted, judged: all.length, valid: v.length, W, T, L, fouls: F, voids,
-    voidsByKind: { noHand: c('VOID_NO_HAND'), unknown: c('VOID_UNKNOWN'), noFist: c('VOID_NO_FIST') },
+    // noHand counts every round with the verdict VOID_NO_HAND; `conflict` is the part of it in which the
+    // hand was tracked but the in-air frames contradicted each other (explanation code VOID_CONFLICT)
+    voidsByKind: { noHand: c('VOID_NO_HAND'), unknown: c('VOID_UNKNOWN'), noFist: c('VOID_NO_FIST'), conflict: all.filter((r) => r.explanation && r.explanation.code === 'VOID_CONFLICT').length },
     // conditional on valid rounds
     winPct: pct(W, v.length), winCI: ci(W, v.length), tiePct: pct(T, v.length), lossPct: pct(L, v.length), lossCI: ci(L, v.length),
     // unconditional: over every attempt

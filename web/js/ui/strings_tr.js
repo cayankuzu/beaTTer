@@ -264,6 +264,8 @@ export const T = {
   mLandingSrc: 'İniş kaynağı',
   mHeadFront: 'Hakem okuması · ön (inişten önce)',
   mHeadBack: 'Hakem okuması · arka (inişten önce)',
+  mCoupled: 'Net makas kuralı',
+  coupledYes: 'uygulandı: arka okuma makasa karşı sayılmadı',
   mFlight: 'Uçuş süresi',
   mToComplete: 'Mühür → şekil tamam',
   mToLanding: 'Mühür → iniş (kare zamanı)',
@@ -392,12 +394,12 @@ export const T = {
   keepWhere: 'Yer: bu tarayıcının yerel deposu (localStorage).',
   keepWhereOff: 'Tarayıcı deposu kullanılamıyor: veriler yalnızca bu oturumda, bellekte tutuluyor.',
   keepWhereSim: 'Demo modu: simülasyon verisi hiçbir yere kaydedilmez ve gönderilmez.',
-  cloudSwitch: 'Anonim istatistik eşitleme',
-  cloudNote: 'Açıkken yalnızca geçerli turların hamleleri, sonucu ve ölçülen zamanlamaları gönderilir; görüntü ve el noktaları hiçbir zaman.',
+  cloudSwitch: 'İstatistik eşitleme (rastgele kimlikle)',
+  cloudNote: 'Açıkken rastgele bir oyuncu kimliğiyle gönderilir: her kamera turunun hamleleri, sonucu, zamanlamaları ve parmak açılma ölçümleri (faul ve geçersiz turlar dahil). Görüntü, yüz, el noktaları ve öğrenilen oyuncu modeli hiçbir zaman gönderilmez; sunucudan hiçbir şey geri okunmaz. Kapatmak yeni gönderimi durdurur; daha önce gönderilen kayıtlar sunucuda kalır. Başka bir profile geçildiğinde paylaşım kapanır.',
   on: 'AÇIK', off: 'KAPALI',
   exportJson: 'Dışa aktar (JSON)',
   resetMemory: 'Hafızayı sıfırla',
-  resetConfirm: 'Bu oyuncu hakkında öğrenilen her şey (hamle geçmişi, profil, istatistikler) silinecek. Geri alınamaz.',
+  resetConfirm: 'Bu oyuncu hakkında bu tarayıcıda öğrenilen her şey (hamle geçmişi, profil, istatistikler) silinecek. Geri alınamaz. Paylaşım açıkken gönderilmiş kayıtlar sunucuda kalır; bu düğme onları silmez.',
   resetYes: 'Evet, sıfırla',
   cancel: 'Vazgeç',
   profilesH: 'OYUNCU PROFİLLERİ',
@@ -468,8 +470,8 @@ export const T = {
   onbRule2: '4. vuruşta hamleni havada aç',
   onbRule3: 'El indikten sonra şekil değiştirmek fauldür (geç hamle)',
   onbPrivacy: 'Görüntü cihazından çıkmaz. Yalnızca elin net görünür; yüzün ve odanın geri kalanı bulanıklaştırılır.',
-  onbOptin: 'Anonim oyun istatistiklerini paylaş (isteğe bağlı)',
-  onbOptinDesc: 'Açarsan yalnızca hamleler, sonuç ve ölçülen zamanlamalar gönderilir; görüntü ya da el noktaları asla gönderilmez.',
+  onbOptin: 'Oyun istatistiklerini paylaş (isteğe bağlı)',
+  onbOptinDesc: 'Kapalı başlar. Açarsan her turun hamleleri, sonucu, zamanlamaları ve parmak açılma ölçümleri rastgele bir kimlikle gönderilir; görüntü, yüz, el noktaları ya da öğrenilen oyuncu modeli asla gönderilmez.',
   onbOpen: 'Kamerayı aç',
   onbDemo: 'Kamerasız demoyu izle',
   onbSkip: 'Şimdilik geç',
@@ -563,8 +565,12 @@ const HEADLINES = /** @type {Record<string, string>} */ ({
   VOID_NO_FIST: 'GEÇERSİZ: YUMRUK YOKTU',
 });
 
-/** @param {string|null|undefined} verdict */
-export const verdictHeadline = (verdict) => (verdict && HEADLINES[verdict]) || DASH;
+/**
+ * @param {string|null|undefined} verdict
+ * @param {string|null|undefined} [code] explanation code: a round voided for contradictory frames carries
+ *   the verdict VOID_NO_HAND, but the hand was tracked, so it gets a headline of its own
+ */
+export const verdictHeadline = (verdict, code) => (code === 'VOID_CONFLICT' ? 'GEÇERSİZ: KARELER ÇELİŞTİ' : (verdict && HEADLINES[verdict]) || DASH);
 
 /** One sentence under the verdict headline. @param {any} r RoundResult */
 export function verdictSentence(r) {
@@ -574,9 +580,12 @@ export function verdictSentence(r) {
     case 'TIE': return `İkiniz de ${moveName(r.playerMove).toLocaleLowerCase('tr')} oynadınız.`;
     case 'FOUL_LATE':
       return r.explanation && r.explanation.code === 'FOUL_LATE_CLOSE'
-        ? 'El havada açıktı, inişten sonra kapandı. Tur sayılmadı; tekrar oynanır.'
-        : 'El indikten sonra açıldı. Tur sayılmadı; tekrar oynanır.';
-    case 'VOID_NO_HAND': return 'İnişten hemen önce el izlenemedi (kadraj dışı ya da bulanık). Tur sayılmadı; tekrar oynanır.';
+        ? 'El havada açık, inişte kapalı okundu. Tur sayılmadı; tekrar oynanır.'
+        : 'Açılma inişten önceki karelerde görülmedi. Tur sayılmadı; tekrar oynanır.';
+    case 'VOID_NO_HAND':
+      return r.explanation && r.explanation.code === 'VOID_CONFLICT'
+        ? 'İnişten hemen önceki karelerde parmakların okunuşu birbirini tutmadı (bulanık ya da gürültülü kare). Faul değil; tur sayılmadı, tekrar oynanır.'
+        : 'İnişten hemen önce el izlenemedi (kadraj dışı ya da bulanık). Tur sayılmadı; tekrar oynanır.';
     case 'VOID_UNKNOWN': return 'İnen şekil taş, kağıt ya da makas olarak tanınamadı. Tur sayılmadı; tekrar oynanır.';
     case 'VOID_NO_FIST': return 'Sayım sırasında el yumruk değildi; açılma ölçülemez. Tur sayılmadı; tekrar oynanır.';
     default: return DASH;
@@ -608,9 +617,10 @@ export function explanationText(ex) {
       return `Mühür anında kanıt hiçbir hamleyi dışlayamıyordu: beklenen kazancı en yüksek hamle (${ai}) seçildi. Bu bir tahmindi, kesinlik değil.`;
     case 'KINEMATIC':
       return `Karar, parmaklarının havadaki açılma hareketine göre verildi ve hamle ${ai} olarak mühürlendi.`;
-    case 'FOUL_LATE_OPEN': return 'Faul (geç hamle): el indikten sonra açıldı. YZ’nin mühürlü hamlesi açıklandı ama tur skora işlenmedi; tekrar oynanır.';
-    case 'FOUL_LATE_CLOSE': return 'Faul (geç hamle): el havada açıktı, inişten sonra kapandı. YZ’nin mühürlü hamlesi açıklandı ama tur skora işlenmedi; tekrar oynanır.';
+    case 'FOUL_LATE_OPEN': return 'Faul (geç hamle): hakem, inişten önceki hiçbir karede açılmayı göremedi; el açık indi. YZ’nin mühürlü hamlesi açıklandı ama tur skora işlenmedi; tekrar oynanır.';
+    case 'FOUL_LATE_CLOSE': return 'Faul (geç hamle): el havada açık, inişte kapalı okundu. YZ’nin mühürlü hamlesi açıklandı ama tur skora işlenmedi; tekrar oynanır.';
     case 'VOID_NO_HAND': return 'Geçersiz tur: inişten hemen önce el izlenemedi. Hakem karar veremez; tur tekrar oynanır.';
+    case 'VOID_CONFLICT': return 'Geçersiz tur: el izlendi, ama inişten önceki kareler birbiriyle çelişti (bir karede açık, bir başkasında kapalı okunan parmaklar). Hakem çelişkili kanıtla faul vermez; tur tekrar oynanır.';
     case 'VOID_UNKNOWN': return 'Geçersiz tur: inen şekil üç hamleden biri olarak tanınamadı. Tur tekrar oynanır.';
     case 'VOID_NO_FIST': return 'Geçersiz tur: sayım sırasında el yumruk değildi, bu yüzden açılma ölçülemedi. Tur tekrar oynanır.';
     default: return DASH;
@@ -629,7 +639,9 @@ const TOASTS = /** @type {Record<string, string>} */ ({
   ABORT_HAND_LOST: 'El kadrajdan çıktı: tur iptal edildi. Yumruğunu yeniden göster.',
   ABORT_RHYTHM: 'Ritim yarım kaldı: tur iptal edildi. Baştan salla.',
   ABORT_MANUAL: 'Tur durduruldu.',
-  MEMORY_RESET: 'Hafıza sıfırlandı: bu oyuncu için öğrenilen her şey silindi.',
+  MEMORY_RESET: 'Hafıza sıfırlandı: bu oyuncu için bu tarayıcıda öğrenilen her şey silindi.',
+  CONSENT_RESET: 'İstatistik paylaşımı kapatıldı: gönderilen verinin kapsamı değişti ve önceki bir sürüm paylaşımı sormadan açmış olabilir. İstersen Laboratuvar → Veri ve gizlilik bölümünden yeniden açabilirsin.',
+  SHARING_OFF_PROFILE: 'Başka bir profile geçildi: istatistik paylaşımı kapatıldı. Bu oyuncu isterse Laboratuvar → Veri ve gizlilik bölümünden açar.',
   ENGINE_ERROR: 'Beklenmeyen bir hata oluştu: tur iptal edildi, oyun sürüyor.',
 });
 /**

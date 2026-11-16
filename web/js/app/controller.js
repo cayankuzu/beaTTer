@@ -121,25 +121,11 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
 
   /** The optional statistics sync is on only for the real player, with consent, on an allowed host. */
   const syncCloud = () => {
-    const prev = cloudOn;
     cloudOn = !!cloud && settings().cloud && cloudAllowed && !isDemo;
     if (cloud) cloud.setEnabled(cloudOn);
     store.set({ cloud: cloudOn && cloud ? cloud.status() : 'off' });
-    if (cloudOn && !prev && cloud && typeof cloud.pullState === 'function') {
-      const pid = S().player.id;
-      cloud.pullState(pid).then((remote) => {
-        if (!remote || !remote.model || isDemo || S().player.id !== pid) return;
-        if (typeof remote.model.rounds === 'number' && remote.model.rounds > player.rounds) {
-          if (player.load(remote.model)) {
-            storage.savePlayer(pid, player.toJSON());
-            store.set({
-              metrics: player.metrics.summary(), profile: player.profile(),
-              player: { ...S().player, rounds: player.rounds },
-            });
-          }
-        }
-      }).catch(() => {});
-    }
+    // Nothing is read back from the server. (v4.2.0-v4.2.2 loaded the player model from it here: an
+    // unauthenticated copy that anyone who knew the player id could have rewritten.)
   };
 
   const toast = (/** @type {string} */ code, /** @type {any} */ params = {}) => store.set({ ui: { ...S().ui, toast: { id: ++toastId, code, params } } });
@@ -255,7 +241,7 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
       if (!storage.available && S().boot.storage) store.set({ boot: { ...S().boot, storage: false } });
       if (cloudOn && cloud) {
         if (result.valid) cloud.pushRound(S().player.id, result, player.metrics.summary());
-        if (typeof cloud.pushDiagnostic === 'function') cloud.pushDiagnostic(S().player.id, result, result.valid ? modelJson : null);
+        if (typeof cloud.pushDiagnostic === 'function') cloud.pushDiagnostic(S().player.id, result);
       }
     }
     if (source) source.onResult(result);
@@ -531,20 +517,35 @@ export function createController({ store, storage, audio, cloud, now, makeDemoSo
       return { expected: commit.hash, own, webCrypto, ok: own === commit.hash && (webCrypto === null || webCrypto === commit.hash) };
     },
     /** @param {string} id */
-    selectProfile(id) { if (isDemo) return; storage.flushAll(); if (storage.setActiveProfile(id)) { loadPlayer(); resetRoundState(); if (source) source.onIdle(); } },
+    selectProfile(id) { if (isDemo) return; const was = S().player.id; storage.flushAll(); if (storage.setActiveProfile(id)) { loadPlayer(); resetRoundState(); if (source) source.onIdle(); otherPlayer(was); } },
     /** @param {string} [tag] */
-    createProfile(tag) { if (isDemo) return; storage.flushAll(); storage.createProfile(tag); loadPlayer(); resetRoundState(); if (source) source.onIdle(); },
+    createProfile(tag) { if (isDemo) return; const was = S().player.id; storage.flushAll(); storage.createProfile(tag); loadPlayer(); resetRoundState(); if (source) source.onIdle(); otherPlayer(was); },
     /** @param {string} id */
-    deleteProfile(id) { if (isDemo) return; if (storage.deleteProfile(id)) { loadPlayer(); resetRoundState(); if (source) source.onIdle(); } },
+    deleteProfile(id) { if (isDemo) return; const was = S().player.id; if (storage.deleteProfile(id)) { loadPlayer(); resetRoundState(); if (source) source.onIdle(); otherPlayer(was); } },
     listProfiles: () => storage.listProfiles(),
   };
 
+  /**
+   * The consent to share belongs to the player who gave it: when another profile becomes the active one,
+   * sharing is switched off and that player has to switch it on.
+   * @param {string} previousId
+   */
+  function otherPlayer(previousId) {
+    if (S().player.id === previousId || !settings().cloud) return;
+    actions.setSetting('cloud', false);
+    toast('SHARING_OFF_PROFILE');
+  }
+
   // ---------------------------------------------------------------------------------------------- boot
+  // a stored "sharing on" without a consent under the current text is dropped, and the player is told
+  const consentReset = typeof storage.takeConsentReset === 'function' && storage.takeConsentReset();
+  if (consentReset) store.set({ settings: storage.getSettings() });
   loadPlayer();
   buildEngine();
   store.set({ engine: engine.snapshot(), boot: { ...S().boot, storage: storage.available } });
   audio.setMuted(settings().muted);
   syncCloud();
+  if (consentReset) toast('CONSENT_RESET');
 
   return {
     actions,

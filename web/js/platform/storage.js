@@ -8,6 +8,16 @@
  * so importing them would contaminate the new statistics. Only the anonymous player id is reused.
  */
 
+/**
+ * Version of the text the player agrees to when switching the optional sync on. A stored "on" counts only
+ * if it was given under THIS version; anything else reads as off and has to be given again.
+ *   1 (implicit, v4.0-v4.2.2): "only the moves, the outcome and the measured timings of valid rounds". v4.2.0
+ *     began to send more than that text said, and v4.2.0-v4.2.2 switched the sync on by themselves when
+ *     the camera was opened from the welcome screen - neither is a consent to what is sent today.
+ *   2 (v4.2.3): one telemetry row per valid round and one diagnostic row per judged round.
+ */
+export const CONSENT_VERSION = 2;
+
 export const DEFAULT_SETTINGS = Object.freeze({
   rules: 'turnuva',          // referee preset: 'serbest' | 'standart' | 'turnuva'
   rhythm: 'free',            // 'free' (player-led pumping) | 'metronome' (app-led count-in)
@@ -18,7 +28,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
   muted: false,
   voice: true,
   liveBeliefs: true,         // show the live posterior during the round
-  cloud: false,              // optional anonymous statistics sync - opt-in (privacy by design)
+  cloud: false,              // optional statistics sync under a random id - opt-in (privacy by design)
+  cloudConsent: 0,           // CONSENT_VERSION under which `cloud` was switched on; 0 = never / withdrawn
   freezeLeadMs: 0,           // advanced: decision freeze before landing
   reducedMotion: 'auto',     // 'auto' | 'on' | 'off'
   seriesLength: 5,
@@ -45,7 +56,9 @@ export function sanitiseSettings(raw) {
     muted: bool(r.muted, d.muted),
     voice: bool(r.voice, d.voice),
     liveBeliefs: bool(r.liveBeliefs, d.liveBeliefs),
-    cloud: bool(r.cloud, d.cloud),
+    // on only with a consent given under the current text (see CONSENT_VERSION)
+    cloud: r.cloud === true && r.cloudConsent === CONSENT_VERSION,
+    cloudConsent: r.cloud === true && r.cloudConsent === CONSENT_VERSION ? CONSENT_VERSION : 0,
     freezeLeadMs: Math.round(num(r.freezeLeadMs, 0, 300, d.freezeLeadMs)),
     reducedMotion: oneOf(r.reducedMotion, d.reducedMotion, ['auto', 'on', 'off']),
     seriesLength: oneOf(r.seriesLength, d.seriesLength, [3, 5, 7, 9]),
@@ -114,8 +127,27 @@ export function createStorage(backend) {
   return {
     get available() { return available; },
     getSettings: () => sanitiseSettings(read(KEY.settings)),
-    /** @param {Partial<typeof DEFAULT_SETTINGS>} patch */
-    setSettings(patch) { const next = sanitiseSettings({ ...sanitiseSettings(read(KEY.settings)), ...patch }); write(KEY.settings, next); return next; },
+    /**
+     * Switching the sync on is the consent: it is recorded with the version of the text it was given under.
+     * @param {Partial<typeof DEFAULT_SETTINGS>} patch
+     */
+    setSettings(patch) {
+      const p = 'cloud' in patch ? { ...patch, cloudConsent: patch.cloud === true ? CONSENT_VERSION : 0 } : patch;
+      const next = sanitiseSettings({ ...sanitiseSettings(read(KEY.settings)), ...p });
+      write(KEY.settings, next);
+      return next;
+    },
+    /**
+     * True once if the stored settings said "sync on" without a consent under the current text (an older
+     * version switched it on, or the text has changed since). The stored value is corrected at the same
+     * time, so the caller can tell the player exactly once.
+     */
+    takeConsentReset() {
+      const raw = read(KEY.settings);
+      if (!raw || typeof raw !== 'object' || raw.cloud !== true || raw.cloudConsent === CONSENT_VERSION) return false;
+      write(KEY.settings, sanitiseSettings(raw));
+      return true;
+    },
     listProfiles: () => profiles().list,
     activeProfileId: () => profiles().active,
     /** @param {string} id */

@@ -105,27 +105,33 @@ export function fuse({ prior, F, Bstay, Bopen, wPrior = 1, wKin = 1 }) {
  * @param {number} hF front heading, P(index/middle measurably open by now)
  * @param {number} hB back heading
  * @param {{epsF:number, epsB:number}} rules
+ * @param {{coupledScissors?: boolean}} [o] coupledScissors: an open back heading does not count against
+ *   SCISSORS. The referee sets it for a hand that settles as a clear scissors (ring and little finger
+ *   rise a little with the other two - extensor coupling - without the throw being a late paper). In the
+ *   air nobody knows yet how the hand will settle, so the AI always decides with it set: against every
+ *   throw the referee could still accept.
  * @returns {boolean[]} [ROCK, PAPER, SCISSORS]
  */
-export function foulNow(hF, hB, rules) {
+export function foulNow(hF, hB, rules, o = {}) {
   // "Open" takes the boundary (>=), "closed" does not (<). With epsF = 1/2 the two tests are then exact
   // complements: for every heading the front group is either open or closed, never neither, so the
   // legal set cannot contain all three throws - not even when the heading is exactly 1/2.
   const f = Number.isFinite(hF) ? hF : 0, b = Number.isFinite(hB) ? hB : 0;
   const frontOpen = f >= 1 - rules.epsF, frontClosed = f < rules.epsF;
   const backOpen = b >= 1 - rules.epsB, backClosed = b < rules.epsB;
-  return [frontOpen || backOpen, frontClosed || backClosed, frontClosed || backOpen];
+  return [frontOpen || backOpen, frontClosed || backClosed, frontClosed || (backOpen && !o.coupledScissors)];
 }
 
 /**
  * Legal mass: the belief restricted to throws the referee would accept right now.
  * @param {Belief} belief @param {number} hF @param {number} hB @param {{epsF:number, epsB:number}} rules
+ * @param {{coupledScissors?: boolean}} [o] passed on to foulNow
  * @returns {{mass:number[], foul:boolean[], legal:boolean[], restricted:boolean}}
  *   legal: throws the referee would accept now (all true when every throw would be a foul: then no
  *   outcome can be a loss and the belief alone decides)
  */
-export function legalMassFor(belief, hF, hB, rules) {
-  const foul = foulNow(hF, hB, rules);
+export function legalMassFor(belief, hF, hB, rules, o = {}) {
+  const foul = foulNow(hF, hB, rules, o);
   const legal = foul.every(Boolean) ? [true, true, true] : foul.map((f) => !f);
   if (foul.every(Boolean)) return { mass: belief.pLegal.slice(), foul, legal, restricted: false };
   const mass = belief.pLegal.map((p, y) => (foul[y] ? 0 : p));

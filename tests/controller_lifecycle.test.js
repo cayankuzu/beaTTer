@@ -3,8 +3,10 @@
 // numbers that must not survive their source, consent for the optional sync, storage failures.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createStore, initialState } from '../web/js/app/store.js';
-import { createStorage } from '../web/js/platform/storage.js';
+import { createStorage, DEFAULT_SETTINGS, CONSENT_VERSION } from '../web/js/platform/storage.js';
 import { createController } from '../web/js/app/controller.js';
 import { createDemoSource } from '../web/js/app/sources.js';
 import { createCloud, roundPayload } from '../web/js/platform/cloud.js';
@@ -367,6 +369,112 @@ test('cloud payload: unknown values are null, a prediction is reported only when
   assert.ok(calls[0].url.endsWith('/rest/v1/rpc/beatter_push_round'));
   assert.deepEqual(Object.keys(calls[0].body).sort(), ['p_player', 'p_round']);
   assert.equal(cloud.status(), 'online');
+});
+
+test('sharing is opt-in: only the two switches turn it on, and a stored "on" needs a consent under the current text', () => {
+  assert.equal(DEFAULT_SETTINGS.cloud, false, 'sharing starts off');
+  // (1) Nothing in the application sets the switch but the switch itself. v4.2.0-v4.2.2 had
+  //     `if (!userToggledOptin) actions.setSetting('cloud', true)` on the welcome screen's camera button.
+  /** @type {string[]} */ const files = [];
+  const walk = (/** @type {URL} */ dir) => { for (const e of readdirSync(dir, { withFileTypes: true })) { const u = new URL(e.name + (e.isDirectory() ? '/' : ''), dir); if (e.isDirectory()) walk(u); else if (e.name.endsWith('.js')) files.push(fileURLToPath(u)); } };
+  walk(new URL('../web/js/', import.meta.url));
+  /** @type {string[]} */ const values = [];
+  for (const f of files) for (const m of readFileSync(f, 'utf8').matchAll(/setSetting\(\s*['"]cloud['"]\s*,\s*([^)]*)\)/g)) values.push(m[1].trim());
+  assert.ok(values.length >= 3, `call sites found: ${values.length}`);
+  for (const v of values) assert.ok(v === 'v' || v === 'false', `setSetting('cloud', ${v}): only a switch's own value or false may be stored`);
+
+  // (2) What v4.2.0-v4.2.2 stored when "Kamerayı aç" was pressed with the switch untouched - or what a
+  //     player stored who agreed to the narrower text of v4.0 - is not a consent to what is sent today.
+  const backend = fakeStorage();
+  backend.setItem('beatter.v4.settings', JSON.stringify({ ...DEFAULT_SETTINGS, cloudConsent: undefined, cloud: true, onboarded: true, muted: true }));
+  const st = createStorage(backend);
+  assert.deepEqual([st.getSettings().cloud, st.getSettings().onboarded, st.getSettings().muted], [false, true, true], 'sharing reads as off; the other settings stay');
+  assert.equal(st.takeConsentReset(), true, 'the player is to be told');
+  assert.equal(st.takeConsentReset(), false, '... once');
+  assert.equal(JSON.parse(backend.getItem('beatter.v4.settings')).cloud, false, 'the stored value is corrected');
+  // (3) Switching it on records the consent with its version; another version does not count.
+  assert.deepEqual([st.setSettings({ cloud: true }).cloud, st.getSettings().cloudConsent], [true, CONSENT_VERSION]);
+  assert.equal(createStorage(backend).getSettings().cloud, true, 'kept across page loads');
+  backend.setItem('beatter.v4.settings', JSON.stringify({ ...st.getSettings(), cloudConsent: CONSENT_VERSION - 1 }));
+  assert.equal(createStorage(backend).getSettings().cloud, false, 'a consent to an older text is not a consent to this one');
+  assert.deepEqual([st.setSettings({ cloud: false }).cloud, st.getSettings().cloudConsent], [false, 0]);
+});
+
+test('a browser that an earlier version opted in is not synced after the update; the player is told once', () => withBoots(async () => {
+  const backend = fakeStorage();
+  backend.setItem('beatter.v4.settings', JSON.stringify({ cloud: true, onboarded: true }));
+  /** The application's own start-up order (main.js): the store is built from the stored settings, then the controller. */
+  const start = () => {
+    const storage = createStorage(backend);
+    const store = createStore(initialState(storage.getSettings()));
+    /** @type {any[]} */ const calls = [];
+    const cloud = { status: () => 'online', setEnabled: (/** @type {boolean} */ v) => { calls.push(['enabled', v]); }, pushRound: () => { calls.push(['round']); }, pushDiagnostic: () => { calls.push(['diagnostic']); } };
+    const controller = createController({ store, storage, audio: audioStub(), cloud, now: () => performance.now(), makeDemoSource: (o) => createDemoSource(o), makeCameraSource: async () => fakeCamera(store), options: { autoAdvanceMs: 30, cloudAllowed: true } });
+    return { store, controller, calls };
+  };
+  const first = start();
+  try {
+    assert.equal(first.store.get().settings.cloud, false);
+    assert.equal(first.store.get().cloud, 'off');
+    assert.ok(first.calls.every((c) => c[0] === 'enabled' && c[1] === false), JSON.stringify(first.calls));
+    assert.equal(first.store.get().ui.toast?.code, 'CONSENT_RESET');
+  } finally { first.controller.dispose(); }
+  const second = start();
+  try { assert.equal(second.store.get().ui.toast ?? null, null, 'the notice is not repeated'); } finally { second.controller.dispose(); }
+}));
+
+test('another profile does not inherit the consent to share', () => withBoots(async (boot) => {
+  const { store, controller, cloudEnabled } = boot({ cloud: true }, { cloudAllowed: true });
+  assert.equal(cloudEnabled[cloudEnabled.length - 1], true, 'player A agreed');
+  const a = store.get().player.id;
+  controller.actions.createProfile('B');
+  assert.notEqual(store.get().player.id, a);
+  assert.deepEqual([store.get().settings.cloud, cloudEnabled[cloudEnabled.length - 1], store.get().cloud, store.get().ui.toast?.code], [false, false, 'off', 'SHARING_OFF_PROFILE']);
+  controller.actions.selectProfile(a);
+  assert.equal(store.get().settings.cloud, false, 'coming back does not switch it on again either');
+  controller.actions.setSetting('cloud', true);
+  controller.actions.selectProfile(a); // the same player: nothing changes
+  assert.equal(store.get().settings.cloud, true);
+}));
+
+test('the database file opens two write-only calls to the public key, and the client makes no other', async () => {
+  // v4.2.0 granted the public key a function that listed every player's diagnostics with their ids and
+  // one that returned the stored model of any id; its client uploaded that model and loaded it back.
+  const sql = readFileSync(new URL('../supabase_schema.sql', import.meta.url), 'utf8').replace(/--[^\n]*/g, '');
+  const norm = (/** @type {string} */ x) => x.replace(/\s+/g, ' ').trim().toLowerCase();
+  const PUBLIC_ROLES = /\b(anon|authenticated|public)\b/i;
+  // every GRANT that reaches the public key, whatever its spelling
+  const grants = [...sql.matchAll(/\bGRANT\b([^;]*?)\bTO\b([^;]*);/gi)].filter((m) => PUBLIC_ROLES.test(m[2])).map((m) => norm(m[1]));
+  assert.deepEqual(grants.sort(), ['execute on function public.beatter_push_diagnostic(text, jsonb, jsonb)', 'execute on function public.beatter_push_round(text, jsonb)']);
+  assert.doesNotMatch(sql, /\bALTER\s+DEFAULT\s+PRIVILEGES\b/i);
+  assert.doesNotMatch(sql, /\bCREATE\s+POLICY\b/i, 'row-level security with no policy: the public key reaches no row');
+  // Supabase grants new functions and tables to anon and authenticated by default: each needs its REVOKE
+  const functions = [...sql.matchAll(/\bCREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+public\.(\w+)\s*\(/gi)].map((m) => m[1]);
+  assert.deepEqual([...functions].sort(), ['beatter_pull_recent_diagnostics', 'beatter_pull_state', 'beatter_push_diagnostic', 'beatter_push_round']);
+  for (const fn of functions) {
+    const revoke = new RegExp(`\\bREVOKE\\s+ALL\\s+ON\\s+FUNCTION\\s+public\\.${fn}\\([^)]*\\)\\s+FROM\\s+([^;]*);`, 'i').exec(sql);
+    assert.ok(revoke && /\bPUBLIC\b/i.test(revoke[1]), `${fn}: REVOKE ... FROM PUBLIC`);
+    if (!fn.startsWith('beatter_push_')) assert.ok(/\banon\b/i.test(revoke[1]) && /\bauthenticated\b/i.test(revoke[1]), `${fn}: an earlier grant to anon and authenticated is withdrawn when the file is run again`);
+  }
+  const tables = [...sql.matchAll(/\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?public\.(\w+)/gi)].map((m) => m[1]);
+  assert.deepEqual([...tables].sort(), ['diagnostic_telemetry', 'match_telemetry', 'player_profiles']);
+  for (const t of tables) {
+    assert.match(sql, new RegExp(`\\bALTER\\s+TABLE\\s+public\\.${t}\\s+ENABLE\\s+ROW\\s+LEVEL\\s+SECURITY\\b`, 'i'), `${t}: row-level security`);
+    assert.match(sql, new RegExp(`\\bREVOKE\\s+ALL\\s+ON\\s+TABLE\\s+public\\.${t}\\s+FROM\\s+anon\\s*,\\s*authenticated\\b`, 'i'), `${t}: table privileges withdrawn`);
+  }
+  assert.doesNotMatch(sql, /SET\s+model_state\s*=/i, 'no function stores a player model');
+
+  // the client: two endpoints, no model in the body, nothing to read back
+  /** @type {{rpc:string, keys:string[]}[]} */ const calls = [];
+  const cloud = createCloud({ enabled: true, fetchImpl: /** @type {any} */ (async (/** @type {string} */ url, /** @type {any} */ init) => { calls.push({ rpc: url.replace(/^.*\/rest\/v1\/rpc\//, ''), keys: Object.keys(JSON.parse(init.body)).sort() }); return { ok: true }; }) });
+  const round = { round: 1, valid: true, verdict: 'AI', playerMove: 0, aiMove: 1, judgedSeq: 1, commits: [{ seq: 1, reason: 'KINEMATIC', hash: 'h'.repeat(64) }], beliefAtFinalCommit: { post: [0.8, 0.1, 0.1] }, timing: { leadToLandingMs: 100 }, kinematics: {}, explanation: { code: 'RESOLVED_SCISSORS' }, trace: { uF: [0.1], uB: [0.1] } };
+  await cloud.pushRound('player-1', round, { rounds: { valid: 1 }, outcome: { player: 0, ai: 1, tie: 0 } });
+  await /** @type {any} */ (cloud).pushDiagnostic('player-1', round, { v: 4, sequence: 'not sent' });
+  assert.deepEqual(calls, [{ rpc: 'beatter_push_round', keys: ['p_player', 'p_round'] }, { rpc: 'beatter_push_diagnostic', keys: ['p_diag', 'p_player'] }]);
+  assert.deepEqual(Object.keys(cloud).sort(), ['pushDiagnostic', 'pushRound', 'setEnabled', 'status'], 'no call that reads');
+  // ... and the controller neither sends the model nor asks for one (real controller, recording transport)
+  const src = readFileSync(new URL('../web/js/app/controller.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /pullState|player\.load\(remote/);
 });
 
 test('storage: one failed write does not turn the current settings and profile into defaults', () => {
