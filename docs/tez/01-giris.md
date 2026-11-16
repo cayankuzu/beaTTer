@@ -48,14 +48,19 @@ göstermiştir (Bölüm 5.1.6); değişmezlerin bugünkü ifadeleri o incelemeni
 Bugün de son söz değildir: inceleme ve düzeltmeleri bittikten sonra, Teorem 1'in ispatı kodla adım adım
 karşılaştırılırken iki delik daha bulunmuştur (biri metin yazılırken, biri metnin olgu denetiminde); son
 doğrulamadaki bir saldırı denetimi de motorun programlama arayüzü düzeyinde üçüncü bir delik bulmuştur.
-Üçü de kapatılmış ve teste bağlanmıştır (Bölüm 4.7); ikinci bir bağımsız inceleme ise yapılmamıştır.
+Üçü de kapatılmış ve teste bağlanmıştır (Bölüm 4.7); ikinci bir bağımsız inceleme ise yapılmamıştır. Bu
+çalışmanın dışında yayımlanan v4.2.1'de hakeme eklenen iki kural ise YZ ile hakemin aynı sayıları okumasını
+bozarak Teorem 1'in güvencesini yeniden kırmıştır; bunu yayından sonra bulanık sınama bulmuş, v4.2.3
+gidermiştir (Bölüm 5.1.8).
 
 ## 1.4 Katkılar
 
-1. **İki denetim.** Önceki sürümün 199 özelliğini envantere alan ve 197 kusur kaydı açan, "yenilmezliğin"
-   bir totoloji olduğunu kod çalıştırılarak gösteren denetim (Bölüm 5.1.1–5.1.5); ve aynı yöntemin yeniden
+1. **Üç denetim.** Önceki sürümün 199 özelliğini envantere alan ve 197 kusur kaydı açan, "yenilmezliğin"
+   bir totoloji olduğunu kod çalıştırılarak gösteren denetim (Bölüm 5.1.1–5.1.5); aynı yöntemin yeniden
    tasarımın kendisine uygulanması: v4'ün 45 bulgulu bağımsız incelemesi, bulguların giderilmesi ya da açık sınır olarak belgelenmesi ve
-   yeniden üretilebilen bulgular için regresyon testleri (Bölüm 5.1.6).
+   yeniden üretilebilen bulgular için regresyon testleri (Bölüm 5.1.6); ve bu çalışmanın dışında yayımlanan
+   v4.2'nin aynı yöntemle denetimi: v4.2.1'de kırılan Teorem 1 güvencesinin, dürüst Kâğıt'a verilen haksız
+   faulün ve kendiliğinden açılan istatistik paylaşımının bulunup v4.2.3'te giderilmesi (Bölüm 5.1.8).
 2. **Bir tanım.** "Hamleden önce karar"ın üç ölçülebilir büyüklüğe (inişe göre öncelik, tamamlanmaya göre
    öncelik, mühür anındaki oluşum oranı) ve altı sınanabilir değişmeze çevrilmesi (Bölüm 3).
 3. **Açılma başlangıcı dedektörü.** Ham eklem açılarından, en küçük sarsım yörünge ailesi üzerinde üstel
@@ -71,7 +76,7 @@ doğrulamadaki bir saldırı denetimi de motorun programlama arayüzü düzeyind
    beklenen kaybı sınırlayan bütçeli karma strateji ve ispatı (Bölüm 4.5, 4.6).
 6. **Denetlenebilir taahhüt protokolü.** Nonce'lu, özet zincirli, bütün revizyonları açan ve iki bağımsız
    gerçeklemeyle doğrulanan taahhüt–ifşa kaydı; neyi kanıtlamadığının açık beyanı (Bölüm 4.8).
-7. **Gerçekleme ve testler.** Derleme adımı olmayan, saf çekirdekli bir tarayıcı uygulaması; 113 otomatik
+7. **Gerçekleme ve testler.** Derleme adımı olmayan, saf çekirdekli bir tarayıcı uygulaması; 126 otomatik
    test; değişmezlerin somut savlarla eşlemesi (Bölüm 5).
 8. **Yinelenebilir simülasyon deneyleri ve olumsuz sonuçların raporlanması.** Sekiz deney; koşullu (geçerli
    turlar) ve koşulsuz (bütün denemeler) oranların ayrılması; sonuçsuz deneme payının, erkenlik–doğruluk
@@ -82,16 +87,16 @@ doğrulamadaki bir saldırı denetimi de motorun programlama arayüzü düzeyind
 10. **İnsan denekli doğrulama protokolü** ve bunu destekleyen, tur sonuçlarını da içeren veri dışa aktarımı
     (Ek C).
 
-Katkıların sınırı baştan söylenmelidir: sayısal sonuçların tamamı simülasyondur; gerçek insan verisi
-toplanmamış, gerçek bir kamerayla ölçüm yapılmamıştır. Proje sahibinin gerçek kamerayla yaptığı ilk deneme
-başarısız olmuş, en olası nedenleri giderilmiştir; düzeltilmiş sürüm henüz gerçek kamerayla yeniden
-denenmemiştir (Bölüm 8.2).
+Katkıların sınırı baştan söylenmelidir: deney sonuçlarının tamamı simülasyondur; insan denekli bir çalışma
+yapılmamıştır. Proje sahibinin gerçek kamerayla yaptığı ilk deneme başarısız olmuş, en olası nedenleri
+giderilmiştir. Gerçek kameradan elde edilen tek veri, proje sahibinin bundan sonra oynadığı turların yerel
+kayıtlarıdır (tek oyuncu, 79 kayıt; Bölüm 5.1.8); v4.2.3 gerçek kamerayla denenmemiştir (Bölüm 8.2).
 
 ## 1.5 Tezin düzeni
 
 Bölüm 2 ilgili çalışmaları altı başlıkta tarar ve her birinden tasarım sonucu çıkarır. Bölüm 3 problemi ve
 değişmezleri tanımlar. Bölüm 4 matematiksel yöntemi verir. Bölüm 5 önceki sürümün denetimini, v4'ün
-bağımsız incelemesini, mimariyi, uygulama yaşam döngüsünü, veri modelini, testleri, güvenlik ve gizliliği
+bağımsız incelemesini, v4.2'nin denetimini, mimariyi, uygulama yaşam döngüsünü, veri modelini, testleri, güvenlik ve gizliliği
 anlatır. Bölüm 6 simülasyon deneylerini ve sonuçlarını,
 Bölüm 7 arayüz tasarımının gerekçesini sunar. Bölüm 8 "yenilmezlik" kavramını, geçerlilik tehditlerini,
 etik boyutu ve janken robotuyla karşılaştırmayı tartışır. Bölüm 9 sonuçları ve gelecek çalışmaları toplar.

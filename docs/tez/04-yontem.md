@@ -1,8 +1,10 @@
 # 4. Yöntem
 
-Bu bölüm sistemin matematiksel modelini verir. Kod yapısı Bölüm 5'te, sabitlerin tam listesi Ek A'dadır.
-Sabitlerin değerleri literatürden ya da simülasyon çalışmalarından gelir; her birinin kaynağı Ek A'da
-belirtilmiştir.
+Bu bölüm sistemin matematiksel modelini v4.2.3'teki hâliyle verir. Kod yapısı Bölüm 5'te, sabitlerin tam
+listesi Ek A'dadır. Sabitlerin değerleri literatürden, simülasyon taramalarından, türetimden ya da mühendislik
+varsayımlarından gelir; her birinin kaynağı Ek A'da belirtilmiştir. v4.2.0'ın değiştirdiği değerler ve
+kurallar metinde "(v4.2.0'dan beri; önce X)" biçiminde işaretlenmiştir; bu değişikliklerin ayrı bir ölçüm
+kaydı yoktur (Bölüm 5.1.8).
 
 ## 4.1 El kinematiği: dönme, ölçek ve el-yönü değişmez öznitelikler
 
@@ -37,7 +39,9 @@ $$
 
 olarak normalize edilir ($e=0$ yumruk, $e=1$ tam açık; değer $[-0{,}25,\;1{,}25]$ aralığına kırpılır, böylece
 Gauss modelleri taşmaları da görür). Her turda, uçuş başlamadan önceki son 20 karede (hazırlık vuruşları
-sırasında) ölçülen açıklıkların medyanı **yumruk taban çizgisi** $b_f$ olarak alınır ve tabana göre açılma
+sırasında; serbest ritimde sayımın ilk vuruşuna kadarki karelerden ön ya da arka grubun ham açıklığı $0{,}7$'ye
+ulaşanlar v4.2.0'dan beri alınmaz) ölçülen açıklıkların medyanı **yumruk taban çizgisi** $b_f$ olarak alınır ve
+tabana göre açılma
 
 $$
 u_f=\frac{e_f-b_f}{\max(0{,}25,\;1-b_f)}
@@ -57,8 +61,8 @@ $$
 $\kappa>0$, yüzük parmağının orta parmağa kısmen eşlik etmesinden ("enslaving") kaynaklanan artık açılmadır
 [HagerRoss2000; Zatsiorsky2000]. Ölçüm gürültüsü varyansı $\sigma^2$ da her turda, el *hareket hâlindeyken*
 (hazırlık vuruşlarında) $u_F,u_B$'nin örnek varyansından kestirilir; böylece hareket bulanıklığının etkisi
-gürültü modeline dâhil olur. Kestirilen standart sapma $[0{,}035,\;0{,}15]$ aralığında tutulur: alt sınır
-aşırı güveni, üst sınır dedektörün tümüyle körleşmesini önler.
+gürültü modeline dâhil olur. Kestirilen standart sapma $[0{,}035,\;0{,}085]$ aralığında tutulur (v4.2.0'dan
+beri; üst sınır önce $0{,}15$): alt sınır aşırı güveni, üst sınır dedektörün tümüyle körleşmesini önler.
 
 Arayüzde gösterilen biyomekanik büyüklükler — eklem açıları (°), işaret–orta parmak arası V açısı (°) ve
 bükülme açısal hızı (°/s) — bu gerçek açılardan türetilir.
@@ -66,10 +70,15 @@ bükülme açısal hızı (°/s) — bu gerçek açılardan türetilir.
 ## 4.2 Ritim, uçuş evresi ve inişin saptanması
 
 Avuç merkezinin (0, 5, 9, 13, 17 numaralı noktaların ortalaması) görüntüdeki düşey konumu, avuç boyuna
-(bilek–orta parmak MCP uzaklığı; 500 ms zaman sabitli üstel ortalaması) bölünerek ölçekten bağımsız $Y(t)$
-işareti elde edilir; birimi "avuç boyu"dur (AB), hızın birimi AB/s'dir. Görüntüde $y$ aşağı doğru
-büyüdüğünden aşağı vuruşun hızı pozitiftir. Eşikler AB ve AB/s cinsinden olduğundan kamera uzaklığından
-bağımsızdır.
+(bilek–orta parmak MCP uzaklığı ile işaret–serçe MCP uzaklığının 1,45 katından büyük olanı; 500 ms zaman
+sabitli üstel ortalaması) bölünerek ölçekten bağımsız $Y(t)$ işareti elde edilir. Avuç boyu v4.2.0'dan beri
+böyle tanımlanır (önce yalnızca bilek–orta parmak MCP uzaklığıydı; 1,45 bir varsayımdır): avucun boyuna
+ekseni ile eklem köprüsü yaklaşık olarak birbirine diktir ve kamera hangi açıdan bakarsa baksın ikisi birden
+güçlü biçimde kısalmış görünemez (dik izdüşümde iki dik doğru parçasından en az biri boyunun $1/\sqrt2$'sini
+korur). Eklemleri kameraya dönük ya da yana dönmüş bir elde avuç boyu böylece çökmez: regresyon testinde
+sınanan dört dönüşte önden görünen değerin 0,7–1,35 katında kalır. $Y$'nin birimi "avuç boyu"dur (AB), hızın
+birimi AB/s'dir. Görüntüde $y$ aşağı doğru büyüdüğünden aşağı vuruşun hızı pozitiftir. Eşikler AB ve AB/s
+cinsinden olduğundan kamera uzaklığından bağımsızdır.
 
 **İki hız kestirimi.** Aynı işaretten iki ayrı hız kestirimi tutulur, çünkü iki farklı soruyu yanıtlarlar:
 
@@ -100,47 +109,69 @@ $$
 \text{yukarı çıkış başlar:}\quad \dot Y<-v_\uparrow\ \wedge\ \dot Y_S\le-\tfrac12 v_\uparrow,
 $$
 
-$v_\downarrow=1{,}2$ AB/s, $v_\uparrow=1{,}0$ AB/s. Yukarı çıkışın tepesi $\dot Y\ge-0{,}3$ AB/s olduğunda
-kaydedilir. Avuç, yalnızca yavaş kestirime göre, $\lvert\dot Y_S\rvert\le0{,}8$ AB/s iken **hareketsiz**
+$v_\downarrow=1{,}2$ AB/s, $v_\uparrow=1{,}0$ AB/s. Tek bir istisna vardır (v4.2.0'dan beri): bir yukarı
+çıkışın tepesinden sonra iniş, avuç tepenin en az 0,1 AB altına inmişse ve $\dot Y_S>-0{,}15\,v_\downarrow$ ise
+(yavaş kestirim belirgin bir yukarı hareket göstermiyorsa) yavaş kestirimin onayı olmadan da başlar; tepeye
+ise yalnızca yavaş kestirimin onayladığı bir yukarı çıkıştan varılır. Yukarı çıkışın tepesi
+$\dot Y\ge-0{,}3$ AB/s olduğunda kaydedilir. Avuç, yalnızca yavaş kestirime göre, $\lvert\dot Y_S\rvert\le0{,}8$ AB/s iken **hareketsiz**
 sayılır. Gerekçe bağımsız incelemenin bir bulgusudur (Bölüm 5.1.6): ilk v4 gerçeklemesinde bütün eşikler
 hızlı kestirime uygulanıyordu ve hareketsiz bir elde bu kestirimin gürültüsü eşiklerin hepsini aşabiliyordu;
 yalnızca titreyen bir el vuruş başlatıyor, "hareketsiz" sayılmıyor ve tek atış kipinde hayalet turlar
 üretiyordu.
 
-**Bir inişin üç olası sonu.** İniş, en az 40 ms sürdükten sonra hız o inişin tepe hızının belirli bir
-oranının altına düştüğünde biter:
+**Bir inişin üç olası sonu.** İniş, en az 28 ms sürdükten sonra (v4.2.0'dan beri; önce 40 ms) hız o inişin
+tepe hızının belirli bir oranının altına düştüğünde biter:
 
 $$
-t-t_{\text{iniş başl.}}\ge 40\ \text{ms}\quad\wedge\quad \dot Y(t)\le \max\!\big(\rho\,\dot Y_{\text{tepe}},\,v_{\min}\big),
+t-t_{\text{iniş başl.}}\ge 28\ \text{ms}\quad\wedge\quad \dot Y(t)\le \max\!\big(\rho\,\dot Y_{\text{tepe}},\,v_{\min}\big),
 \qquad \rho=0{,}2,\ v_{\min}=0{,}4\ \text{AB/s}.
 $$
 
 En küçük sarsımlı bir vuruşta hız, tepe hızının %20'sine sürenin %87'sinde düşer ve o anda genliğin %98'i
-katedilmiştir; yani olay inişin ortasını değil sonunu işaretler. 40 ms'lik alt sınır bir varsayımdır
-(gerçek vuruşların en az 100 ms dolayında sürdüğü kabul edilmiştir) ve tek karelik bir hız sıçramasının
-"biten bir iniş" sayılmasını önler. Biten her iniş, genliği $A=Y(t)-Y_{\text{başl.}}$ ve tepe hızına göre
-**tam olarak bir** olay üretir:
+katedilmiştir; yani olay inişin ortasını değil sonunu işaretler. Alt sınır bir varsayımdır (gerçek vuruşların
+en az 100 ms dolayında sürdüğü kabul edilmiştir) ve kısa bir hız sıçramasının hemen "biten bir iniş"
+sayılmasını önler. 28 ms ile bu koruma 40 ms'ye göre zayıftır: 30 kare/s'de kare aralığı (33,3 ms) 28 ms'den
+uzun olduğundan iniş, başladığı kareyi izleyen karede bitebilir; 40 ms ile en erken ikinci karede bitebiliyordu.
+Biten her iniş, genliği $A=Y_{\max}-Y_{\text{başl.}}$ ($Y_{\max}$: iniş boyunca ulaşılan en büyük $Y$, yani en
+alçak nokta; v4.2.0'dan beri, önce bitiş anındaki $Y(t)$) ve tepe hızına göre **tam olarak bir** olay üretir:
 
 | Olay | Koşul | Anlamı |
 |---|---|---|
-| `bottom` (dip) | $A\ge0{,}45$ AB ve $\dot Y_{\text{tepe}}\ge2{,}5$ AB/s | Sayılan bir vuruş: hazırlık vuruşu ya da iniş |
+| `bottom` (dip) | $A\ge0{,}43$ AB ve $\dot Y_{\text{tepe}}\ge2{,}3$ AB/s | Sayılan bir vuruş: hazırlık vuruşu ya da iniş |
 | `weakBottom` (zayıf dip) | $A\ge0{,}15$ AB ve $\dot Y_{\text{tepe}}\ge1{,}5$ AB/s | Gerçek ama küçük bir vuruş; yumuşak iniş adayı |
 | `falseStart` (yanlış başlangıç) | ikisi de değil | Vuruş olmadı (titreşim, seğirme); tepe anı ve salınımın en üst noktası korunur, asıl iniş hâlâ gelebilir |
 
-Hassasiyet ayarı $v_\uparrow$, $v_\downarrow$ ile genlik ve tepe hızı eşiklerini aynı çarpanla ölçekler.
+`bottom` eşikleri v4.2.0'dan beri böyledir (önce $0{,}45$ AB ve $2{,}5$ AB/s). Hassasiyet ayarı $v_\uparrow$,
+$v_\downarrow$, genlik ve tepe hızı eşiklerini ve tepeden sonraki 0,1 AB'lik inişi aynı çarpanla ölçekler.
 
 **Uçuş ve iniş.** Son hazırlık vuruşunun dibi uçuşun başlangıcıdır ($t_b$); atış vuruşunun `bottom` olayı
-**iniş**tir ($t_L$) ve o olayı getiren karenin zamanına tarihlenir. Oyuncunun atış vuruşu zayıfsa **yumuşak
-iniş** kuralı devreye girer: sayımdan sonra gelen bir `weakBottom` — uçuşta bir yukarı çıkışın tepesi
-görülmüşse ya da uçuşun başından beri en az yarım dönem geçmişse — bir iniş **adayı**dır ve o zayıf vuruşun
-bittiği ana tarihlenir; izleyen 90 ms içinde daha güçlü bir vuruş gelmezse (ve o anda yeni bir iniş
-hareketi sürmüyorsa) iniş olarak kabul edilir. Aday ile kabul arasındaki karelerde üretilmiş taahhütler D1
-gereği değerlendirme dışıdır. İlk v4 gerçeklemesindeki tanım ("herhangi bir iniş hareketinden sonra 90 ms
-hareketsizlik") inişi geç tarihliyor ve titreşimin bir turu bitirmesine izin veriyordu; yeni tanımda
-yumuşak iniş de ölçülmüş bir genlik ve tepe hızı ister. Metronom kipinde atış vuruşunun dibi, yalnızca
-sayımın ilan ettiği atış anının $\pm260$ ms çevresindeyse iniş sayılır; atış anı geçtiğinde el hareket
-etmiyorsa ya da bu pencere dolmuşsa iniş, ilan edilmiş atış anına geriye dönük olarak tarihlenir. Tek atış
-kipinde yalnızca `bottom` iner (Bölüm 4.4).
+**iniş**tir ($t_L$) ve o olayı getiren karenin zamanına tarihlenir. Serbest ritimde, uçuşta henüz bir tepe
+görülmemişken uçuşun başından $\min(200\ \text{ms},\,0{,}4\,\hat T)$ içinde gelen bir `bottom` ($\hat T$:
+dönem) iniş sayılmaz; son hazırlık vuruşunun sekmesidir (v4.2.0'dan beri). Oyuncunun atış vuruşu zayıfsa
+**yumuşak iniş** kuralı devreye girer: sayımdan sonra gelen bir `weakBottom` — uçuşta bir yukarı çıkışın tepesi
+görülmüşse ya da uçuşun başından beri en az $0{,}45$ dönem geçmişse (v4.2.0'dan beri; önce yarım dönem) — bir
+iniş **adayı**dır ve o zayıf vuruşun bittiği ana tarihlenir; izleyen 65 ms içinde (v4.2.0'dan beri; önce 90 ms)
+daha güçlü bir vuruş gelmezse (ve o anda yeni bir iniş hareketi sürmüyorsa) iniş olarak kabul edilir. Aday ile
+kabul arasındaki karelerde üretilmiş taahhütler D1 gereği değerlendirme dışıdır. İlk v4 gerçeklemesindeki tanım
+("herhangi bir iniş hareketinden sonra 90 ms hareketsizlik") inişi geç tarihliyor ve titreşimin bir turu
+bitirmesine izin veriyordu; v4.0'da yumuşak iniş bu yüzden ölçülmüş bir genlik ve tepe hızı istiyordu. v4.2.0
+bu koşulu üç yerde gevşetmiştir; üçü de yalnızca serbest ritimli hazırlık vuruşlu kiplerde geçerlidir.
+(a) Aynı zaman koşuluyla bir `falseStart` da aday olur, ancak bir tepe görülmüşse ya da ön grubun hakem
+büyüklüğü $h_F\ge0{,}5$ ise (Bölüm 4.4). Dördüncü vuruşu hiçbir vuruş olayı üretmeyen atışlar için iki yol
+daha vardır: (b) ritim uçuş sırasında zaman aşımıyla düşerse (son dipten bu yana $\max(1250\ \text{ms},\,
+2{,}2\,\hat T)$ boyunca dip gelmezse) tur iptal edilmez; bir aday varsa, ya da $h_F\ge0{,}5$ ise, ya da bir tepe
+görülmüş ve uçuşta en az dört kare izlenmişse yumuşak iner (adayın anına, aday yoksa o kareye tarihlenir);
+(c) uçuşun başından en az $0{,}65$ dönem geçmişse, $h_F\ge0{,}65$ ya da bir tepe görülmüşse ve avuç (yavaş
+kestirime göre) 85 ms'dir hareketsizken yukarı ya da aşağı bir hareket sürmüyorsa — üçü birlikte — o kare aday
+olur ve iniş o ana tarihlenir. (c) yolunun bilinen bir tarihleme sınırı vardır: simülasyonda atış vuruşu
+genliğinin %6'sına ya da %10'una ölçeklendiğinde (20 kare/s, 480'er tur) yumuşak iniş tarihinin gerçek inişe
+göre 90. yüzdeliği +104 ve +100 ms'dir. Turların onda birinde iniş, avuç durduktan yaklaşık 100 ms ya da daha
+sonra tarihlenir ve aradaki karelerde atılan mühürler inişten önce atılmış sayılır. İnişi duruşun başladığı
+ana tarihlemek, avucu tepede kalıp parmaklarını havada açan eli de faule çevirdiği için kural
+değiştirilmemiştir (Bölüm 5.1.8). Metronom kipinde atış vuruşunun dibi, yalnızca sayımın ilan ettiği atış
+anının $\pm260$ ms çevresindeyse iniş sayılır; atış anı geçtiğinde el hareket etmiyorsa ya da bu pencere
+dolmuşsa iniş, ilan edilmiş atış anına geriye dönük olarak tarihlenir. Tek atış kipinde yalnızca `bottom` iner
+(Bölüm 4.4).
 
 İniş anının kestirimi ($\hat t_L$), mevcut en özgül kaynaktan alınır:
 
@@ -161,7 +192,7 @@ geçmiş bulunmayan bir vuruşta (yeni bir oyuncunun ilk tek atış turu) kullan
 `default` olarak adlandırılır. Ritmik hareketlerde ardışık aralıkların değişkenliği sınırlı olduğundan
 [WingKristofferson1973; Repp2005] tempo tabanlı kestirim uçuşun başında yeterli bir çapa sağlar; iniş
 yaklaştıkça kinematik kestirim onu düzeltir (birim testinin kendi ölçümünde ortalama mutlak hata: tempo
-kaynağı için 27,9 ms, iniş kaynağı için 12,8 ms; simülasyon). $\hat t_L$ yalnızca YZ'nin *önsel*
+kaynağı için 27,7 ms, iniş kaynağı için 12,5 ms; simülasyon, v4.2.3 koduyla; v4.0'da 27,9 ve 12,8 ms). $\hat t_L$ yalnızca YZ'nin *önsel*
 dağılımlarını çapalamak için kullanılır; hakemin kararları $\hat t_L$'ye bağlı değildir (Bölüm 4.4).
 
 **Titreşime dayanıklılığın ölçümü (simülasyon).** Tümüyle hareketsiz tutulan simüle bir yumrukta, 15 s
@@ -197,10 +228,11 @@ açılma değerleri verilir; hız bilgisi türev alınarak değil, yörünge ail
 kullanılır (sayısal türevin gürültüyü büyütmesinden böylece kaçınılır).
 
 **Izgara ve yinelemeli olabilirlik.** $(a,D)$ uzayı bir ızgarayla ayrıklaştırılır: $a_i=t_b+i\,\delta$
-($\delta=16$ ms; uçuş penceresi 1200 ms, yani 76 başlangıç) ve $D_j\in\{50,70,95,130,180,250,340\}$ ms. Süre
-ızgarası, hızlı atışlar için bildirilen yaklaşık 60 ms'lik şekil değiştirme süresinden [Katsuki2015] kendi
-hızında el açma için bildirilen birkaç yüz milisaniyeye [Carpinella2011] kadar olan aralığı kapsar. Her hücre
-için bir log-ağırlık tutulur ve her karede *üstel unutmayla* güncellenir:
+($\delta=16$ ms; uçuş penceresi 1200 ms, yani 76 başlangıç) ve $D_j\in\{45,65,90,125,175,245,340\}$ ms
+(v4.2.0'dan beri; önce $\{50,70,95,130,180,250,340\}$ ms). Süre ızgarası, hızlı atışlar için bildirilen
+yaklaşık 60 ms'lik şekil değiştirme süresinden [Katsuki2015] kendi hızında el açma için bildirilen birkaç yüz
+milisaniyeye [Carpinella2011] kadar olan aralığı kapsar. Her hücre için bir log-ağırlık tutulur ve her karede
+*üstel unutmayla* güncellenir:
 
 $$
 \lambda_k=e^{-\Delta t_k/\tau_m},\qquad
@@ -208,19 +240,20 @@ $$
 \ell_{0}\leftarrow \lambda_k\,\ell_{0}+\log\mathcal N\!\big(\tilde u_k;\;0,\;\sigma^2+\sigma_0^2\big),
 $$
 
-burada $g_{ij}=g\big((t_k-a_i)/D_j\big)$, $\tau_m=140$ ms ve $\sigma_0^2=0{,}004$'tür (kapalı bir grubun sıfır
-çevresindeki fazladan oynaklığı: yumruk titremesi, Makas'taki eşlik etme). $g_{ij}=0$ olan hücrelerde $H_0$
-terimi kullanılır. Başlangıcı henüz gelecekte olan bir hücre
-($a_i>t_k$) şimdiye kadarki her karede tam olarak $H_0$'ın öngördüğünü ($u=0$) öngörmüştür; bu yüzden
-log-ağırlığı $\ell_0$'a eşittir ve ayrıca saklanmaz. Unutma katsayısı ($\lambda<1$) eski karelerin
+burada $g_{ij}=g\big((t_k-a_i)/D_j\big)$ ve $\tau_m=140$ ms'dir; $\sigma_0^2$, kapalı bir grubun sıfır
+çevresindeki fazladan oynaklığıdır (yumruk titremesi, Makas'taki eşlik etme): ön grupta $0{,}0032$, arka grupta
+$0{,}0042$ (v4.2.0'dan beri; önce ikisinde de $0{,}004$). $g_{ij}=0$ olan hücrelerde $H_0$ terimi kullanılır.
+Başlangıcı henüz gelecekte olan bir hücre ($a_i>t_k$) şimdiye kadarki her karede tam olarak $H_0$'ın
+öngördüğünü ($u=0$) öngörmüştür; bu yüzden log-ağırlığı $\ell_0$'a eşittir ve ayrıca saklanmaz. Unutma katsayısı ($\lambda<1$) eski karelerin
 kanıtını söndürür; bu, yörünge ailesinin dışındaki hareketlerde (ör. aldatmacalarda) dedektörün güncel
 duruma hızla uymasını sağlar.
 
 **Yeniden çapalama (yumruğa dönüş kuralı).** Banka, yumruktan *tek bir* açılmayı modeller. Açılma, kapalı
-eşiğinin ($\max(3\sigma,\,0{,}12)$) altında art arda iki kare ölçülür ve banka hâlâ "açıldı" diyorsa
-(aşağıda tanımlanan hakem büyüklüğü $h>\tfrac12$), dedektör o andan itibaren yeniden başlatılır: bütün
-log-ağırlıklar sıfırlanır ve başlangıç ızgarası o kareye çapalanır. Böylece havada açıp yeniden kapatma türü meşru aldatmacalar
-doğru izlenir.
+eşiğinin altında ön grupta art arda iki kare, arka grupta tek bir kare ölçülür ve banka hâlâ "açıldı" diyorsa
+(aşağıda tanımlanan hakem büyüklüğü $h>\tfrac12$), dedektör o andan itibaren yeniden başlatılır. Kapalı eşiği
+ön grupta $\max(3\sigma,\,0{,}12)$, arka grupta $\max(3\sigma,\,0{,}20)$'dir (arka grubun değerleri v4.2.0'dan
+beri; önce ön grubunkilerle aynı). Yeniden başlatmada bütün log-ağırlıklar sıfırlanır ve başlangıç ızgarası o
+kareye çapalanır. Böylece havada açıp yeniden kapatma türü meşru aldatmacalar doğru izlenir.
 
 **Izgaranın kaydırılması (tek atış kipi).** Başlangıç ızgarası çapadan itibaren yalnızca 1200 ms'yi kapsar.
 Hazırlık vuruşlu kiplerde uçuş bir vuruş aralığı kadar sürdüğünden bu yeterlidir; tek atış kipinde ise
@@ -241,7 +274,8 @@ $$
 olarak yazılır ($\hat t_L-a$: başlangıcın inişe göre önceliği) ve ızgara üzerinde normalize edilir; öğrenme
 öncesi değerler $\mu_\ell=170$ ms, $\sigma_\ell=85$ ms, süre için medyan 130 ms ve log-ölçek sapması 0,5'tir
 (varsayım; Ek A). Kestirilen inişten 150 ms sonrasına kadar olan başlangıçlar da modellenir. Bir hücre, inişte
-en az $\pi_{\min}=0{,}15$ oranında açılma öngörüyorsa **zamanında**, aksi hâlde **geç** sayılır. Üç marjinal log-olabilirlik elde
+en az $\pi_{\min}$ oranında açılma öngörüyorsa **zamanında**, aksi hâlde **geç** sayılır; $\pi_{\min}$ ön grupta
+$0{,}105$, arka grupta $0{,}135$'tir (v4.2.0'dan beri; önce ikisinde de $0{,}15$). Üç marjinal log-olabilirlik elde
 edilir:
 
 $$
@@ -284,24 +318,28 @@ h(t_k)=\frac{\displaystyle\sum_{(i,j):\,g_{ij}(t_k)\ge\pi_{\min}} \bar\pi_{j}\,e
 \bar\pi_j=\tfrac12\cdot\tfrac1{N}\cdot w_j,
 $$
 
-burada $N$ ızgaradaki toplam başlangıç sayısı (uçuş penceresi sabit, 1200 ms), $w_j$ süreler üzerinde sabit
-bir log-normal ağırlıktır (medyan 120 ms, log-ölçek sapması 0,6; ızgara üzerinde normalize); paydadaki
+burada $\pi_{\min}$ Bölüm 4.3'teki gruba özgü değerdir, $N$ ızgaradaki toplam başlangıç sayısı (uçuş penceresi
+sabit, 1200 ms), $w_j$ süreler üzerinde sabit bir log-normal ağırlıktır (medyan 120 ms, log-ölçek sapması
+0,6; ızgara üzerinde normalize); paydadaki
 toplam, gelecekteki hücrelerin $\ell_0$ ağırlıklı kütlesini de içerir. $h$ yalnızca o ana kadarki karelere
 (ve o turun hazırlık vuruşlarında ölçülen taban çizgisi ile gürültüye, yani ölçüm ölçeğine) bağlıdır: iniş
 kestirimine, oyuncunun öğrenilmiş zamanlama modeline ve YZ'nin taahhüdüne bağlı değildir (D5).
 
-**Bağlama kuralı.** Son havadaki karede ön ve arka grup için $h_F,h_B$ okunur. $(\epsilon_F,\epsilon_B)$
-eşikleriyle nihai hamle şu durumlarda **geç hamle faulü**dür:
+**Bağlama kuralı.** Hakem, son havadaki kareyle birlikte saklanan ön ve arka grup yönelimlerini okur: o
+karenin **hakem yönelimleri** $\tilde h_F,\tilde h_B$ (aşağıda; yakın zamanda açık okunmuş bir grup yoksa bunlar
+o karenin kendi $h_F,h_B$ değerleridir). Aşağıdaki tabloda $h_F,h_B$ hakemin okuduğu bu değerlerdir.
+$(\epsilon_F,\epsilon_B)$ eşikleriyle nihai hamle şu durumlarda **geç hamle faulü**dür:
 
 | Nihai hamle | Faul koşulu | Sözel anlamı |
 |---|---|---|
 | Taş | $h_F\ge1-\epsilon_F$ veya $h_B\ge1-\epsilon_B$ | El havada açılıyordu, sonradan kapandı |
 | Kâğıt | $h_F<\epsilon_F$ veya $h_B<\epsilon_B$ | Açılma (ön ya da arka) havada başlamamıştı |
-| Makas | $h_F<\epsilon_F$ veya $h_B\ge1-\epsilon_B$ | Ön açılmamıştı ya da arka havada açılıyordu |
+| Makas | $h_F<\epsilon_F$ veya $h_B\ge1-\epsilon_B$ (net bir Makas'ta yalnızca $h_F<\epsilon_F$; aşağıda) | Ön açılmamıştı ya da arka havada açılıyordu |
 
 Yani bir grup $h\ge1-\epsilon$ iken **açık**, $h<\epsilon$ iken **kapalı** sayılır: sınır değeri "açık"
 tarafındadır, "kapalı" sınaması kesin eşitsizliktir. Sonlu olmayan bir $h$ değeri $0$, yani kapalı okunur.
-YZ'nin kendi kararında kullandığı sınama (`foulNow`) bunun kendisidir (Bölüm 4.7).
+YZ'nin kendi kararında kullandığı sınama (`foulNow`) bunun kendisidir; YZ yalnızca Makas'ı, aşağıdaki Makas
+kuralı yüzünden, ön grup kapalı olmadığı sürece ($h_F\ge\epsilon_F$) kabul edilebilir sayar (Bölüm 4.7).
 
 Üç ön ayar sunulur:
 
@@ -318,26 +356,77 @@ olasılık yoktur. Küçük $\epsilon$ değerlerinde ise iki kararlı bölge
 arasında, her iki sonucun da yasal olduğu bir **belirsizlik bölgesi** kalır; insanın meşru biçimde
 kazanabileceği yer burasıdır.
 
+**Hakem yönelimleri.** Bulanık tek bir son havadaki kare, zamanında açılmış bir grubu "kapalı" gösterebilir.
+Bu yüzden her havadaki $k$ karesinde, yalnızca o kareye kadarki havadaki karelerden **hakem yönelimleri**
+hesaplanır ve kareyle birlikte saklanır ($G\in\{F,B\}$):
+
+$$
+\tilde h_G(k)=\max\Big(\{h_G(k)\}\cup\big\{h_G(i):\ i<k\ \text{revizyon karesi},\ t_i\ge t_k-W,\ t_i>\tau_G,\ u_G(i)\ge0{,}42\big\}\Big),
+\qquad W=\max(340\ \text{ms},\,3{,}5\,\bar\Delta).
+$$
+
+Revizyon karesi, YZ'nin revizyon adımını tamamladığı karedir (aşağıda, tazeliğin üçüncü koşulu); $u_G(i)$
+grubun o karedeki ham açılması, $\tau_G$ grubun dedektörünün son yeniden çapalandığı andır (hiç çapalanmadıysa
+$-\infty$; Bölüm 4.3). Yani bir grubun yönelimi, yakın zamanda grubun ölçülebilir biçimde açılmış okunduğu
+($u_G\ge0{,}42$; iniş sonrası "açıldı" eşiğiyle aynı değer) bir karedeki değerinin altına düşemez; dedektör
+grubun gerçekten geri kapandığını saptadıysa (art arda iki kapalı kare) o karelerin hükmü kalmaz. Zamanında
+açılmış bir grup böylece bulanık bir karede "kapalı"ya dönmez; yalnızca gevşeyen parmaklar ($u_G<0{,}42$)
+ise bir grubu açık tutamaz. Eşik simülasyon taramasıyla seçilmiştir (Ek A; Bölüm 5.1.8). YZ her karede tam
+bu yönelimlere göre karar verir (Bölüm 4.7); hakem son havadaki karenin saklanan yönelimlerini okur: ikisi aynı
+sayılardır. Hakem yönelimleri de yalnızca o kareye kadarki havadaki karelere, bu karelerin revizyon karesi olup
+olmadığına (oyunun evresine ve izlenen kare sayısına) ve grubun ham açılması ile yeniden çapalanmasına bağlıdır; YZ'nin neyi mühürlediğine
+bağlı değildir (D5). Bu yönelimler hakeme v4.2.1'de eklenmişti, ama orada inişten sonra ve oturan şekle
+bakılarak hesaplanıyor, YZ ise başka sayılara göre karar veriyordu; Turnuva güvencesi bu yüzden kırılmıştı
+(Bölüm 4.7, (d); Bölüm 5.1.8). Buradaki biçim v4.2.3'e aittir.
+
+**Makas kuralı.** Makas'ta işaret ve orta parmak, yüzük ve serçe parmağı bir miktar birlikte kaldırır
+(ekstansör bağlantısı [HagerRoss2000]); bu bir geç Kâğıt ya da geç kapanma değildir. Oturan el **net bir
+Makas** ise — oturma penceresinin son beş örneğinde (parmak başına medyan) ön grup açılması en az $0{,}40$ ve
+ayrıca ön ile arka grup açılmasının farkı en az $0{,}15$, ya da oturan elde işaret–orta V açısı en az 15°, ya da
+arka grup açılması en çok $0{,}48$ ise — arka grubun yönelimi Makas'ın aleyhine sayılmaz: Makas yalnızca
+$\tilde h_F<\epsilon_F$ iken fauldür (rapor arka yönelimi ölçüldüğü gibi gösterir ve kuralın uygulandığını ayrıca bildirir). Havadayken elin
+nasıl oturacağı bilinmediğinden YZ, Makas'ı ön grup kapalı olmadığı sürece ($\tilde h_F\ge\epsilon_F$) her zaman
+kabul edilebilir sayar; YZ'nin yasal kümesi böylece hakemin kabul edebileceği her atışı içerir (Bölüm 4.7).
+
+**Çelişen kareler.** Hakem yönelimleri atışı reddederken (a) son havadaki karenin kendi değerleri ($h_F,h_B$)
+onu kabul ediyorsa — yakın zamandaki bir karede açık okunan bir grup son karede kapalı okunmuş ve el öyle
+oturmuştur — ya da (b) pencere $W$ içindeki bir revizyon karesi atışın gerektirdiği grubu açık göstermişse
+(parmakların açıldığı görülmüş, son kareler kapalı okunmuş, el açık inmiştir: bulanık kareler), havadaki
+kareler birbiriyle çelişir. Bu güvenilmez kanıttır, geç bir atış değildir: tur faul değil, kendi açıklama
+koduyla (`VOID_CONFLICT`) **geçersizdir**; el izlenmiş olduğundan EL YOK'tan ayrı bildirilir. Bir atış ancak
+havadaki hiçbir bakış onu desteklemiyorsa fauldür. Kural iki yönde de korur: tek bir gürültülü kare dürüst
+bir yumruğu, bulanık kareler de zamanında açılmış bir eli faule çeviremez; YZ'nin karşısında karar vermediği
+bir okuma ise bir atışı geçerli kılamaz, yalnızca geçersiz kılabilir.
+
 **İniş sonrası açılma (yumruk tutma kuralı).** Bağlama kuralı, inişte yumruk olup hemen ardından açılan eli
 tek başına yakalayamaz: son havadaki karede $h_F$ küçükken oturma penceresinin ilk kareleri "Taş" gibi
-görünür. Bu yüzden inen şekil Taş olarak sınıflanmışsa hüküm, inişten sonra $250$ ms geçene kadar verilmez;
-bu süre içinde ön grubun açılması art arda iki karede $0{,}35$'i aşarsa tur **geç hamle faulü**dür. $250$ ms,
-basit görsel tepki süresinin (büyük bir örneklemde ortalama 231 ms, donanım gecikmesi düşüldüğünde 213 ms
-[Woods2015]) hemen üzerindedir: YZ'nin ifşa edilen hamlesine *tepki olarak* açılan bir el bu pencerenin
-içinde kalamaz, pencere dışında açılan el ise zaten Taş olarak hükme bağlanmıştır.
+görünür. Bu yüzden inen şekil Taş olarak sınıflanmışsa hüküm, inişten sonra $215$ ms geçene kadar verilmez;
+bu süre içinde ön grubun açılması art arda iki karede $0{,}42$'yi aşarsa tur **geç hamle faulü**dür
+(v4.2.0'dan beri; önce $250$ ms ve $0{,}35$). $215$ ms, basit görsel tepki süresinin (büyük bir örneklemde
+ortalama 231 ms, donanım gecikmesi düşüldüğünde 213 ms [Woods2015]) aralığındadır ve tepkiyle açılan
+parmakların eşiği art arda iki karede aşması bunun üstüne eklenir: YZ'nin ifşa edilen hamlesine *tepki
+olarak* açılan bir el bu pencerenin içinde kalamaz, pencere dışında açılan el ise zaten Taş olarak hükme
+bağlanmıştır. Pencerenin 250 ms'den 215 ms'ye kısalması bu gerekçeyi zayıflatmaz, güçlendirir.
 
 **Kanıtın tazeliği: atışın kendisi görülmüş olmalıdır.** Bağlama kuralı "son havadaki kare"yi okur; bu
 kare, inişten önce elin *izlendiği* son karedir. Hakem ancak **atışa ait taze kanıtla** hüküm verir.
 $\bar\Delta$ ölçülen kare aralığı (üstel ortalama) olmak üzere üç koşul aranır: (i) inişten önceki
-$\max(160\ \text{ms},\,2{,}6\,\bar\Delta)$ içinde elin izlendiği en az iki kare vardır; (ii) son havadaki karenin
-yaşı $t_L-t_{m_L-1}\le\max(45\ \text{ms},\,2{,}2\,\bar\Delta)$'dır; (iii) son havadaki kare, YZ'nin **revizyon
-adımını tamamladığı** bir karedir: o karede revizyon yolu açıktır, turda, o kareyle birlikte, en az iki
-izlenen kare görülmüştür (`minEvidenceFrames`) ve adım — gerekiyorsa yeni mührüyle — sonuna kadar
-yürümüştür. Motor bunu her havadaki kareyle birlikte tek bir işaret olarak, adımın en sonunda saklar ve
-hakem o işareti okur; mühür atılamazsa işaret konmaz ve tur iptal edilir (Bölüm 4.7, (c)). Üçüncü koşul
-yalnızca tek atış kipinde bağlayıcıdır (öteki kiplerde revizyon yolu uçuşun her izlenen karesinde açıktır
-ve iki kare alt sınırı (i)'den çıkar): orada kurulmuş
-bekleyişin kareleri de "havadaki kare" olarak kaydedilir ama YZ o karelerde revize etmez (aşağıda). İniş, vuruşun
+$\max(220\ \text{ms},\,3{,}5\,\bar\Delta)$ içinde elin izlendiği en az bir kare vardır (v4.2.0'dan beri; önce
+$\max(160\ \text{ms},\,2{,}6\,\bar\Delta)$ içinde en az iki kare); (ii) son havadaki karenin yaşı
+$t_L-t_{m_L-1}\le\max(95\ \text{ms},\,2{,}5\,\bar\Delta)$'dır (v4.2.0'dan beri; önce
+$\max(45\ \text{ms},\,2{,}2\,\bar\Delta)$); son havadaki kare bir revizyon karesiyse (koşul (iii)) ve o karede ön
+grubun büyüklüğü $h_F\ge0{,}5$ ise sınır bunun 1,65 katıdır: açık görülmüş bir elin hemen ardından gelen kısa
+bir hareket bulanıklığı düşmesi turu geçersiz kılmasın diye (v4.2.0'dan beri; ayrı bir ölçüm kaydı yoktur);
+(iii) son havadaki kare, YZ'nin **revizyon adımını tamamladığı** bir karedir: o karede revizyon yolu
+açıktır, turda, o kareyle birlikte, en az iki izlenen kare görülmüştür (`minEvidenceFrames`) ve adım —
+gerekiyorsa yeni mührüyle — sonuna kadar yürümüştür. Motor bunu her havadaki kareyle birlikte tek bir işaret
+olarak, adımın en sonunda saklar ve
+hakem o işareti okur; mühür atılamazsa işaret konmaz ve tur iptal edilir (Bölüm 4.7, (c)). Hazırlık
+vuruşlu ve metronom kiplerinde revizyon yolu uçuşun her izlenen karesinde açıktır; orada üçüncü koşul
+yalnızca iki kare alt sınırı yüzünden, yani uçuşta iniş karesinden önce tek bir kare izlenmişse bağlayıcıdır
+(v4.0'da bu alt sınır (i)'den de çıkıyordu; v4.2.0 (i)'yi tek kareye indirdiğinden bugün yalnızca (iii)'ten
+gelir). Tek atış kipinde ise kurulmuş bekleyişin kareleri de "havadaki kare" olarak kaydedilir ama YZ o
+karelerde revize etmez (aşağıda). İniş, vuruşun
 kendisine ait hiçbir kare görülmeden tarihlenmişse — tek bir düşen kareye sığan çok hızlı bir vuruş —
 atıştan hiçbir şey görülmemiştir ve ayaktaki mühür hakemin okumasını izleme fırsatı bulamamıştır.
 Koşullardan biri sağlanmıyorsa tur **EL YOK** ile geçersizdir — hiçbir zaman faul değildir. Gerekçe: birkaç
@@ -345,25 +434,35 @@ kare eski ya da atıştan önceye ait bir bakış, parmakların inişin hemen ö
 söylemez; izleyicinin boşluğu oyuncuya yazılamaz (faul olamaz) ve YZ lehine de aleyhine de kullanılamaz (o
 boşluğun içinde ya da sonrasında atılmış bir mühür değerlendirilemez; hiç revize edilememiş bir davranış
 mührü de yasal bir hamleyle karşılaştırılamaz). (iii) koşulu oyunun fiziksel evresine — iniş hareketinin
-başlamış olup olmadığına — ve izlenen kare sayısına bağlıdır, YZ'nin neyi mühürlediğine değil; D5 korunur. Son havadaki karenin
-yaşı her tur raporunda ölçüm olarak verilir.
+başlamış olup olmadığına — ve izlenen kare sayısına bağlıdır, YZ'nin neyi mühürlediğine değil; (ii)'deki
+1,65 çarpanı da yalnızca son havadaki karenin revizyon karesi olup olmadığına ve o karenin ön grup
+büyüklüğüne bağlıdır; D5 korunur. v4.2.0'ın sınırları bu korumayı gevşetmiştir: 30 kare/s'de son havadaki
+kare v4.0'da en çok yaklaşık 73 ms ($2{,}2\times33{,}3$ ms), bugün 95 ms, 1,65 çarpanıyla yaklaşık 157 ms eski
+olabilir. Son havadaki karenin yaşı her tur raporunda ölçüm olarak verilir.
 
 **İzleme boşluğundan sonraki iniş.** El, vuruşun en hızlı bölümünde izlenemeyip tam durduğunda yeniden
 bulunursa, o karedeki hız kestirimi boşluk üzerindeki ortalamadır ve iniş bir kare geç saptanır; arada
 "havada" sayılan kare gerçekte iniş sonrasıdır. Bunu önlemek için havadaki her örnek avuç yüksekliğini ve
 bir izleme boşluğunu izleyip izlemediğini kaydeder: bir önceki izlenen örnekten $1{,}6\,\bar\Delta$'dan uzun
 bir aradan sonra gelen ilk iki izlenen kare "boşluk sonrası" işaretlenir (hız süzgecinin toparlanması bir
-kare daha sürer). İniş saptandığında, inişten geriye doğru avuç yüksekliği iniş yüksekliğinin
-$\max(0{,}04\ \text{AB},\ \%3\times\text{vuruş genliği})$ yakınında kalan kesintisiz kare dizisine bakılır; bu
+kare daha sürer). Hazırlık vuruşlu ve metronom kiplerinde bu, v4.2.0'dan beri yalnızca arada en az dört kare
+kaçırılmışsa yapılır: web kamerasında hareket bulanıklığından doğan 1–3 karelik kısa düşmeler boşluk
+sayılmaz. Tek atış kipinde tek bir kaçan kare yeter. İniş saptandığında, inişten geriye doğru avuç
+yüksekliği iniş yüksekliğinin $\max(0{,}04\ \text{AB},\ \%3\times\text{vuruş genliği})$ yakınında kalan
+kesintisiz kare dizisine bakılır; bu
 dizideki en erken boşluk sonrası kare **iniş karesinin kendisidir** ve iniş o karenin zamanına tarihlenir.
 Boşluğun içinde ne olduğu bilinmediğinden, o kareden itibaren hiçbir şey "havada" sayılmaz. İncelemenin
-kendi ölçüm betiğiyle (simülasyon; karelerin taban olarak %8'i düşürülür, vuruş hızlandıkça daha fazlası),
-değerlendirilen mührü simülasyondaki *gerçek* inişten sonra atılmış geçerli tur sayısı: normal açanlarda
+kendi ölçüm betiğiyle (simülasyon, v4.0 koduyla; karelerin taban olarak %8'i düşürülür, vuruş hızlandıkça
+daha fazlası), değerlendirilen mührü simülasyondaki *gerçek* inişten sonra atılmış geçerli tur sayısı:
+normal açanlarda
 30 kare/s'de 496'da 0; geç açanlarda 30 kare/s'de 498'de 1 (3 ms ile); geç açanlarda 15 kare/s'de 323'te 0.
 Düzeltmelerden önce aynı ölçüm 498'de 6 (17 ms'ye kadar) ve 325'te 7 (82 ms'ye kadar) veriyordu. Kare
-düşmesi olmadan 15/30/60 kare/s'de 2000 turda 0'dır. Yani D1 simülasyondaki gerçek inişe göre de — bir
-turda 3 ms'lik bir istisnayla — tutmaktadır; kare düşmesinin bedeli EL YOK hükümleridir (hızlı bir
-denetimde %8 taban düşme oranında denemelerin yaklaşık %13'ü).
+düşmesi olmadan 15/30/60 kare/s'de 2000 turda 0'dı. Yani v4.0'da D1 simülasyondaki gerçek inişe göre de —
+bir turda 3 ms'lik bir istisnayla — tutuyordu; kare düşmesinin bedeli EL YOK hükümleriydi (hızlı bir
+denetimde %8 taban düşme oranında denemelerin yaklaşık %13'ü). Bu ölçüm, v4.2.0'ın kısa düşmeleri boşluk
+saymayan kuralı ve gevşettiği tazelik sınırlarıyla yinelenmemiştir (incelemenin betiği depoda değildir);
+v4.2.3'te bu konuyu yalnızca dar bir regresyon testi sınar: 30 ve 60 kare/s'de, vuruşun hızlı bölümünü
+kapatan 30'ar sahnelenmiş boşlukta değerlendirilen mührü gerçek inişten sonra atılmış geçerli tur yoktur.
 
 **"İnişten önce" yalnızca kare sırasıyla belirlenir.** İniş belirlendikten sonra, kare dizini iniş
 karesinin dizininden ($m_L$) küçük olmayan her taahhüt "iniş sonrası" işaretlenir ve değerlendirilmez (D1);
@@ -387,9 +486,9 @@ sınanmıştır (Bölüm 5.7).
 
 **Tek atış kipine özgü kurallar.** Hazırlık vuruşu olmadığında tur şöyle işler:
 
-1. *Kurulma.* Ön ve arka grubun ham açıklığı $0{,}4$'ün altında ve avuç hareketsizken (Bölüm 4.2) 350 ms
-   geçerse tur kurulur ve davranış mührü atılır. Taban çizgisi ve gürültü kestirimi **yalnızca bu
-   bekleyişin** örneklerinden alınır.
+1. *Kurulma.* Ön ve arka grubun ham açıklığı $0{,}45$'in altında (v4.2.0'dan beri; önce $0{,}4$) ve avuç
+   hareketsizken (Bölüm 4.2) 350 ms geçerse tur kurulur ve davranış mührü atılır. Taban çizgisi ve gürültü
+   kestirimi **yalnızca bu bekleyişin** örneklerinden alınır.
 2. *Bekleme.* Oyuncu istediği kadar bekleyebilir; yumruk kapalıyken dedektörlerin ızgarası 400 ms'de bir
    kaydırılır (Bölüm 4.3). Kinematik revizyon, iniş hareketi başlayana kadar yapılmaz (o ana kadar önselleri
    çapalayacak bir iniş kestirimi yoktur).
@@ -401,9 +500,10 @@ sınanmıştır (Bölüm 5.7).
    ne kadardır hareketsiz olduğuna bakıyor ve parmaklarını vuruştan hemen önce açan oyuncuları iptal
    ediyordu. 1500 ms içinde bitmeyen bir iniş hareketi de turu iptal eder.
 
-Regresyon testlerinde (simülasyon; hücre başına 120 deneme) faul oranı yumruk 1,0 s bekletildiğinde de
-3,5 s bekletildiğinde de %5,8'dir (kaydırmadan önce uzun beklemede %21–24'e çıkıyordu); erken açan
-oyuncularda iptal 120 denemede 0–1'dir (önce %27); 15, 20 ve 25 kare/s'de bir önceki turun açık elinin
+Regresyon testlerinde (simülasyon; hücre başına 120 deneme) faul oranı yumruk 1,0 s bekletildiğinde %6,7,
+3,5 s bekletildiğinde %5,8'dir (v4.2.3 koşusu; v4.0'da ikisinde de %5,8; kaydırmadan önce uzun beklemede
+%21–24'e çıkıyordu); erken açan oyuncularda iptal 120 denemede 0–1'dir (önce %27); 15, 20 ve 25 kare/s'de
+bir önceki turun açık elinin
 taban çizgisine sızmasından kaynaklanan YUMRUK YOK hükmü görülmez (önce düşük kare hızlarında, açık elle
 biten bir turu izleyen turlarda sistematik olarak veriliyordu).
 
@@ -417,15 +517,18 @@ Diğer geçersizlik durumları: iniş sonrasında el yoksa (EL YOK), oturma penc
 oluşmamışsa (BELİRSİZ ŞEKİL), hazırlık vuruşlarında (tek atış kipinde kurulma bekleyişinde) el yumruk
 değilse, yani taban çizgisinde ön ya da arka grubun ham açıklığı $0{,}45$'i aşıyorsa (YUMRUK YOK). Denetim
 sırası YUMRUK YOK, EL YOK (tazelik koşulları dâhil), iniş sonrası açılma, BELİRSİZ ŞEKİL ve bağlama
-kuralıdır. Bu turlar tekrarlanır ve oyun hakkındaki öğrenmeye girmez (D6; tek istisna Bölüm 4.9'daki
-algılayıcı kalibrasyonudur).
+kuralıdır (bağlama kuralında havadaki karelerin çeliştiği tur kendi koduyla geçersizdir). Bu turlar tekrarlanır ve oyun
+hakkındaki öğrenmeye girmez (D6; tek istisna Bölüm 4.9'daki algılayıcı kalibrasyonudur).
 
-**Nihai hamle.** İnişten sonraki oturma penceresinde (≤ 450 ms), tabana göre dört parmak açılma vektörü
-$\mathbf u_4$ üzerinde sınıf-koşullu bağımsız Gauss şablonlarıyla (Taş $[0,0,0,0]$, Kâğıt $[1,1,1,1]$, Makas
-$[1,1,\kappa_1,\kappa_2]$ ve TKM dışı şekilleri soğuran geniş bir "diğer" sınıfı) sonsal hesaplanır; aynı
-sınıf en az 3 ardışık karede ve 70 ms boyunca $\ge 0{,}85$ sonsalla gözlenirse nihai hamle olarak kabul
-edilir. İzleyicinin kendi sinirsel jest etiketi, oyuncuya göre öğrenilen bir karışıklık matrisiyle ikinci
-bir kanıt olarak çarpılır (eklem noktalarıyla ilişkili olduğu için $0{,}5$ üssüyle zayıflatılarak). $t_C$, bu sınıfın sonsalının kesintisiz $\ge 0{,}85$ kaldığı en erken andır.
+**Nihai hamle.** İnişten sonraki oturma penceresinde (≤ 420 ms; v4.2.0'dan beri, önce 450 ms), tabana göre
+dört parmak açılma vektörü $\mathbf u_4$ üzerinde sınıf-koşullu bağımsız Gauss şablonlarıyla (Taş $[0,0,0,0]$,
+Kâğıt $[1,1,1,1]$, Makas $[0{,}95;\,0{,}95;\,\kappa_1;\,\kappa_2]$ ile $\kappa_1=0{,}12$, $\kappa_2=0{,}08$ —
+v4.2.0'dan beri; önce $[1;\,1;\,0{,}08;\,0{,}06]$ — ve TKM dışı şekilleri soğuran geniş bir "diğer" sınıfı)
+sonsal hesaplanır; aynı sınıf en az 3 ardışık karede ve 70 ms boyunca $\ge 0{,}85$ sonsalla gözlenirse nihai
+hamle olarak kabul edilir. İzleyicinin kendi sinirsel jest etiketi, oyuncuya göre öğrenilen bir karışıklık
+matrisiyle ikinci bir kanıt olarak çarpılır (eklem noktalarıyla ilişkili olduğu için $0{,}5$ üssüyle
+zayıflatılarak; v4.2.0'dan beri etiketin kendi güveni $s\ge0{,}65$ ise üs $0{,}5\,(0{,}6+0{,}9\,s)$'dir).
+$t_C$, bu sınıfın sonsalının kesintisiz $\ge 0{,}85$ kaldığı en erken andır.
 
 ## 4.5 Davranışsal dizi kestirimi (A kanalı)
 
@@ -569,18 +672,25 @@ olmadan tek bir kötü tur yüzlerce iyi turdan ağır basıyor, kinematik kanal
 düşüp pratikte geri gelmiyordu. Kırpmayla tek bir ıska $w_k$'yi en çok $0{,}05\times2=0{,}1$ değiştirir ve
 birkaç düzine isabetle geri kazanılır (regresyon testi).
 
-**Hakemin yasal kümesi ve yasal kütle.** Hakem büyüklükleri $h_F,h_B$ YZ tarafından da her izlenen karede
-hesaplanır (hakemle birebir aynı sayı). $k$ karesi için **yasal küme**, "uçuş bu karede bitseydi" bağlama
-kuralının (Bölüm 4.4) faul saymayacağı nihai hamlelerin kümesidir:
+**Hakemin yasal kümesi ve yasal kütle.** YZ her izlenen $k$ karesinde o karenin hakem yönelimlerini
+($\tilde h_F,\tilde h_B$; Bölüm 4.4) hesaplar ve kareyle birlikte saklar; hakem son havadaki karede tam bu
+sayıları okur. Bu bölümde $h_F,h_B$ bu yönelimleri gösterir. $k$ karesi için **yasal küme**, "uçuş bu karede
+bitseydi" bağlama kuralının (Bölüm 4.4) kabul edebileceği nihai hamlelerin kümesidir:
 
 $$
 \mathrm T\in\mathcal L_k \iff h_F<1-\epsilon_F\ \wedge\ h_B<1-\epsilon_B,\qquad
 \mathrm K\in\mathcal L_k \iff h_F\ge\epsilon_F\ \wedge\ h_B\ge\epsilon_B,\qquad
-\mathrm M\in\mathcal L_k \iff h_F\ge\epsilon_F\ \wedge\ h_B<1-\epsilon_B.
+\mathrm M\in\mathcal L_k \iff h_F\ge\epsilon_F.
 $$
 
-Bu, Bölüm 4.4'teki faul tablosunun tam tümleyenidir: "açık" sınaması ($h\ge1-\epsilon$) sınır değerini
-içerir, "kapalı" sınaması ($h<\epsilon$) içermez. YZ ile hakem aynı işlevi (`foulNow`) çağırır.
+Taş ve Kâğıt için bu, Bölüm 4.4'teki faul tablosunun tam tümleyenidir: "açık" sınaması ($h\ge1-\epsilon$)
+sınır değerini içerir, "kapalı" sınaması ($h<\epsilon$) içermez. Makas için tümleyenden geniştir: elin net
+bir Makas'a oturup oturmayacağı havada bilinmediğinden YZ, hakemin Makas kuralını (Bölüm 4.4) her zaman
+uygulanacakmış gibi alır ve arka grubun yönelimine bakmaz. Hakemin kabul edebileceği her atış böylece
+$\mathcal L_k$'dedir; tersi gerekmez. YZ ile hakem aynı işlevi (`foulNow`) çağırır; YZ Makas kuralını her
+zaman açık tutar (`coupledScissors`), hakem yalnızca oturan el net bir Makas ise uygular. Bu biçim v4.2.3'e
+aittir: v4.0'da Makas kuralı yoktu ve yasal küme her üç hamle için faul tablosunun tam tümleyeniydi;
+v4.2.1–v4.2.2'de hakem bu kuralı ve hakem yönelimlerini kullanırken YZ kullanmıyordu (aşağıda, (d)).
 
 YZ'nin inancı $\mathbf p$ (zamanında oynanan üç sınıfın birleşik kütlesi) bu kümeye kısıtlanarak **yasal
 kütle** $\mathbf m$ elde edilir; üç durum vardır:
@@ -668,16 +778,16 @@ güvenceyi sessizce geçersiz kılıyordu (Bölüm 5.1.6). Serbest ve Standart't
 >
 > *İspat.* Tur geçerli olsun. $m_L$ iniş karesinin dizini; $j$ turun son havadaki karesi, yani dizini
 > $m_L$'den küçük olan son izlenen (değerlendirilmiş) kare; $h_F,h_B$ motorun $j$ karesiyle birlikte
-> sakladığı hakem büyüklükleri; $y$ hakemin tanıdığı nihai hamle olsun. Geçerli bir turda $j$ vardır
-> (Bölüm 4.4, tazelik koşulları).
+> sakladığı hakem yönelimleri ($\tilde h_F,\tilde h_B$; Bölüm 4.4); $y$ hakemin tanıdığı nihai hamle olsun.
+> Geçerli bir turda $j$ vardır (Bölüm 4.4, tazelik koşulları).
 >
 > **1. adım — yasal küme, her $h_F$ için, en çok iki sınıflıdır.** $\epsilon_F=\tfrac12$ ile ön grup
 > $h_F\ge\tfrac12$ iken açık, $h_F<\tfrac12$ iken kapalıdır. Bu iki sınama birbirinin tam tümleyenidir: her
 > $h_F$ değeri için — tam $\tfrac12$ dâhil; sonlu olmayan bir değer $0$ okunur — tam olarak biri doğrudur.
 > (i) $h_F<\tfrac12$: Kâğıt ve Makas yasal değildir; $\mathcal L_j=\{\mathrm T\}$ ($h_B<1-\epsilon_B$ ise) ya da
 > $\mathcal L_j=\varnothing$.
-> (ii) $h_F\ge\tfrac12$: Taş yasal değildir; $\mathcal L_j=\{\mathrm K\}$ ($h_B\ge1-\epsilon_B$), $\{\mathrm M\}$
-> ($h_B<\epsilon_B$) ya da $\{\mathrm K,\mathrm M\}$ ($\epsilon_B\le h_B<1-\epsilon_B$).
+> (ii) $h_F\ge\tfrac12$: Taş yasal değildir, Makas yasaldır (Makas kuralı); $\mathcal L_j=\{\mathrm M\}$
+> ($h_B<\epsilon_B$) ya da $\{\mathrm K,\mathrm M\}$ ($h_B\ge\epsilon_B$).
 > Her durumda $\lvert\mathcal L_j\rvert\le2$'dir.
 >
 > **2. adım — $j$ karesindeki değerlendirmeden sonra ayakta kalan mühür güvenlidir.** Tur geçerli
@@ -714,17 +824,22 @@ güvenceyi sessizce geçersiz kılıyordu (Bölüm 5.1.6). Serbest ve Standart't
 > taahhüttür; o hâlde $j$ karesindeki değerlendirmeden sonra ayakta kalan mühürdür.
 >
 > **4. adım — hakem aynı kareyi, aynı sayılarla okur.** Tur geçerli sayıldığına göre oturan şekil bir TKM
-> hamlesi $y$'dir ve bağlama kuralı onu $j$ karesinin $h_F,h_B$ değerleriyle faul saymamıştır:
-> $y\in\mathcal L_j$. Bu değerler YZ'nin 2. adımda kullandığı sayıların kendisidir: motor, kendi kararı için
-> hesapladığı iki değeri kareyle birlikte saklar; hakem saklanan değerleri aynı ön ayarla (ön ayar tur
-> boyunca değişmez) aynı işleve verir. Ayakta kalan $a$ güvenli olduğundan
+> hamlesi $y$'dir ve bağlama kuralı onu $j$ karesinin saklanan $h_F,h_B$ değerleriyle faul saymamıştır. Bu
+> değerler YZ'nin 2. adımda kullandığı sayıların kendisidir: motor, kendi kararı için hesapladığı iki değeri
+> kareyle birlikte saklar; hakem saklanan değerleri aynı ön ayarla (ön ayar tur boyunca değişmez) aynı işleve
+> verir. Hakem Makas kuralını yalnızca oturan el net bir Makas ise uygular, $\mathcal L_j$ ise her zaman; kural
+> yalnızca Makas'ı faul olmaktan çıkarabildiğinden hakemin kabul ettiği her atış $\mathcal L_j$'dedir:
+> $y\in\mathcal L_j$. Son havadaki karenin kendi değerleri ve penceredeki öteki kareler bir atışı ancak geçersiz kılabilir (çelişen
+> kareler, Bölüm 4.4), geçerli kılamaz. Ayakta kalan $a$ güvenli olduğundan
 > $\operatorname{yener}(a)\notin\mathcal L_j$, yani $y\neq\operatorname{yener}(a)$: $y$, $a$'yı yenmez.
 > $\blacksquare$
 
 > **Sonuç 1.** Geçerli bir Turnuva turunda beraberlik yalnızca $\mathcal L_j=\{\mathrm K,\mathrm M\}$ iken oyuncu
 > Makas indirdiğinde ortaya çıkar. $\lvert\mathcal L_j\rvert=1$ ise YZ kazanır: berabere kalan güvenli hamle
 > ayaktaysa, kazanan güvenli hamle $W$'yi $M$ kadar (yani en az $0{,}25M$) artırdığından revizyon kuralının
-> (ii) maddesi uygulanır.
+> (ii) maddesi uygulanır. Makas kuralı yüzünden $h_F\ge\tfrac12$ ve $h_B\ge\epsilon_B$ iken $\mathcal L_j$ her
+> zaman $\{\mathrm K,\mathrm M\}$'dir (v4.0'da $h_B\ge1-\epsilon_B$ iken $\{\mathrm K\}$'ydi): arka grubu da açık
+> okunan ama net bir Makas'a oturan el, v4.0'da faul sayılırken bugün berabere kalır (Bölüm 5.1.8).
 
 Teorem daha önceki metinlerde koşullarla veriliyordu. İlk v4 metnindeki iki koşul (YZ'nin inancının yasal
 hamlelere "ihmal edilemez" kütle vermesi ve bir sayısal tolerans) bağımsız incelemede gerçekten ihlal
@@ -734,19 +849,25 @@ da kapatılmıştır (aşağıda). İspatın gerçeklemeye dayanan dayanakları 
 testleriyle korunur (Bölüm 5.7): "açık" ve "kapalı" sınamalarının tam tümleyen olması (1. adım); son
 havadaki karede revizyon adımının tamamlanmış olması — hakemin geçerlilik koşulu —, atılamayan bir mührün
 turu iptal etmesi ve dondurma ufkunun yok sayılması (2. adım); iniş öncesinin iki tarafta aynı kare sırası
-sınamasıyla belirlenmesi ve karelerin dizinde de ilerlemek zorunda olması (3. adım). 2. adımdaki "en az iki
-izlenen kare" alt sınırı varsayılan
-sabitlerle tazeliğin birinci koşulundan da çıkar; işarete yazılmış olması ispatı sabitlerin değerinden
-bağımsız kılar. 4. adımın kendine ait bir testi **yoktur**: "aynı sayı" yapısal olarak sağlanır (kareyle
-birlikte saklanan tek bir değer çifti) ve yalnızca dolaylı olarak, Turnuva testlerindeki "sıfır oyuncu
-galibiyeti" savlarıyla sınanır.
+sınamasıyla belirlenmesi ve karelerin dizinde de ilerlemek zorunda olması (3. adım); YZ'nin yasal kümesinin,
+Makas kuralıyla, hakemin kabul edebileceği her atışı içermesi ve yine en çok iki sınıflı kalması (1. ve 4.
+adım; `the scissors rule: the AI decides against every throw the referee could still accept`). 2. adımdaki
+"en az iki izlenen kare" alt sınırı v4.0'ın varsayılan sabitleriyle tazeliğin birinci koşulundan da
+çıkıyordu; v4.2.0 o koşulu tek kareye indirdiğinden bugün yalnızca işaretten gelir. İşarete yazılmış olması
+ispatı sabitlerin değerinden bağımsız kılar; v4.2.0'ın bu değişikliği ispatı bu yüzden etkilememiştir. 4.
+adımın kendine ait bir testi **yoktur**: "aynı sayı" yapısal olarak sağlanır (kareyle birlikte saklanan tek
+bir değer çifti) ve yalnızca dolaylı olarak sınanır: Turnuva testlerindeki "sıfır oyuncu galibiyeti"
+savlarıyla ve v4.2.3'ten beri v4.2.1'in deliğini hedef alan regresyon testleriyle (bulanık son kareli Makas ve Kâğıt,
+çelişen kareli turlar ve bulanık sınamanın v4.2.1'i kıran yedi oturumu; aşağıda, (d)).
 
 **İnceleme sonrasında bulunan delikler (kapatılmıştır).** Bağımsız inceleme ve düzeltmeleri bittikten
 sonra, bu metin yazılırken ve denetlenirken, ispatın adımları kodla tek tek karşılaştırılmış ve iki delik
 daha bulunmuştur: birini metnin yazarı ispatı yazarken, ötekini metnin olgu denetimi bulmuştur. Metnin son
 doğrulamasında, ispatı kodla kırmaya çalışan ayrı bir saldırı denetimi, motorun programlama arayüzü
 düzeyinde üçüncü bir delik bulmuştur. Üçü de elle kurulmuş kare dizileriyle (simülasyon) yeniden üretilmiş,
-giderilmiş ve regresyon testine bağlanmıştır.
+giderilmiş ve regresyon testine bağlanmıştır; (a)–(c)'deki yeniden üretim sayıları, aksi belirtilmedikçe,
+v4.0 koduyla ölçülmüştür ve regresyon testleri v4.2.3'te de geçmektedir. Dördüncü bir delik (d) daha sonra,
+v4.2.1'in gerçeklemesiyle açılmış ve v4.2.3'te kapatılmıştır.
 
 *(a) Tek atış kipinde, kurulmuş bekleyişin bir karesi üzerinden hükme bağlanan tur (2. adım).* Tek atış
 kipinde kurulmuş bekleyişte YZ eli izler ama revize etmez; bu kareler yine de "havadaki kare" olarak
@@ -775,8 +896,9 @@ dışı, 108 oyuncu galibiyeti. Düzeltme: "inişten önce" her iki tarafta yaln
 (Bölüm 4.4) ve motor, dizini ilerlemeyen kareyi de atar. Düzeltmeden sonra aynı sahneleme: 800 tur, o
 karede 244 mühür, değerlendirme dışı kalan 0, oyuncu galibiyeti 0 (359 YZ galibiyeti, 441 faul). Regresyon
 testleri: `metronome mode: a frame a few hundredths of a millisecond before the scheduled landing keeps its
-seal` (400 sahnelenmiş tur, son havadaki karede 122 mühür, hiçbiri değerlendirme dışı değil, oyuncu
-galibiyeti yok) ve `frames must advance in index as well as in time (frame order is what I1 rests on)`. Bu
+seal` (400 sahnelenmiş tur; son havadaki karede v4.2.3 koşusunda 121, v4.0'da 122 mühür; hiçbiri
+değerlendirme dışı değil, oyuncu galibiyeti yok) ve `frames must advance in index as well as in time (frame
+order is what I1 rests on)`. Bu
 delik D1'i çiğnemiyordu (değerlendirilen mühür yine inişten önceydi); çiğnenen, ispatın 3. adımıydı.
 Düzeltmeden önceki gerçek sıklığı ölçülmemiştir; pencere en çok $0{,}05$ ms idi ve Bölüm 6'daki deneylerin
 hiçbiri metronom kipini kullanmaz.
@@ -806,6 +928,27 @@ Regresyon testleri: `a seal that cannot be made aborts the round; the round is n
 seal`, `frames the commit log could not seal are ignored (index beyond 2^53 - 1, time beyond 2^52 / 10 ms)`
 ve `only the three named presets are accepted (no inherited object keys)`.
 
+*(d) Hakemin, YZ'nin karşısında karar vermediği sayılarla hüküm vermesi (4. adım; v4.2.1 ve v4.2.2).* v4.2.1
+hakeme iki kural eklemişti: inişten önceki $\max(340\ \text{ms},\,3{,}5\,\bar\Delta)$ içindeki revizyon
+karelerinde açık okunan bir grup, oturan şekil yeniden kapanmamışsa açık sayılıyor; net bir Makas'a oturan
+elde arka grubun yönelimi Makas'ın aleyhine sayılmıyordu. İkisi de inişten sonra, oturan şekle bakılarak
+uygulanıyordu. YZ ise her karede o karenin kendi $h_F,h_B$ değerlerine göre ve Makas kuralı olmadan karar
+veriyordu. Hakem böylece YZ'nin son kararında yasal sayılmayan bir atışı kabul edebiliyor, 4. adım
+çiğneniyordu. Bunu bulan, Bölüm 6.9'daki bulanık sınamadır: v4.2.2 koduyla (motoru v4.2.1'inkiyle aynıdır)
+15 000 oturumda, 16 911 geçerli turda 7 kayıp (Bölüm 5.1.8). Elle sahnelenen durumda (20 kare/s, zamanında
+açılan bir Makas, son havadaki kare bulanık ve neredeyse kapalı okunuyor) v4.2.2 60 turun 24'ünü kaybeder.
+v4.2.1 bu sınama koşulmadan yayımlanmıştı. Düzeltme (v4.2.3): hakem yönelimleri her
+havadaki karede, o kareye kadarki havadaki karelerden hesaplanıp kareyle birlikte saklanır; YZ o karede tam
+bu sayılara göre ve Makas kuralını her zaman uygulayarak karar verir; hakem saklanan sayıları okur ve havadaki
+kareler çelişirse turu geçersiz sayar (Bölüm 4.4). Düzeltmeden sonra aynı bulanık sınama 15 000 oturumda,
+17 404 geçerli turda kayıp vermez; sahnelenen durumda 60 turun 56'sı geçerlidir (hepsini YZ kazanır), 4'ü
+çelişki nedeniyle geçersizdir (Bölüm
+5.1.8). Regresyon testleri: `the scissors rule: the AI decides against every throw the referee could still
+accept`, `turnuva: a scissors on time with one blurred frame right before the landing is neither fouled nor
+lost`, `contradictory in-air frames void the round under a code of its own: never a foul, never a loss`,
+`an on-time PAPER whose last in-air frame is blurred is not fouled for it` ve `the guarantee fuzz finds nothing: the seven sessions that broke v4.2.1, and the first 150
+sessions`.
+
 **Sınır değeri $h_F=\tfrac12$.** Bir önceki metindeki öteki koşul sayısaldı. O sıradaki gerçeklemede "ön
 açık" $h_F>\tfrac12$, "ön kapalı" $h_F<\tfrac12$ olarak sınanıyordu; tam eşitlikte ön grup hiçbir sınıfı
 dışlamıyor ve $h_B$ de belirsizse üç sınıf yasal kalıyor, politika güvenli hamle bulamıyordu. $h_F$ iki
@@ -821,9 +964,11 @@ bulunduğunu ve politikanın — her sınıfa $10^{-300}$ kütle veren bir inan�
 Bu tarihçe, teoremin "kural gereği" niteliğinin gerçeklemenin her ayrıntısına bağlı olduğunu ve ispatın
 neden regresyon testleriyle korunması gerektiğini gösterir: bağımsız incelemeden ve onun düzeltmelerinden
 sonra bile üç delik kalmıştı ve hiçbirini bulan test değildi: ilk ikisini ispatın kodla satır satır
-karşılaştırılması, üçüncüsünü ispatı kırmaya çalışan saldırı denetimi buldu. Yukarıdaki ispat, kodun bugünkü
-hâliyle bir kez daha satır satır karşılaştırılmış ve
-başka bir boşluk bulunmamıştır; bu, boşluk olmadığının kanıtı değildir (Bölüm 8.2, "Doğrulamanın kendisi").
+karşılaştırılması, üçüncüsünü ispatı kırmaya çalışan saldırı denetimi buldu. Dördüncüsü (d) sonraki bir
+sürümle girdi ve onu, o sürümün yayınından önce koşulmamış olan bulanık sınama buldu; o sınama artık
+yayından önceki denetimin parçasıdır (`npm run fuzz`) ve kırılan oturumları her test koşusunda yeniden
+oynatılır. Yukarıdaki ispat v4.2.3'ün koduyla bir kez daha satır satır karşılaştırılmış ve başka bir boşluk
+bulunmamıştır; bu, boşluk olmadığının kanıtı değildir (Bölüm 8.2, "Doğrulamanın kendisi").
 
 **Teoremin iddia etmedikleri.**
 
@@ -840,12 +985,15 @@ başka bir boşluk bulunmamıştır; bu, boşluk olmadığının kanıtı değil
    ve $h_B\in[\epsilon_B,1-\epsilon_B)$ olduğunda üç sınıf da yasaldır; güvenli hamle yoktur ve insan meşru
    biçimde kazanabilir. Bu ön ayarlarda YZ bir kumar oynar ve kayıp oranı ölçülür.
 4. **Fiziksel inişi değil, motorun saptadığı inişi esas alır.** D1 ve teorem, motorun kendi kare akışına
-   ve kendi iniş saptamasına göredir. Simülasyonda motorun inişi gerçek inişin birkaç milisaniye
-   çevresindedir (Bölüm 5.9); yine de varsayılanın 2–3 katı görüntü gürültüsünde, yumuşak inişle biten
-   yaklaşık 370 geçerli turun 1–2'sinde değerlendirilen mühür simülasyondaki gerçek inişten sonra
-   atılmıştır (varsayılan gürültüde 30 kare/s'de 370'te, 60 kare/s'de 384'te 0; olağan vuruşlarda sınanan
-   her gürültü düzeyinde 0). Gerçek kamerada bu fark ölçülmemiştir. Mührün duvar saatine göre ne zaman
-   var olduğu ayrı bir ölçümdür (Bölüm 4.10).
+   ve kendi iniş saptamasına göredir. Simülasyonda olağan vuruşlarla saptanan iniş gerçek inişin birkaç
+   milisaniye çevresindedir (Bölüm 5.9); yine de v4.0 koduyla, varsayılanın 2–3 katı görüntü gürültüsünde,
+   yumuşak inişle biten yaklaşık 370 geçerli turun 1–2'sinde değerlendirilen mühür simülasyondaki gerçek
+   inişten sonra atılmıştı (varsayılan gürültüde 30 kare/s'de 370'te, 60 kare/s'de 384'te 0; olağan
+   vuruşlarda sınanan her gürültü düzeyinde 0). v4.2.0'ın eklediği yumuşak iniş yollarında fark daha
+   büyüktür: çok hafif atışlarda iniş, simülasyondaki turların onda birinde avuç durduktan yaklaşık 100 ms
+   ya da daha sonra tarihlenir ve aradaki karelerde atılan mühürler inişten önce atılmış sayılır (Bölüm 4.2,
+   5.1.8). Gerçek kamerada bu fark ölçülmemiştir. Mührün duvar saatine göre ne zaman var olduğu ayrı bir
+   ölçümdür (Bölüm 4.10).
 5. **Dürüst olmayan bir istemciyi engellemez** (Bölüm 4.8, 8.2).
 6. **Raporlanan önceliğin kesin pozitif olduğunu söylemez.** Teoremin ve D1'in "inişten önce"si kare
    sırasıdır: değerlendirilen mührün karesi iniş karesinden öncedir ve inişten önce yakalanmıştır.
@@ -857,19 +1005,20 @@ başka bir boşluk bulunmamıştır; bu, boşluk olmadığının kanıtı değil
 
 Teorem bir "hile" değildir: karar yalnızca iniş öncesi karelerden verilir ve mühürlenir; kural, yalnızca
 "iniş sonrasında şekil değiştirilemez" ilkesini nicel hâle getirir. Otomatik testlerde Turnuva ön ayarında
-kayıp gözlenmemiştir (simülasyon): karışık oturumlarda 1520 geçerli tur; dedektör düzeyindeki regresyon
-çalışmalarında 2830; incelemenin iki saldırı senaryosunda — Makas gibi açıp yüzük ve serçe parmağı son
-anda açmak (384 hüküm, 202 geçerli tur) ve YZ'yi erken açılmalarla eğitip sonra geç açmak (160 hüküm, 81
-geçerli tur) — sıfır oyuncu galibiyeti; elle kurulmuş 6000 kare dizisinden oluşan bir bulanık sınamada
-(bugünkü kodla) 5904 hüküm, 1420 geçerli tur, sıfır oyuncu galibiyeti. İnceleme düzeltmeden
-önce birinci senaryoda 6720 hükümde 192 oyuncu galibiyeti, ikincisinde geçerli turların %44'üne varan kayıp ölçmüştü. Metronom kipi
+kayıp gözlenmemiştir (simülasyon; v4.2.3 koşusu): karışık oturumlarda 1562 geçerli tur; dedektör düzeyindeki
+regresyon çalışmalarında 2831; incelemenin iki saldırı senaryosunda — Makas gibi açıp yüzük ve serçe
+parmağı son anda açmak (384 hüküm, 206 geçerli tur) ve YZ'yi erken açılmalarla eğitip sonra geç açmak (160
+hüküm, 85 geçerli tur) — sıfır oyuncu galibiyeti (v4.0'da sırasıyla 1520, 2830, 202 ve 81 geçerli tur).
+Elle kurulmuş 6000 kare dizisinden oluşan bir bulanık sınama v4.0 koduyla 5904 hüküm, 1420 geçerli tur ve
+sıfır oyuncu galibiyeti vermişti; v4.2.3 ile yinelenmemiştir. İnceleme düzeltmeden önce birinci senaryoda
+6720 hükümde 192 oyuncu galibiyeti, ikincisinde geçerli turların %44'üne varan kayıp ölçmüştü. Metronom kipi
 ayrıca sahnelenmiştir: son havadaki karenin ilan edilmiş atış anının $0{,}02$ ms öncesine yerleştirildiği
-400 turda (regresyon testi; bu metnin son denetimindeki koşuda 186 YZ galibiyeti ve 214 faul) sıfır oyuncu
+400 turda (regresyon testi; v4.2.3 koşusunda 191 YZ galibiyeti ve 209 faul, v4.0'da 186 ve 214) sıfır oyuncu
 galibiyeti. Bütün kipleri ve bu sahnelerin rastgele birleşimlerini kapsayan bir saldırı bulanık sınaması
-da (Bölüm 6.9) 15 000 oturumda, metronom kiplerindeki 6696 tur dâhil 14 579 geçerli
-turda sıfır oyuncu galibiyeti vermiştir. Bu sayılar teoremin yerine geçmez; gerçeklemenin teoremle uyumlu
-davrandığını gösteren regresyon kanıtıdır. Standart
-ve Serbest ön ayarları belirsiz bölgeyi genişleterek insana meşru bir kazanma payı bırakır. Bölüm 6 bu
+da (Bölüm 6.9) v4.2.3 koduyla 15 000 oturumda, metronom kiplerindeki 7962 tur dâhil 17 404 geçerli turda
+sıfır oyuncu galibiyeti vermiştir (v4.0'da 6696 metronom turu dâhil 14 579 geçerli tur; aynı sınama v4.2.2'de
+16 911 geçerli turda 7 kayıp bulmuştur, yukarıda (d)). Bu sayılar teoremin yerine geçmez; gerçeklemenin
+teoremle uyumlu davrandığını gösteren regresyon kanıtıdır. Standart ve Serbest ön ayarları belirsiz bölgeyi genişleterek insana meşru bir kazanma payı bırakır. Bölüm 6 bu
 ödünleşimi (kayıp oranı – faul ve geçersiz payı – karar önceliği) nicel olarak verir.
 
 ## 4.8 Taahhüt–ifşa protokolü
@@ -925,7 +1074,8 @@ dışındadır.
 D6, öğrenilenleri iki sınıfa ayırır. **Oyun hakkındaki** her şey — dizi modeli, güvenlik bütçesi, füzyon
 ağırlıkları, açılma zamanlaması, şekil şablonları ve ölçütler — yalnızca geçerli turlardan öğrenilir; faul
 ve geçersiz turlar yalnızca sayaçları artırır, iptal edilen turlar hiçbir şey öğretmez. **Algılayıcı
-kalibrasyonu** ise (aşağıda) belirli geçersiz turlardan da uyarlanabilir. Her geçerli turdan sonra şunlar
+kalibrasyonu** ise (aşağıda) belirli geçersiz turlardan ve v4.2.0'dan beri bir faul türünden de
+uyarlanabilir. Her geçerli turdan sonra şunlar
 güncellenir:
 
 1. **Dizi modeli:** bütün uzman tabloları, CTW/PPM ağaçları ve karışım ağırlıkları (Bölüm 4.5).
@@ -953,8 +1103,9 @@ $$
    son aralık yanlılığı), **hareket içi gürültü** ve **sinirsel etiket karışıklık matrisi**.
 4. **Şekil şablonları.** Oturan şeklin sınıf şablonları (ortalama ve sapma) o sınıfın geçerli turlarından
    güncellenir. Başlangıç sapmaları **sınıfa özgüdür**: Taş $[0{,}16;\,0{,}16;\,0{,}18;\,0{,}20]$, Kâğıt
-   $[0{,}22;\,0{,}22;\,0{,}24;\,0{,}26]$, Makas $[0{,}22;\,0{,}22;\,0{,}18;\,0{,}20]$ (işaret, orta, yüzük,
-   serçe). Kapalı parmaklar dar, açık parmaklar geniş tutulur: gevşek açılmış bir parmak tam düz değildir
+   $[0{,}22;\,0{,}22;\,0{,}24;\,0{,}26]$, Makas $[0{,}25;\,0{,}25;\,0{,}22;\,0{,}22]$ (işaret, orta, yüzük,
+   serçe; Makas'ınkiler v4.2.0'dan beri, önce $[0{,}22;\,0{,}22;\,0{,}18;\,0{,}20]$). Kapalı parmaklar dar,
+   açık parmaklar geniş tutulur: gevşek açılmış bir parmak tam düz değildir
    ve bükülme negatif olmayan açıların toplamı olduğundan eklem gürültüsü düz bir parmağı yalnızca
    "bükülmüş" okutabilir (yanlılık tek yönlüdür). Öğrenilen sapma $[0{,}12;\,0{,}35]$ aralığında tutulur
    (alt sınır önce 0,08 idi).
@@ -970,11 +1121,15 @@ $$
 **Geçersiz turlardan kalibrasyon: D6'nın inceltilmesi.** Kalibrasyon — ve yalnızca o — iki tür geçersiz
 turdan da uyarlanır: YUMRUK YOK hükmünde hazırlık duruşunun bükülmesinden; BELİRSİZ ŞEKİL hükmünde, oturan
 şekil kararlıysa (son örneklerde hiçbir parmağın açılması $0{,}25$'ten fazla oynamamışsa), açılması
-$0{,}55$'i geçen parmakların bükülmesinden. Bunun D6'yı çiğnemediğinin gerekçesi üç noktadır. (i)
+$0{,}55$'i geçen parmakların bükülmesinden. v4.2.0'dan beri bir faul türünden de uyarlanır: oturan el Makas
+sınıflanmış, tur arka grubun havada açık okunması yüzünden geç kapanma faulü almış ve oturan elde
+işaret–orta V açısı en az 18° ise, hazırlık duruşunun bükülmesinden ve işaret ile orta parmağın
+bükülmesinden (bu yolun ayrı bir ölçüm kaydı yoktur). Bunun D6'yı çiğnemediğinin gerekçesi üç noktadır. (i)
 Kalibrasyon **ölçüm aygıtını** betimler: bu kameranın bu elin yumruğu ve açık parmakları için hangi açıları
 bildirdiğini. Oyuncunun ne oynadığı, ne zaman açtığı ya da turu kimin kazandığı hakkında hiçbir şey
-taşımaz. (ii) Güncelleme hiçbir oyun sonucunu kullanmaz: geçersiz bir turun kazananı yoktur ve YZ'nin
-mührü güncellemeye girmez. (iii) Onsuz bir **soğuk başlangıç kilitlenmesi** oluşur: varsayılan
+taşımaz. (ii) Güncelleme hiçbir oyun sonucunu kullanmaz: geçersiz ya da faul sayılan bir turun kazananı
+yoktur ve YZ'nin mührü güncellemeye girmez. (iii) Onsuz bir **soğuk başlangıç kilitlenmesi** oluşur:
+varsayılan
 kalibrasyonun yanlış okuduğu bir el (gevşek açılan parmaklar) hiç geçerli Kâğıt turu üretemez, geçerli tur
 olmadan da kalibrasyon düzelmez. İnceleme böyle bir elde Kâğıt'ın yaklaşık 100 deneme boyunca
 oynanamadığını ölçmüştü. Regresyon testinde (simülasyon) parmakları varsayılan açık okumanın %75'inde
@@ -984,8 +1139,9 @@ dizi modeline hiçbir şey öğretmediğini doğrular. Yumruk için de aynı şe
 varsaydığı 215° yerine toplam 120° bükülen (yani varsayılan kalibrasyonun yarı açık okuduğu) bir elde ilk
 tur YUMRUK YOK ile geçersizdir, yumruk açısı o turdan öğrenilir ve son 12 denemenin 11'i geçerlidir. Bunun
 önkoşulu, böyle bir elin tur başlatabilmesidir; sayımın başlama kapısı bu yüzden YUMRUK YOK eşiğinden
-gevşektir (Bölüm 5.4). Tek atış kipinde kurulma eşiği sıkı tutulmuştur (gevşek bir eşik, kadrajda dinlenen
-bir elde kur–iptal döngüsüne girerdi); o kip, yumruğu çok yanlış okunan bir eli hâlâ dışarıda bırakabilir.
+gevşektir (Bölüm 5.4). Tek atış kipinde kurulma eşiği sıkı tutulmuştur ($0{,}45$, yani YUMRUK YOK eşiği;
+v4.2.0'dan beri, önce $0{,}4$; gevşek bir eşik, kadrajda dinlenen bir elde kur–iptal döngüsüne girerdi);
+o kip, yumruğu çok yanlış okunan bir eli hâlâ dışarıda bırakabilir.
 Kalibrasyon sınırlıdır: açılar fiziksel aralıklara kırpılır, yumruk ile açık arasında en az 60° tutulur ve
 tek bir tur farkın en çok %15'i kadar oynatır.
 

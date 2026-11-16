@@ -89,20 +89,26 @@ hesaplanmıştır. "Güzel görünen" aralıklara sıkıştırma, sabit güven d
 mühürlediğine ya da turu kimin kazanacağına bakmaz; yalnızca iniş öncesi kinematik kanıta (sabit,
 oyuncudan bağımsız bir önsel altında) ve iniş sonrasında oturan şekle dayanır. **Atışa ait** taze bir
 havadaki kanıt — inişten kısa süre önce, YZ'nin revize etmekte serbest olduğu izlenen bir kare — yoksa tur
-geçersizdir, asla faul değildir: izleyicinin boşluğu oyuncuya yazılmaz.
+geçersizdir, asla faul değildir: izleyicinin boşluğu oyuncuya yazılmaz. Hakemin okuduğu yönelimler, son
+havadaki kareyle birlikte saklanan **hakem yönelimleri**dir: YZ'nin o karede karşısında karar verdiği
+sayıların kendisi. O kareden sonra bilinen hiçbir şey — oturan şekil de — YZ'nin yasal kümesinde bulunmayan
+bir atışı geçerli kılamaz; son havadaki karenin hakem yönelimlerinden ayrı okunan kendi değerleri de bir
+atışı yalnızca geçersiz kılabilir (çelişen kareler; Bölüm 4.4).
 
 **D6 — Öğrenme hijyeni.** Oyun hakkındaki her şey (hamle dizisi, güvenlik bütçesi, füzyon ağırlıkları,
 açılma zamanlaması, şekil şablonları, ölçütler) yalnızca geçerli turlardan öğrenilir; faul ve geçersiz
 turlar yalnızca sayaçları günceller. Tek istisna algılayıcı kalibrasyonudur: kameranın bu elin yumruğunu
-ve açık parmaklarını hangi açılarla okuduğu, "yumruk yok" ve kararlı "belirsiz şekil" turlarından da
-uyarlanabilir. Kalibrasyon ölçüm aygıtını betimler ve hiçbir oyun sonucunu kullanmaz (gerekçesi Bölüm
-4.9'dadır).
+ve açık parmaklarını hangi açılarla okuduğu, "yumruk yok" ve kararlı "belirsiz şekil" turlarından, v4.2.0'dan
+beri ayrıca işaret–orta V açısı en az 18° olan bir Makas'ın geç kapanma faulünden de uyarlanabilir.
+Kalibrasyon ölçüm aygıtını betimler ve hiçbir oyun sonucunu kullanmaz (gerekçesi Bölüm 4.9'dadır).
 
 Değişmezlerin bu ifadeleri, kaynak koddaki tur motorunun başlığındaki (`web/js/core/round_engine.js`)
-I1–I6 tanımlarıyla aynıdır. D1, D3, D5 ve D6'nın yukarıdaki inceltilmiş hâlleri, v4'ün bağımsız
-incelemesinde bulunan kenar durumlarının sonucudur (Bölüm 5.1.6); D1'deki kare sırası ifadesi ve atılamayan
-mühür kaydı ile D5'teki "atışa ait" ve "revize etmekte serbest" kayıtları ise incelemeden sonra bulunan üç
-deliğin sonucudur (Bölüm 4.7).
+I1–I6 tanımlarıyla aynıdır; tek fark, v4.2.0'ın eklediği faulden kalibrasyonun başlıktaki I6'da
+anılmamasıdır (motor onu uygular; Bölüm 4.9). D1, D3, D5 ve D6'nın yukarıdaki inceltilmiş hâlleri, v4'ün
+bağımsız incelemesinde bulunan kenar durumlarının sonucudur (Bölüm 5.1.6); D1'deki kare sırası ifadesi ve
+atılamayan mühür kaydı ile D5'teki "atışa ait" ve "revize etmekte serbest" kayıtları ise incelemeden sonra
+bulunan üç deliğin sonucudur (Bölüm 4.7). D5'teki hakem yönelimleri kaydı, v4.2.1'de kırılan Turnuva
+güvencesinin v4.2.3'teki onarımından gelir (Bölüm 4.7, (d); Bölüm 5.1.8).
 
 ## 3.4 "Hamleden önce karar" ne demektir?
 
@@ -133,8 +139,11 @@ Nedensellik gereği, hamle hakkında hiçbir fiziksel ipucu ortaya çıkmadan *k
 üstünlük sağlar ve en kötü durumda beklenen kayıp sınırlıdır (Bölüm 4.6); (b) kinematik kanal, parmak
 açılmasının *başlangıcını* iniş öncesinde yakalayarak kalan belirsizliği büyük ölçüde kapatır; (c) açıkça
 ilan edilmiş "geç hamle" kuralının en sıkı ayarında (Turnuva) YZ geçerli bir turu **kural gereği** kaybetmez
-(Teorem 1, Bölüm 4.7; teoremin, turun geçerli olması dışında bir önkoşulu yoktur). Bu, tahminin iyi olduğu
-anlamına gelmez: kuralın bedeli tekrarlanan turlardır — faul ve geçersiz — ve sistemin ölçüsü geçerli
+(Teorem 1, Bölüm 4.7; teoremin, turun geçerli olması dışında bir önkoşulu yoktur, ama güvence gerçeklemenin
+teoremle uyumuna bağlıdır: v4.2.1 ve v4.2.2'de bir gerçekleme hatası onu bozmuş, v4.2.3 onarmıştır, Bölüm
+5.1.8). Bu, tahminin iyi olduğu anlamına gelmez: kuralın bedeli tekrarlanan turlardır — faul ve geçersiz — ve sistemin ölçüsü geçerli
 turlardaki oran değil, bütün denemeler içinde kazanılan ve sonuçsuz kalan paylardır (Bölüm 4.10). Daha gevşek kurallarda insanın meşru kazanma olasılığı ölçülür ve raporlanır.
-Raporlanan sayısal sonuçların tamamı **simülasyon** sonuçlarıdır (Bölüm 6); gerçek insan verisiyle
-doğrulama için gereken deney protokolü ve veri dışa aktarma aracı sistemle birlikte sunulmuştur.
+Bölüm 6'daki sayısal sonuçların tamamı **simülasyon** sonuçlarıdır; gerçek kameradan yalnızca tek bir
+oyuncunun, sürümü kaydedilmemiş yerel kayıtları vardır ve bunlar bir deney yerine geçmez (Bölüm 5.1.8).
+Gerçek insan verisiyle doğrulama için gereken deney protokolü ve veri dışa aktarma aracı sistemle birlikte
+sunulmuştur.

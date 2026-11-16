@@ -1,10 +1,11 @@
 # 5. Sistem Tasarımı ve Gerçekleme
 
 Bölüm 5.1 önceki sürümün denetimidir ve ayrı dosyadadır: [5.1 Önceki Sürümün Denetimi](05a-onceki-surum-denetimi.md).
-Aynı dosyanın son alt bölümü (5.1.6), v4'ün kendisine uygulanan bağımsız incelemeyi ve bu bölümde
-anlatılan tasarımın o incelemeden sonra nasıl değiştiğini özetler. Bu dosya 5.2'den başlar ve kodun
-**inceleme sonrası** hâlini, ilk gerçek kamera denemesinden sonraki değişikliklerle birlikte betimler
-(Bölüm 5.7).
+Aynı dosyanın 5.1.6 alt bölümü, v4'ün kendisine uygulanan bağımsız incelemeyi ve bu bölümde anlatılan
+tasarımın o incelemeden sonra nasıl değiştiğini özetler; 5.1.7 ilk gerçek kamera denemesini, son alt bölümü
+(5.1.8) v4.2 sürümlerinin denetimini ve v4.2.3'teki düzeltmeleri anlatır. Bu dosya 5.2'den başlar ve kodun
+**inceleme sonrası** hâlini, ilk gerçek kamera denemesinden sonraki değişiklikler (Bölüm 5.7) ve v4.2.0–v4.2.3
+(Bölüm 5.1.8) ile birlikte, yani v4.2.3 kodunu betimler.
 
 ## 5.2 Mimari
 
@@ -25,7 +26,9 @@ ui  →  app  →  core  ←  sim
 - **platform**: tarayıcı bağdaştırıcıları (kamera, el izleyici, gizlilik çizeri, ses, yerel depo, isteğe
   bağlı bulut).
 - **app**: denetleyici, kare kaynakları ve gözlemlenebilir depo; bilim ve DOM içermez.
-- **ui**: görünümler. Kullanıcıya görünen bütün metinler ve sayı biçimleri tek dosyadadır (`strings_tr.js`).
+- **ui**: görünümler. Kullanıcıya görünen metinler ve sayı biçimleri tek dosyadadır (`strings_tr.js`).
+  v4.2.0'ın eklediği düz dilli tur özetinin (`views/report.js`), sürüm bildiriminin (`main.js`) ve panoya
+  kopyalama düğmesinin (`views/lab.js`) metinleri ise bu dosyanın dışında, kodun içindedir (Bölüm 7).
 
 | Dosya | Sorumluluk | Başlıca işlevler |
 |---|---|---|
@@ -39,11 +42,11 @@ ui  →  app  →  core  ←  sim
 | `core/stroke.js` | Ritim, uçuş evreleri, iniş ve iniş kestirimi; olaylar: `descentStart`, `apex`, `bottom`, `weakBottom`, `falseStart`, `rhythmReset` | `createStrokeTracker`, `predictLanding` |
 | `core/opening.js` | Açılma başlangıcı için Bayesyen eşleşmiş süzgeç bankası; tek atış kipi için ızgara kaydırma | `observe`, `headingNow`, `evidence`, `slide`, `measureOpening` |
 | `core/pose.js` | İniş sonrası durağan şekil sınıflandırıcısı (yalnızca hakem için); sınıfa özgü şablon sapmaları | `decideFinal`, `completionTime` |
-| `core/decision.js` | İki kanalın füzyonu, hakemin yasal kümesi, karar ve revizyon kuralları, füzyon ağırlıklarının öğrenilmesi | `fuse`, `foulNow`, `legalMassFor`, `chooseAction`, `shouldRevise`, `learnFusionWeights` |
+| `core/decision.js` | İki kanalın füzyonu, hakemin yasal kümesi (v4.2.3'ten beri hakemin "net Makas" kuralının kabul edebileceği atışlar dâhil: `coupledScissors`), karar ve revizyon kuralları, füzyon ağırlıklarının öğrenilmesi | `fuse`, `foulNow`, `legalMassFor`, `chooseAction`, `shouldRevise`, `learnFusionWeights` |
 | `core/sequence/*` | Davranış kanalı: 26 uzman, CTW, PPM, topluluk önseli, karışım | `createSequenceModel`, `createMixture` |
 | `core/safety.js` | Bütçeli güvenli sömürü (Önerme 1) | `decide`, `account` |
 | `core/player_model.js` | Bir oyuncu hakkında öğrenilen her şey; sürümlü tek JSON belgesi. `learnFromRound` yalnızca geçerli turlarda, `learnPosture` (algılayıcı kalibrasyonu) belirli geçersiz turlarda da çağrılır | `learnFromRound`, `learnPosture`, `onsetPrior`, `toJSON`, `load` |
-| `core/round_engine.js` | Tur durum makinesi ve hakem; dürüstlük değişmezleri burada zorlanır | `pushFrame`, `snapshot`, `acknowledge`, `armMetronome`, `abortRound` |
+| `core/round_engine.js` | Tur durum makinesi ve hakem; dürüstlük değişmezleri burada zorlanır. v4.2.3'ten beri hakem yönelimleri her havadaki karede hesaplanıp kareyle saklanır (`refereeHeadings`); YZ o karede bu yönelimlere göre karar verir, hakem son havadaki karenin saklanan değerlerini okur (Bölüm 5.1.8) | `pushFrame`, `snapshot`, `acknowledge`, `armMetronome`, `abortRound` |
 | `core/metrics.js` | Değerlendirme ölçütleri (Bölüm 4.10): koşullu (`winRate`, `lossRate`, `unbeaten`, `pValueVsChance`) ve koşulsuz (`attemptWinRate`, `noResultRate`, `voidRate`) oranlar, `kinematicLeadMs`; yüklenen belgenin tutarlılık denetimi | `record`, `summary`, `load` |
 | `core/mindtwin.js` | Parmak açıklığının 120 ms ilerisi için öngörü ve ölçülen becerisi | `createTwinPredictor` |
 | `sim/hand_model.js` | Açıklıklardan 21 noktaya ileri kinematik (çekirdeğin tam tersi) | `handLandmarks` |
@@ -54,9 +57,10 @@ ui  →  app  →  core  ←  sim
 | `platform/hand_tracker.js` | MediaPipe jest tanıyıcı bağdaştırıcısı; kitaplık, sürümü sabitlenmiş tek dosyadan yüklenir; GPU öncelikli, CPU yedekli; yüklemede ısınma; sürekli hatada öteki temsilciye geçiş; kullandığı temsilci (`delegate`: GPU ya da CPU); kalıcı hata bildirimi (`onFailure`) | `createHandTracker` |
 | `platform/hand_focus.js` | Kameradaki gizlilik korumalı görüntü: görüntünün tamamı bulanık, yalnızca izlenen el net (Bölüm 5.8); net bölgenin ve `object-fit: cover` izdüşümünün saf geometrisi | `createHandFocus`, `handMaskGeometry`, `coverFit` |
 | `platform/storage.js` | Yerel depo ve bellek içi ayna, ayar doğrulama, profiller | `createStorage`, `sanitiseSettings` |
-| `platform/cloud.js` | İsteğe bağlı anonim istatistik eşitleme: tek bir veritabanı işlevine tek çağrı; gönderilen satırı `roundPayload` kurar | `createCloud`, `roundPayload` |
+| `platform/cloud.js` | İsteğe bağlı (varsayılan kapalı) istatistik eşitleme, rastgele kimlikle: geçerli tur satırı (`roundPayload`) ve hükme bağlanan her turun tanılama satırı (`diagnosticPayload`); oyuncu modeli gönderilmez, hiçbir şey geri okunmaz | `createCloud`, `roundPayload`, `diagnosticPayload` |
 | `platform/audio.js` | Ses kliklerinin ses saatinde zamanlanması ve iptali (`cancelMetronome`), Türkçe sesli sayım | `createAudio` |
-| `app/controller.js`, `app/sources.js`, `app/store.js` | Oyun akışı ve yaşam döngüsü (Bölüm 5.4.1), kare kaynakları (kamera / demo), durum deposu; eylemler arasında `abortRound` ve `exportData` (Bölüm 5.5) | `createController`, `createDemoSource`, `createCameraSource` |
+| `app/controller.js`, `app/sources.js`, `app/store.js` | Oyun akışı ve yaşam döngüsü (Bölüm 5.4.1), kare kaynakları (kamera / demo; v4.2.0'dan beri izleyiciye küçültülmüş kare kopyası, kurtarma denemesi ve 160 ms'lik görüntü payı, Bölüm 5.3, Ek A.10), durum deposu; eylemler arasında `abortRound` ve `exportData` (Bölüm 5.5) | `createController`, `createDemoSource`, `createCameraSource` |
+| `main.js` | Bileşim kökü: modülleri kurar, geliştirme barındırıcısını tanır (Bölüm 5.8); v4.2.0'dan beri sürüm bildirimi (Bölüm 7.7) ve geliştirme barındırıcısında her gerçek kamera turunun yerel sunucuya kaydı (Ek A.10) | — |
 
 ## 5.3 Kare boru hattı
 
@@ -80,10 +84,13 @@ taahhüt üretmez (D1).
 
 **Motordan sonra kare başına model yok.** Kamera görüntüsünün gizlilik korumalı hâli (yalnızca el net; Bölüm
 5.8) kare boru hattında değil, ekrana çizim sırasında üretilir; motor bir kareyi işledikten sonra kare başına
-çalışan bir model yoktur. Kamera kaynağı izlediği her kareyi bir kez bir tuvale kopyalar: el izleyici bu
-kopyayı okur, çizer de aynı kopyayı o karenin **ham** noktalarıyla birlikte kullanır. Net bölge böylece
-noktalarının çıkarıldığı karenin üstüne çizilir, `<video>` öğesinin çizim anında gösterdiği daha yeni bir
-kareye değil. Bedeli şudur: gizlilik açıkken gösterilen görüntü, canlı kameranın yaklaşık bir izleyici
+çalışan bir model yoktur. Kamera kaynağı izlediği her kareyi bir kez bir tuvale kopyalar (v4.2.0'dan beri
+uzun kenarı en çok 640 piksel): el izleyici bu kopyanın küçültülmüş bir hâlini (uzun kenarı en çok 384
+piksel) okur, çizer de kopyanın kendisini o karenin **ham** noktalarıyla birlikte kullanır (Ek A.10). Net
+bölge böylece noktalarının çıkarıldığı karenin üstüne çizilir, `<video>` öğesinin çizim anında gösterdiği
+daha yeni bir kareye değil; v4.2.0'dan beri tek istisna, izleme koptuktan sonraki en çok 160 ms'dir: bu
+sürede son izlenen karenin noktaları yeni karelerin üstüne çizilir, motora giden kare ise el yok olarak gider
+(Bölüm 5.8). Bedeli şudur: gizlilik açıkken gösterilen görüntü, canlı kameranın yaklaşık bir izleyici
 çıkarımı kadar gerisindedir. İlk izlenen kare gelene kadar çizer canlı video öğesini kullanır. Önceki
 gerçeklemelerin yüz dedektörü kaldırılmıştır: ilk v4 gerçeklemesinde el izlemeden önce çalışıp her mührü
 kendi çıkarım süresi kadar geciktiriyor (Bölüm 5.1.6), inceleme sonrasında motordan sonra çalışıyordu. Kamera
@@ -103,16 +110,23 @@ stateDiagram-v2
     FLIGHT --> ARMED: tek atış kipi, zayıf vuruş ya da yanlış başlangıç
     FLIGHT --> FLIGHT: kare / gerekirse revizyon mührü
     FLIGHT --> SETTLING: iniş (vuruş, yumuşak iniş ya da metronom)
-    SETTLING --> RESOLVED: şekil oturdu ya da 450 ms doldu / hüküm, ifşa, doğrulama
+    SETTLING --> RESOLVED: şekil oturdu ya da 420 ms doldu / hüküm, ifşa, doğrulama
     RESOLVED --> IDLE: onay (sonraki tur ya da yeni seri)
-    PRIMING --> IDLE: el 400 ms yok, ritim koptu ya da metronom sayımı duraksadı (iptal)
-    FLIGHT --> IDLE: el 400 ms yok, ritim koptu (atış vuruşu gelmedi) ya da tek vuruş 1,5 s'de bitmedi (iptal)
-    ARMED --> IDLE: el 400 ms yok ya da el vuruşsuz 600 ms açık kaldı (iptal)
+    PRIMING --> IDLE: el 600 ms yok, ritim koptu ya da metronom sayımı duraksadı (iptal)
+    FLIGHT --> IDLE: el 600 ms yok, ritim koptu (atış vuruşu gelmedi, yumuşak iniş koşulu yok) ya da tek vuruş 1,5 s'de bitmedi (iptal)
+    ARMED --> IDLE: el 600 ms yok ya da el vuruşsuz 600 ms açık kaldı (iptal)
 ```
+
+Süreler v4.2.0'dan beridir (önce oturma 450 ms, el kaybı 400 ms; Ek A.6). Serbest ritimli hazırlık vuruşlu
+kiplerde, uçuş sırasında kopan ritim v4.2.0'dan beri turu her zaman iptal etmez: bir yumuşak iniş adayı varsa,
+ön grubun hakem büyüklüğü $h_F\ge0{,}5$ ise ya da bir tepe görülmüş ve uçuşta en az dört kare izlenmişse tur
+yumuşak iner (Bölüm 4.2).
 
 `commit()` yalnızca ARMED ve FLIGHT evrelerinde çağrılabilir; başka bir evrede çağrılırsa hata fırlatır. Tek
 atış kipinde davranış mührü ARMED'e girerken atılır, kinematik revizyon ise iniş hareketi başladıktan sonra
-serbest kalır. Ritim, son vuruştan sonra dönemin 1,9 katı kadar süre vuruş gelmezse düşer. Sayım, ilk
+serbest kalır. Ritim, son vuruştan sonra dönemin 2,2 katı kadar (en az 1250 ms; dönem henüz kestirilmemişken,
+yani tek bir vuruştan sonra 1750 ms) süre vuruş gelmezse düşer; bir iniş hareketi sürerken düşmez
+(v4.2.0'dan beri; önce dönemin 1,9 katı, alt sınırsız; Ek A.2). Sayım, ilk
 vuruşta el **açıkça açık** değilse (ön ve arka grubun ham açıklığı $0{,}7$'nin altında) başlar; bu eşik
 YUMRUK YOK eşiğinden ($0{,}45$) bilerek gevşektir: geçerli kalibrasyonun yarı açık okuduğu bir yumruk da tur
 başlatabilmeli ki hakem turu YUMRUK YOK ile geçersiz sayabilsin ve kalibrasyon ondan öğrenebilsin (Bölüm
@@ -157,7 +171,8 @@ Denetleyicinin uyduğu kurallar şunlardır:
 
 **Demo tohumu.** Kamerasız demonun varsayılan tohumu (20261112) rastgele değildir: 20261111–20261510
 aralığındaki 400 tohum taranmış, ilk on turu geçerli olan ve ilk beş turunda üç hamlenin de göründüğü 153
-tohum arasından seçilmiştir. **Elle seçilen yalnızca açılıştır**; demonun uzun dönemdeki faul ve kazanma
+tohum arasından seçilmiştir (tarama v4.2'den önceki kodla yapılmıştır; v4.2.3 koduyla da bu tohumun ilk on
+turu geçerlidir ve ilk beş turunda üç hamle de görünür). **Elle seçilen yalnızca açılıştır**; demonun uzun dönemdeki faul ve kazanma
 oranları simülatörünkilerdir (Bölüm 6) ve `?seed=N` başka herhangi bir diziyi oynatır. Demonun boşta
 kareleri ayrı bir rastgele akış kullanır; bu sayede bir tohum, gerçek zamanlı akışın hızından bağımsız
 olarak aynı atışları verir.
@@ -171,7 +186,7 @@ olarak aynı atışları verir.
 | Profil listesi | Anonim rastgele kimlikler ve adlar | `localStorage: beatter.v4.profiles` |
 | Mühür zinciri | Bütün taahhütler (kare zamanı `t` ve özetin üretildiği duvar saati anı `sealedAt` ile); ifşa edilen turların yükleri. İptal edilen turların mühürleri de açılmış olarak yer alır | Yalnızca bellekte (sayfa oturumu boyunca tek kayıt); JSON olarak dışa aktarılabilir |
 | Tur sonucu | Hüküm, hamleler, iniş kaynağı ve iniş karesinin dizini (`landingFrame`), bütün mühürler (her birinin karesi ve "iniş sonrası" işaretiyle), ölçülen zamanlar (kamera turlarında kare → mühür gecikmesi ve duvar saati önceliği dâhil), son havadaki karenin yaşı, kinematik ölçümler, mühür anındaki inanç, izler | Son turun tam sonucu bellekte (rapor için) |
-| Oturumun tur kayıtları | Bu sayfa oturumunda hükme bağlanan her turun sonucu, **izler ve mühür yükleri olmadan** (aşağıda); kamera ve demo turları, her biri `simulated` işaretiyle | Yalnızca bellekte, en çok 2000 tur; hiçbir zaman yerel depoya yazılmaz ve buluta gönderilmez; JSON olarak dışa aktarılabilir |
+| Oturumun tur kayıtları | Bu sayfa oturumunda hükme bağlanan her turun sonucu, **izler ve mühür yükleri olmadan** (aşağıda); kamera ve demo turları, her biri `simulated` işaretiyle | Yalnızca bellekte, en çok 2000 tur; hiçbir zaman yerel depoya yazılmaz ve buluta gönderilmez; JSON olarak dışa aktarılabilir (yalnızca geliştirme barındırıcısında v4.2.0'dan beri yerel sunucuya da yazılır; Bölüm 5.8) |
 
 **Dışa aktarım.** `actions.exportData()` tek bir JSON belgesi üretir (`format: beaTTer/v4/export`): ayarlar,
 oyuncu modeli ve profili, ölçüt özetleri, mühür zinciri ve — bu metnin olgu denetiminden sonra eklenen —
@@ -224,9 +239,9 @@ ilgili satırlar önselin *kendi kaynağına* karşı sınanmasıdır ve iyimser
 
 ## 5.7 Test stratejisi
 
-`npm test`, Node.js'in yerleşik test koşucusuyla dokuz dosyadaki **113 testi** çalıştırır; bu metnin son
-denetimindeki koşuda 113'ü de geçmiştir (koşucunun özeti: 113 test, 113 başarılı, 0 başarısız; toplam süre
-15,2 s). Testler tohumlu üreteç
+`npm test`, Node.js'in yerleşik test koşucusuyla dokuz dosyadaki **126 testi** çalıştırır (v4.2.3); bu
+metnin son denetimindeki koşularda 126'sı da geçmiştir (koşucunun özeti: 126 test, 126 başarılı,
+0 başarısız; toplam süre makinenin o andaki yüküne bağlıdır). Testler tohumlu üreteç
 kullandığından yinelenebilirdir. Uygulama yaşam döngüsü testlerinin çoğu ise gerçek zamanlayıcılarla (40 kat
 hızlandırılmış demo) çalışır: içlerinde oynanan turların ayrıntısı koşudan koşuya değişir ve sonuçlarının
 yükten bağımsız olması ayrıca sınanmıştır (Bölüm 5.1.6, aynı dosyanın dört koşu paralel yürütülerek 24 kez
@@ -235,13 +250,13 @@ koşulması); süre ölçümleri de makineye ve o andaki yüke bağlıdır.
 | Test dosyası | Test sayısı | Kanıtladığı |
 |---|---|---|
 | `foundation.test.js` | 9 | Kazanç matrisi; SHA-256 (NIST vektörleri, BMP dışı metin, Web Crypto ile uyum); sayısal yardımcılar; üreteçler; taahhüt kaydı (bağlayıcılık, ifşaya kadar gizlilik, zincir, kurcalama saptama); ölçütlerin tur sayımlarıyla birebir uyumu; kalibrasyon hatası; şekil sınıflandırıcı; MindTwin öngörüsü |
-| `kinematics_stroke.test.js` | 8 | Açıların dönme/ölçek/öteleme/ayna değişmezliği (200 rastgele poz, $10^{-6}$); el modelinin çekirdeğin tam tersi olması; gürültü dayanıklılığı; vuruş sayımı ve inişin gerçek dibe tarihlenmesi; kamera uzaklığından bağımsızlık; iniş kestirimi doğruluğu |
+| `kinematics_stroke.test.js` | 9 | Açıların dönme/ölçek/öteleme/ayna değişmezliği (200 rastgele poz, $10^{-6}$); el modelinin çekirdeğin tam tersi olması; gürültü dayanıklılığı; vuruş sayımı ve inişin gerçek dibe tarihlenmesi; kamera uzaklığından bağımsızlık; iniş kestirimi doğruluğu; avuç boyunun, eklemleri kameraya dönük ya da yan duran bir yumrukta da kararlı kalması (v4.2.0) |
 | `opening_decision.test.js` | 18 | Dedektör davranışı (yumrukta düşük $h$, başlangıcın erken saptanması, yeniden çapalama, geç başlangıcın "geç" sayılması); hakem büyüklüğünün iniş kestiriminden bağımsızlığı; füzyon ve karar kuralları; Lemma 1; güvenliğin inancın büyüklüğüne değil hakemin yasal kümesine bağlı olması; istatistiksel regresyonlar; kare başına süre |
 | `sequence.test.js` | 16 | CTW'nin kaba kuvvet karışımıyla eşleşmesi ve normalize edilmemiş kestirim kütlesinin 1 olması; PPM-C; topluluk önseli; 26 uzman; karışımın normalizasyonu ve uyuyan uzmanlar; yakınsama, örüntü öğrenme, tarz değişimini izleme; rastgele oyuncuda aşırı uyum olmaması; Önerme 1 sınırı |
 | `round_engine.test.js` | 11 | Uçtan uca turlar; ifşa öncesi gizlilik; binlerce karışık turda değişmezler; hakem kuralları; D5; kurcalama; kipler; yumuşak iniş; öğrenme ve seri hâle getirme; bozuk kare dayanıklılığı |
 | `controller.test.js` | 6 | Ayar doğrulama; depo ve bellek yedeği; durum deposu; demonun gerçek motoru uçtan uca sürmesi; rapor akışı ve dışa aktarımın tur kayıtları; metronom ve MindTwin kipleri |
-| `engine_regressions.test.js` | 25 | Bağımsız incelemenin çekirdekte bulduğu, yeniden üretilebilen kusurlar ve incelemeden sonra bulunan delikler için regresyon testleri: tur numaralarının sürmesi; Turnuva'ya iki saldırı senaryosu; titreyen el; inişin üç sonu; tek atış kipi (taban çizgisi, uzun bekleme, erken açanlar, düşen bir kareye sığan görülmemiş vuruş); 120 ve 144 kare/s'de D1; ilan edilmiş atış anının 0,02 ms öncesindeki karede atılan mührün değerlendirme dışı kalmaması; Turnuva'da yasal kümenin hiçbir hakem büyüklüğü değerinde — tam $\tfrac12$ dâhil — üç sınıf içermemesi; karelerin dizinde de ilerlemek zorunda olması; atılamayan bir mührün turu iptal etmesi; taahhüt kaydının mühürleyemeyeceği karelerin yok sayılması; yalnızca üç adlı ön ayarın kabulü; izleme boşluğu; metronom duraksaması; dondurma ufku; D5 (gerçekten farklı taahhütlerle); D4 (uçuş istatistikleri); D3 (iptal edilen tur); gevşek açık el ve gevşek yumrukta soğuk başlangıç; füzyon gradyanı; koşulsuz oranlar |
-| `controller_lifecycle.test.js` | 12 | İncelemenin uygulama katmanında bulduğu kusurlar: her tür motor yeniden kurulumundan sonra oyunun sürmesi; kamera ↔ demo geçişleri ve aygıtın bırakılması; bekleyen kamera başlatması sırasında açılan demo; reddedilen ya da başarısız başlatma; kamera kaybı; biten seri; iptalde canlı şerit ve mühür bildirimi; tek atış kipinde demo oyuncusunun kendisini bekleyen motoru beklememesi (sonradan bulunan kilitlenme); metronom zamanlayıcıları; bulut kararının tek yerde verilmesi; bulut satırı; depo aynası |
+| `engine_regressions.test.js` | 33 | Bağımsız incelemenin çekirdekte bulduğu, yeniden üretilebilen kusurlar, incelemeden sonra bulunan delikler ve v4.2'nin denetiminde bulunan kusurlar (Bölüm 5.1.8) için regresyon testleri: YZ'nin "net Makas" kuralıyla hakemin hâlâ kabul edebileceği her atışa karşı karar vermesi; bulanık son kareli, zamanında açılmış Makas'ın ne faul ne kayıp olması; saklanan hakem yönelimleriyle son havadaki karenin çeliştiği turun faul değil geçersiz sayılması; yüzük ve serçesi geride kalan dürüst Kâğıt'ın üç ayarda faul sayılmaması; bulanık sınamanın v4.2.1'i kıran yedi oturumu ile ilk 150 oturumunun yeniden oynatılması; tur numaralarının sürmesi; Turnuva'ya iki saldırı senaryosu; titreyen el; inişin üç sonu; tek atış kipi (taban çizgisi, uzun bekleme, erken açanlar, düşen bir kareye sığan görülmemiş vuruş); 120 ve 144 kare/s'de D1; ilan edilmiş atış anının 0,02 ms öncesindeki karede atılan mührün değerlendirme dışı kalmaması; Turnuva'da yasal kümenin hiçbir hakem büyüklüğü değerinde — tam $\tfrac12$ dâhil — üç sınıf içermemesi; karelerin dizinde de ilerlemek zorunda olması; atılamayan bir mührün turu iptal etmesi; taahhüt kaydının mühürleyemeyeceği karelerin yok sayılması; yalnızca üç adlı ön ayarın kabulü; izleme boşluğu; metronom duraksaması; dondurma ufku; D5 (gerçekten farklı taahhütlerle); D4 (uçuş istatistikleri); D3 (iptal edilen tur); gevşek açık el ve gevşek yumrukta soğuk başlangıç; füzyon gradyanı; koşulsuz oranlar |
+| `controller_lifecycle.test.js` | 16 | İncelemenin uygulama katmanında bulduğu kusurlar: her tür motor yeniden kurulumundan sonra oyunun sürmesi; kamera ↔ demo geçişleri ve aygıtın bırakılması; bekleyen kamera başlatması sırasında açılan demo; reddedilen ya da başarısız başlatma; kamera kaybı; biten seri; iptalde canlı şerit ve mühür bildirimi; tek atış kipinde demo oyuncusunun kendisini bekleyen motoru beklememesi (sonradan bulunan kilitlenme); metronom zamanlayıcıları; bulut kararının tek yerde verilmesi; bulut satırı; paylaşımın varsayılan olarak kapalı olması ve veritabanı şemasının herkese açık anahtara yalnızca istemcinin üç çağrısını açması (v4.2 denetimi; şema bir veritabanında çalıştırılmaz, dosyanın metni sınanır); depo aynası |
 | `camera_privacy.test.js` | 8 | Kamera yolunun tarayıcısız sınanabilen kısmı (Bölüm 5.8): `object-fit: cover` izdüşümünün tuvali doldurması, ortalaması ve en-boy oranını koruması; net bölgenin her eklem noktasını ve her kemiği payla içermesi (45 poz: açık el, yumruk ve Makas şekli × 5 dönme × 3 konum); eklemleri kameraya dönük, avucu kısalmış bir yumruğun parmakları kadar geniş bir kapsül alması; bozuk noktaların net bölge vermemesi (görüntü tümüyle bulanık kalır); kamera kaynağının izleyiciden başka hiçbir şeyi beklemeden açılması, motora ve gizlilik çizerine aynı karenin ham noktalarını, iskelete yumuşatılmış noktaları vermesi ve kullanılan temsilciyi her karede bildirmesi (izleyici öteki temsilcide yeniden kurulunca sonraki kare bunu söyler); denetleyicideki temsilci durumunun (kare hızı rozetinin ipucu) yeniden kurulan izleyiciyi izlemesi; tuval süzgeci olmayan tarayıcılardaki yedek bulanıklığın istenen genişlikte bir Gauss olması (toplam parlaklık korunur, kenarlar kararmaz); çizerin kare boyutunu bir video öğesinden yalnızca öğenin bir karesi varken, bir tuval kopyasından ise kendi boyutundan okuması |
 
 `engine_regressions.test.js` ile `controller_lifecycle.test.js`'in hangi inceleme bulgusunu kapattığı
@@ -254,14 +269,18 @@ kendisine taşırlar (Bölüm 4.7, (c)). `controller_lifecycle.test.js`'e eklene
 başarısız olan bir yaşam döngüsü testinin izinde bulunan demo kilitlenmesini, elle sürülen bir saatle ve
 makinenin yükünden bağımsız olarak sınar (Bölüm 5.1.6). Dokuzuncu dosya, `camera_privacy.test.js` (8 test;
 105 → 113), ilk gerçek kamera denemesinden sonraki değişiklikle eklenmiştir; testlerinden üçü, değişikliğin
-yayından önceki incelemesinde bulunan kusurlar için yazılmıştır (bu bölümün sonu; Bölüm 5.8).
+yayından önceki incelemesinde bulunan kusurlar için yazılmıştır (bu bölümün sonu; Bölüm 5.8). v4.2.0,
+`kinematics_stroke.test.js`'e avuç boyunun yeni tanımı için bir test eklemiştir (8 → 9; 113 → 114). v4.2'nin
+denetiminde ve düzeltmelerin yayından önceki incelemesinde (Bölüm 5.1.8) bulunan kusurlar için on iki test
+yazılmıştır: sekizi `engine_regressions.test.js`'te (25 → 33), dördü `controller_lifecycle.test.js`'tedir
+(12 → 16); paket böylece 126 teste çıkmıştır (114 → 126).
 
 **Değişmezlerin somut savlarla eşlemesi** (`round_engine.test.js` içindeki `assertInvariants`, hüküm verilen
 her turda çalışır; regresyon dosyalarındaki savlar ayrıca belirtilmiştir; kodda I1–I6 olarak geçer):
 
 | Değişmez | Sav |
 |---|---|
-| D1 | İniş olayından sonra hiçbir `commit` olayı yoktur; değerlendirilen mühür vardır, "iniş sonrası" işaretli değildir ve **kare dizini iniş karesininkinden (`landingFrame`) küçüktür**; her mührün "iniş sonrası" işareti tam olarak "kare dizini $\ge$ iniş karesinin dizini"dir; mühürdeki (yuvarlanmış) zaman raporlanan iniş zamanını aşmaz ve $\Delta_L\ge0$'dır. Motor düzeyinde: ARMED/FLIGHT dışında `commit()` hata fırlatır. Regresyon: 120 ve 144 kare/s'de metronom kipinde geç gelen bir vuruşta aynı savlar tutar ve değerlendirilen mühür inişten öncedir; son havadaki karenin ilan edilmiş atış anının $0{,}02$ ms öncesine yerleştirildiği 400 turda o karede atılan 122 mührün hiçbiri "iniş sonrası" işaretlenmez, mühür atıldıysa değerlendirilen odur ve oyuncu galibiyeti yoktur (Teorem 1'in 3. adımının dayanağı); dizini ilerlemeyen kareler (daha geç zaman damgasıyla yinelenen eski kareler) atılır ve sonucu değiştirmez; vuruşun hızlı bölümünü örten bir izleme boşluğunda tur EL YOK olur, faul olmaz ve hiçbir geçerli turda değerlendirilen mühür gerçek inişten sonra değildir; tek atış kipinde düşen bir kareye sığan, yani hiç görülmemiş bir vuruş geçerli tura dönüşmez (Teorem 1'in 2. adımının dayanağı); taahhüt kaydının reddettiği bir mühür turu `ENGINE_ERROR` ile iptal eder, tur eski bir mühür üzerinden hükme bağlanmaz ve hiçbir istisna motordan çıkmaz; kaydın mühürleyemeyeceği kareler motora hiç girmez (2. adımın öteki dayanağı). |
+| D1 | İniş olayından sonra hiçbir `commit` olayı yoktur; değerlendirilen mühür vardır, "iniş sonrası" işaretli değildir ve **kare dizini iniş karesininkinden (`landingFrame`) küçüktür**; her mührün "iniş sonrası" işareti tam olarak "kare dizini $\ge$ iniş karesinin dizini"dir; mühürdeki (yuvarlanmış) zaman raporlanan iniş zamanını aşmaz ve $\Delta_L\ge0$'dır. Motor düzeyinde: ARMED/FLIGHT dışında `commit()` hata fırlatır. Regresyon: 120 ve 144 kare/s'de metronom kipinde geç gelen bir vuruşta aynı savlar tutar ve değerlendirilen mühür inişten öncedir; son havadaki karenin ilan edilmiş atış anının $0{,}02$ ms öncesine yerleştirildiği 400 turda o karede atılan 121 mührün hiçbiri "iniş sonrası" işaretlenmez, mühür atıldıysa değerlendirilen odur ve oyuncu galibiyeti yoktur (Teorem 1'in 3. adımının dayanağı); dizini ilerlemeyen kareler (daha geç zaman damgasıyla yinelenen eski kareler) atılır ve sonucu değiştirmez; vuruşun hızlı bölümünü örten bir izleme boşluğunda tur EL YOK olur, faul olmaz ve hiçbir geçerli turda değerlendirilen mühür gerçek inişten sonra değildir; tek atış kipinde düşen bir kareye sığan, yani hiç görülmemiş bir vuruş geçerli tura dönüşmez (Teorem 1'in 2. adımının dayanağı); taahhüt kaydının reddettiği bir mühür turu `ENGINE_ERROR` ile iptal eder, tur eski bir mühür üzerinden hükme bağlanmaz ve hiçbir istisna motordan çıkmaz; kaydın mühürleyemeyeceği kareler motora hiç girmez (2. adımın öteki dayanağı). |
 | D2 | `sealOk` ve `chainOk` doğrudur; her mühür yeniden özetlenince yayımlanan değeri verir; yayımlanan kısımda `move`, `nonce`, `payload` alanları yoktur; nonce 32 onaltılık hanedir. Ayrı testte hamle ya da nonce değiştirildiğinde doğrulama başarısız olur. |
 | D3 | Yayımlanan mühür sayısı sonuçtaki mühür sayısına eşittir, sıra numaraları artandır, ilk mühür her zaman davranış mührüdür; oturum zinciri baştan sona doğrulanır. Regresyon: iptal edilen turun gösterilmiş mührü `aborted` olayında açılmış ve doğrulanmış olarak yer alır; kayıtta açılmamış tur kalmaz; motor aynı kayıt üzerinde yeniden kurulduğunda tur numaraları sürer. |
 | D4 | Zamanlama alanlarının her biri sonlu bir sayı ya da `null`'dır; ölçüt testinde her istatistik tur sayımlarından yeniden hesaplanarak karşılaştırılır. Regresyon: kare düşmesi olmayan bir oturumda uçuştaki izleme oranı tam 1, kare hızı kameranınkidir (yumuşak inişlerde de); Taş için tamamlanmaya öncelik ve oluşum oranı `null`'dır; tutulan davranış mührünün oluşum oranı ölçülmüştür, sabit değildir; buluta giden satırda bilinmeyen değerler `null`'dır. |
@@ -269,13 +288,17 @@ her turda çalışır; regresyon dosyalarındaki savlar ayrıca belirtilmiştir;
 | D6 | Faul ve geçersiz turlardan sonra dizi modelinin uzunluğu, oyuncu modelinin tur sayısı ve geçerli tur sayacı değişmez; geçerli turdan sonra dizi tam bir artar. Regresyon: BELİRSİZ ŞEKİL turları kalibrasyonu uyarlarken dizi modelinin uzunluğu yalnızca geçerli turlarla artar; iptal edilen tur hiçbir şey öğretmez. |
 
 Aynı test, Turnuva ön ayarında dokuz hücrede (normal, erken, geç açanlar; 30 ve 60 kare/s; aldatmacalar; geç
-hamleler ve izleme kayıpları; iki vuruş, tek atış; sol el) hükme bağlanan 1760 turun 1520'si geçerliyken
-**sıfır kayıp**, 1 beraberlik ve 225 faul saymıştır (simülasyon).
+hamleler ve izleme kayıpları; iki vuruş, tek atış; sol el) hükme bağlanan 1760 turun 1562'si geçerliyken
+**sıfır kayıp**, 3 beraberlik ve 196 faul saymıştır (simülasyon; v4.2.3 koduyla, v4.0'da 1520 geçerli tur,
+1 beraberlik ve 225 faul).
 
 **Testlerin kapsamadıkları.** Testlerdeki sentetik oyuncu dedektörün varsayımlarıyla eşleşmiştir (uyumsuzluk
 Bölüm 6.8'de ayrıca ölçülür). Görünüm katmanı, gerçek kamera ve gerçek bir veritabanı test paketinin
-dışındadır; `camera_privacy.test.js` kamera kaynağını sahte bir kamera ve sahte bir izleyiciyle, gizlilik
-çizerinin saf yardımcılarını (izdüşüm, net bölge, yedek bulanıklık, kare boyutu) sınar; çizerin tuvale
+dışındadır: v4.2.3'ten beri şemanın herkese açık anahtara verdiği yetkiler yalnızca dosyanın metninden
+sınanır; tanıtım ekranındaki "Kamerayı aç" düğmesinin paylaşımı açmaması, düz dilli tur özeti ve sürüm
+bildirimi görünüm katmanındadır ve otomatik testleri yoktur. `camera_privacy.test.js` kamera kaynağını sahte
+bir kamera ve sahte bir izleyiciyle, gizlilik çizerinin saf yardımcılarını (izdüşüm, net bölge, yedek
+bulanıklık, kare boyutu) sınar; çizerin tuvale
 çizmesi, karenin kopyalanması ve MediaPipe ise tarayıcı gerektirir. Kamera yolu önce elle, tarayıcıda sentetik
 bir video akışıyla (`canvas.captureStream()`) duman testinden geçirilmiştir: kamera → MediaPipe (daraltılmış
 İçerik Güvenlik İlkesi altında CDN'den yüklenerek) → motor → arayüz zinciri çalışmış, ilke ihlali
@@ -286,16 +309,21 @@ görülmüştür. Bunlar gerçek bir kamerayla ve gerçek bir elle doğrulama de
 bu bölümün sonundadır). Teorem 1'in ispat adımlarından 1., 2. ve 3. adımın dayanakları birer regresyon testine
 bağlıdır (yasal kümenin en çok iki sınıflı olması; görülmeyen vuruşun geçersiz sayılması ve dondurma
 ufkunun yok sayılması; kare sırası). 4. adımın — hakemin, YZ'nin kararında kullandığı sayıların aynısını
-okumasının — kendine ait bir testi yoktur: yapısal olarak sağlanır ve yalnızca dolaylı olarak, Turnuva
-testlerindeki "sıfır oyuncu galibiyeti" savlarıyla sınanır. Testler elle seçilmiş sahnelerdir; ispat
-adımlarını doğrudan zorlayan biçimsel bir denetim yoktur (Bölüm 9.2). Testlere ek olarak güvenceyi
+okumasının — kendine ait bir testi yoktur: yapısal olarak sağlanır (v4.2.3'ten beri hakem, YZ'nin o karede
+karar verdiği ve kareyle saklanan hakem yönelimlerini okur) ve yalnızca dolaylı olarak sınanır: Turnuva
+testlerindeki "sıfır oyuncu galibiyeti" savlarıyla ve, v4.2.3'ten beri, bu adımın v4.2.1'deki ihlalini bulan
+yedi bulanık sınama oturumunun her test koşusunda yeniden oynatılmasıyla (Bölüm 5.1.8). Testler elle
+seçilmiş sahnelerdir; ispat adımlarını doğrudan zorlayan biçimsel bir denetim yoktur (Bölüm 9.2). Testlere ek olarak güvenceyi
 rastgele oturumlar üzerinde sınayan bir **saldırı bulanık sınaması** vardır (`experiments/fuzz_guarantee.mjs`,
 `npm run fuzz`): kip, kare hızı, aldatma, geç atış, zayıf vuruş, kare kaybı, ek izleme boşlukları, model
 uyumsuzluğu, dondurma ufku ve davranış mührü rastgele seçilir; kareler ilan edilmiş vuruş anlarının ve
 gerçek inişin tam üstüne ya da 0,005–0,04 ms öncesine veya sonrasına yerleştirilir. Hüküm verilen her turda oyuncu galibiyeti olmadığını,
 değerlendirilen mührün iniş karesinden önceki bir karede atıldığını, her mührün "iniş sonrası" işaretinin
 kare sırasına eşit olduğunu, mühürlerin doğrulandığını ve önceliğin negatif olmadığını savlar; bir ihlalde
-ya da motor hatasında sıfırdan farklı çıkış koduyla biter. 15 000 oturumluk koşusu Bölüm 6.9'dadır.
+ya da motor hatasında sıfırdan farklı çıkış koduyla biter. 15 000 oturumluk koşusu Bölüm 6.9'dadır:
+v4.2.3 koduyla 27 829 hüküm ve 17 404 geçerli turda oyuncu galibiyeti, motor hatası ve kare sırası ihlali
+yoktur; aynı koşu v4.2.2'de 16 911 geçerli turda 7 oyuncu galibiyeti bulmuştur (Bölüm 5.1.8). v4.2.3'ten beri
+o yedi oturum ile ilk 150 oturum test paketinde de koşar ve sınama yayından önceki denetimin parçasıdır.
 Bu bir rastgele örneklemedir, kanıt değildir. Tam sistem deneylerinin hiçbiri metronom kipini kullanmaz; o
 kip testlerde ve bulanık sınamada sınanır.
 
@@ -319,7 +347,7 @@ uygulanıyordu; kamera açılırken ve izleyici yüklenirken bulanıklaştırıl
 kapısının arkasından parlaklığının yaklaşık %10'uyla görünüyordu. Koruma artık gizlilik açık olduğu sürece
 uygulanır. (iii) Net bölge izlenen karenin noktalarından hesaplanıyor, ama `<video>` öğesinin çizim anında
 gösterdiği kareye çiziliyordu; hızlı vuruşlarda bölge elin gerisinde kalıyordu. Artık izleyici ve çizer
-aynı tuval kopyasını okur (Bölüm 5.3). (iv) Tuval süzgeci olmayan tarayıcılarda arka plan amaçlanandan
+aynı kareyi okur: çizer tuval kopyasını, izleyici (v4.2.0'dan beri) onun küçültülmüş bir hâlini (Bölüm 5.3). (iv) Tuval süzgeci olmayan tarayıcılarda arka plan amaçlanandan
 yaklaşık beş kat az bulanıklaşıyordu; orada artık aynı standart sapmalı bir Gauss bulanıklığı JavaScript'te
 uygulanır, küçültme de iki adımlıdır (Bölüm 5.8). (v) Sahnenin kenarını geçen bir elin net görüntüsü o
 kenarda yaklaşık yarı saydamlığa düşüyordu; maske artık tuvalin dışına doğru genişletilmiş bir bölgede
@@ -328,14 +356,18 @@ temsilciyi adlandırmaya devam ediyordu; artık her kare temsilciyi taşır ve i
 otomatik testlerle, (iii) ise yalnızca çizerin kare boyutunu bir tuval kopyasından okuması yönünden sınanır;
 (i), (ii) ve (v) görünüm katmanında ya da tuvale çizimde olduğundan otomatik testleri yoktur (Ek B).
 
-Değişiklikten sonraki denetimler sentetiktir: yukarıdaki sekiz yeni test; gizlilik çizerinin son hâliyle,
-tarayıcıda sentetik bir kare ve sentetik el noktalarıyla ölçülmesi (Bölüm 5.8); el izleyicinin maliyetinin
+Değişiklikten sonraki denetimler sentetiktir: yukarıdaki sekiz yeni test; gizlilik çizerinin o günkü son
+hâliyle (v4.2.0'dan önce), tarayıcıda sentetik bir kare ve sentetik el noktalarıyla ölçülmesi (Bölüm 5.8); el izleyicinin maliyetinin
 yeniden ölçülmesi (Bölüm 5.9); uygulamanın, incelemeden önceki hâliyle, yerel sunucuda sentetik bir kamera
 akışıyla (`canvas.captureStream()`) açılması. Sonuncusunda uygulama 0,7 s içinde kamerayı açmış ve el
 izleyiciyi GPU'da hazır duruma getirmiş, hata görülmemiştir (model tarayıcının önbelleğindeydi); kare başına
 geri çağrılar ise sınanamamıştır, çünkü denetim sırasında tarayıcı bölmesi görünür değildi.
 **Değişiklikten sonra gerçek bir kamerayla ve gerçek bir elle doğrulama yapılmamıştır** (denetimlerin
-yapıldığı yerleşik tarayıcının kamerası yoktur; Bölüm 5.9); sahibinin yeniden denemesi beklenmektedir.
+yapıldığı yerleşik tarayıcının kamerası yoktur; Bölüm 5.9). Sonradan proje sahibi 12 Kasım 2026'da yerel
+geliştirme sunucusunda gerçek kamerayla oynamıştır (79 kayıt; v4.2.0 ya da v4.2.1 ile, hangisiyle olduğu
+bilinmez; Bölüm 5.1.8): hüküm verilen turlarda uçuşta işlenen kare hızının medyanı 17 kare/s'dir. Kayıtlar
+görüntü içermez; gizli görüntünün gerçek bir el ve yüzle doğruluğu bu oturumlarda da ölçülmemiştir. v4.2.3
+gerçek kamerayla denenmemiştir.
 
 ## 5.8 Güvenlik ve gizlilik
 
@@ -364,7 +396,13 @@ aktarımı yalnızca kullanıcı "Dışa aktar (JSON)" düğmesine bastığında
 dosya olarak indirilir; içeriği ayarlar, oyuncu modeli, ölçüt özetleri, mühür zinciri ve bu sayfa
 oturumunun tur kayıtlarıdır (hükümler, hamleler, zamanlamalar, ölçümler; iz, görüntü ve eklem noktası
 yok). Tur kayıtları yalnızca bellekte tutulur: yerel depoya yazılmaz, buluta gönderilmez ve sayfa
-kapandığında yok olur; demo turları da kayda girer ve `simulated` olarak işaretlenir. Üçüncü taraf
+kapandığında yok olur; demo turları da kayda girer ve `simulated` olarak işaretlenir. Tek istisna bir
+geliştirme aracıdır: uygulama bir geliştirme barındırıcısında (aşağıda) açıldığında, v4.2.0'dan beri her
+gerçek kamera turunun izler dahil tam sonucu (eklem noktaları ve görüntü olmadan), her iptal ve oturumun
+dışa aktarımı, eşitleme anahtarından bağımsız olarak ve arayüzde bildirilmeden aynı kökendeki yerel sunucuya
+gönderilir (`POST /__local_telemetry`); `serve_web.py` bunları `.local_telemetry/` dizinine yazar (Ek A.10).
+Yayımlanan sitede bu yol çalışmaz; yerel ağdaki başka bir cihazdan bağlanan oyuncunun kayıtları ise o
+sunucunun diskine yazılır. Bölüm 5.1.8'deki gerçek kamera kayıtları buradandır. Üçüncü taraf
 istekleri şunlardır ve açıkça belirtilmelidir: MediaPipe çalışma zamanının (`vision_bundle.mjs` ve `wasm/`
 dosyaları) yukarıdaki jsDelivr dizininden ve yazı tiplerinin Google Fonts'tan yüklenmesi (her ikisi de
 istemcinin IP adresini ilgili sağlayıcıya gösterir); model dosyaları ise sitenin kendisinden sunulur.
@@ -383,9 +421,11 @@ yalnızca izlenen el net (`platform/hand_focus.js`). Bu tasarımda yüzün gizle
 bulunması gerekmez; yüz gizliliği modülü (`platform/face_privacy.js`) ve yüz dedektörünün modeli
 (`models/blaze_face_short_range.tflite`) silinmiştir.
 
-- *Arka plan.* Kare iki adımda, yüksek nitelikli yumuşatmayla küçültülür: önce 128, sonra 32 sütuna (satır
-  sayıları en-boy oranından); küçültme böylece tek tek pikselleri örneklemek yerine ortalama alır. Küçük
-  kare, kenarları kararmasın diye 4 hücrelik bir payla çevrelenir (payın altında karenin gerilmiş bir kopyası
+- *Arka plan.* Kare iki adımda, yumuşatmayla küçültülür: önce 128, sonra 32 sütuna (satır sayıları en-boy
+  oranından). Yayın öncesi incelemeden sonra eklenen yüksek nitelik ayarı (`imageSmoothingQuality = 'high'`)
+  küçültmenin tek tek pikselleri örneklemek yerine ortalama alması içindi; v4.2.0 bu ayarı kaldırmıştır:
+  küçültmenin ortalama alıp almadığı artık tarayıcının varsayılan niteliğine bağlıdır ve ölçülmemiştir (Ek
+  A.10). Küçük kare, kenarları kararmasın diye 4 hücrelik bir payla çevrelenir (payın altında karenin gerilmiş bir kopyası
   durur), bu boyutta 1,6 hücre daha bulanıklaştırılır ve yumuşatmayla yeniden büyütülür. Bu ek
   bulanıklaştırma tuval süzgeci (`ctx.filter`) bulunan tarayıcılarda süzgeçle yapılır; bulunmayanlarda aynı
   standart sapmalı, küçük ve ayrılabilir bir Gauss çekirdeğiyle (yarıçap 5 hücre) JavaScript'te, paylı 40
@@ -402,9 +442,12 @@ bulunması gerekmez; yüz gizliliği modülü (`platform/face_privacy.js`) ve y�
   dışına doğru kenar yumuşatmasının 3 katı (en az 3 piksel) kadar genişletilmiş bir bölgede hesaplanır:
   sahnenin kenarını geçen bir el o kenarda da net kalır, kırpılan maskenin kenarında sönmez. Tuval süzgeci
   olmayan tarayıcılarda maskenin kenarı yumuşatılmaz, sert kalır; bu yalnızca görünüşü etkiler, net bölge
-  aynıdır.
+  aynıdır. v4.2.0'dan beri tuval süzgeci olan tarayıcılarda maske 0,35 ölçekte çizilip büyütülür (Ek A.10).
 - *El yoksa* her şey bulanıktır; bozuk noktalar (21'den az nokta ya da sonlu olmayan bir değer) da net
-  bölge vermez.
+  bölge vermez. v4.2.0'dan beri bir istisna vardır: izleme koptuktan sonraki en çok 160 ms boyunca son
+  izlenen karenin net bölgesi ve iskeleti yeni karelerin üstüne çizilmeye devam eder (`DISPLAY_GRACE_MS`;
+  motora giden kare el yok olarak gider). Bu sürede net bölge elin değil, elin son görüldüğü yerin üstündedir
+  ve orada o anda ne varsa net gösterir (Ek A.10).
 
 **Derinlemesine savunma ve güvenli yönde hata.** Gizlilik açık olduğu sürece video öğesinin kendisi de CSS
 ile bulanıklaştırılır (28 piksel); bu koruma kamera açılırken ve izleyici yüklenirken, %90 opak yükleme
@@ -431,36 +474,62 @@ dedektörü ve çizeriyle ilgiliydi (Bölüm 5.1.6); onlar için yapılan düzel
 Bu bulgulardan çıkan ilkeler yeni tasarımda da korunur: rozet olduğundan fazlasını söylemez, çizerin hatası
 görüntüyü kapatır ve motordan sonra kare başına çalışan bir model yoktur (Bölüm 5.3).
 
-**Tarayıcıda denetim (sentetik).** Çizer, son hâliyle, Bölüm 5.9'daki ölçümlerin yapıldığı yerleşik
+**Tarayıcıda denetim (sentetik).** Çizer, kamera değişikliğindeki hâliyle, Bölüm 5.9'daki ölçümlerin yapıldığı yerleşik
 Chromium tarayıcısında sentetik bir kareyle denetlenmiştir (`web/lab/focus_check.html`; Bölüm 5.9): her
 yerinde sert 2 piksellik çizgiler, bir yazı ve yüze benzeyen bir disk bulunan $640\times480$ bir kare,
 sentetik el noktaları ve $800\times600$ bir tuval. Yatay parlaklık gradyanının ortalama mutlak değeri kaynak
 karede 125,0, elin net bölgesinde 72,0, elden uzakta 0,09, yüze benzeyen bölgenin elden uzak kısmında 0,26,
 el yokken bütün resimde 0,09'dur: el net kalır; çizgiler, yazı ve "yüz" düz renk alanlarına döner. Çizim
-başına JavaScript süresi 0,15 ms'dir; ekran kartındaki çizim süresi ölçülmemiştir.
+başına JavaScript süresi 0,15 ms'dir; ekran kartındaki çizim süresi ölçülmemiştir. Çizer v4.2.0'da değişmiştir
+(yüksek nitelik ayarının kaldırılması, maske ölçeği, 160 ms'lik görüntü payı; Ek A.10); bu sayılar ondan
+öncesine aittir ve son kodla yinelenmemiştir.
 
 **Sınırlar.** (i) Net bölge elin çevresinde dar bir pay (yaklaşık bir parmak genişliği) içerir: yüzün önünde
 tutulan bir el, yüzün hemen yanındaki kısmını açar. (ii) İzleme yitirildiğinde el de yeniden bulunana kadar
-bulanıktır. (iii) Kameranın kendi hareket bulanıklığı (pozlama) kalır: daha yüksek işleme hızı loş ışıkta
-çok hızlı vuruşlardaki kayıpları azaltabilir ama ortadan kaldıramaz. (iv) GPU'nun kullanılamadığı makinelerde
+bulanıktır; v4.2.0'dan beri ilk en çok 160 ms'de ise elin son görüldüğü yer net kalır, el oradan çekilmiş
+olsa da (yukarıda). Rozetin ve ayarın "El görülmediğinde her şey bulanıktır" metni bu payı söylemez. (iii)
+Kameranın kendi hareket bulanıklığı (pozlama) kalır: daha yüksek işleme hızı loş ışıkta çok hızlı
+vuruşlardaki kayıpları azaltabilir ama ortadan kaldıramaz. (iv) GPU'nun kullanılamadığı makinelerde
 CPU yedeği devreye girer (ölçüm yapılan bilgisayarda kare başına medyan 47,4 ms, işlemci yükü %91'deyken
 84,5 ms; Bölüm 5.9). (v) Gizlilik açıkken gösterilen görüntü izlenen karedir ve canlı kameranın yaklaşık bir
 izleyici çıkarımı kadar gerisindedir (Bölüm 5.3). (vi) Yeni tasarım gerçek bir kamera, el ve yüzle
-doğrulanmamıştır; sahibinin yeniden denemesi beklenmektedir.
+doğrulanmamıştır: proje sahibinin 12 Kasım 2026'daki gerçek kamera oturumlarının kayıtları görüntü içermez
+(Bölüm 5.1.8) ve gizli görüntünün doğruluğu bir ölçümle denetlenmemiştir.
 
 **İsteğe bağlı bulut eşitleme.** Varsayılan olarak kapalıdır. Eşitlemenin açık olup olmadığına **tek bir
 yerde** karar verilir: ayar açık **ve** barındırıcı izinli **ve** kaynak demo değil. Geliştirme
 barındırıcıları (geri döngü adresleri, `*.local`, `*.localhost`, özel IP aralıkları — yerel ağ sunucusunun
 adresi dâhil) adrese açıkça `?cloud=1` eklenmedikçe izinli değildir. İlk gerçeklemede bu karar iki yere
 bölünmüştü; ayar anahtarı `localhost` dışlamasını atlıyor, demo sırasında verilen onay ise sayfa
-yenilenene kadar etkisiz kalıyordu. Açıldığında yalnızca **geçerli** turlar için, tek bir çağrıyla
-(`POST /rest/v1/rpc/beatter_push_round`) şunlar gönderilir: anonim rastgele kimlik, hamleler, sonuç,
+yenilenene kadar etkisiz kalıyordu. Açıldığında her **geçerli** tur için bir çağrıyla
+(`POST /rest/v1/rpc/beatter_push_round`) şunlar gönderilir: rastgele oyuncu kimliği, hamleler, sonuç,
 ölçülen karar önceliği (kare zamanı), V açıklığı, tepe parmak hızı, aldatmaca işareti, değerlendirilen
 mührün tam SHA-256 özeti, açıklama kodu ve sayaç özetleri. **Bilinmeyen ölçümler `null` gönderilir**, 0
 değil; bir kestirim (en olası hamle ve güveni) yalnızca değerlendirilen mühür el okunarak atılmışsa ve
 sonsalın tek bir en büyüğü varsa bildirilir (ilk gerçekleme, düzgün bir inançtan "Taş, güven 0,333"
-üretiyordu). Simülasyon turları aktarım katmanında da reddedilir. Görüntü, eklem noktaları ve açılmamış
-mühürlerin içeriği hiçbir zaman gönderilmez; hiçbir şey geri okunmaz.
+üretiyordu). v4.2.0, hükme bağlanan her tur için (faul ve geçersiz turlar dahil; iptaller
+gönderilmez) bir tanılama satırı eklemiştir (`beatter_push_diagnostic`: tur numarası, hüküm, açıklama kodu,
+hamleler, karar önceliği ve uçuş süresi, uçuştaki kare hızı ve izlenen kare payı, iki grubun açılma başlangıcı,
+V açıklığı, tepe parmak hızı, hakem yönelimleri, yeniden çapalama işareti, iki parmak grubunun açılma izinin
+son on değeri). v4.2.0–v4.2.2 ayrıca, geçerli turlardan sonra öğrenilen oyuncu modelinin tamamını (hamle
+geçmişi, el kalibrasyonu, zamanlama önselleri) gönderiyor ve eşitleme açıldığında modeli aynı kimlikle geri
+okuyup yerel modelden daha çok tur içeriyorsa yüklüyordu. Modeli yazan işlev çağıranın kimliğin sahibi olduğunu
+denetlemediğinden, kimliği bilen biri o oyuncunun atışlarının nasıl hükme bağlanacağını değiştirebiliyordu
+(hakemin şekil sınıflandırıcısı ve kalibrasyon modelden kurulur); aynı geri yükleme hafıza sıfırlamayı da geri
+alıyordu. **v4.2.3'te model gönderilmez ve sunucudan hiçbir şey geri okunmaz** (Bölüm 5.1.8). Simülasyon turları
+aktarım katmanında da reddedilir. Görüntü, yüz, eklem noktaları, öğrenilen model ve açılmamış mühürlerin içeriği
+hiçbir zaman gönderilmez. v4.2.0–v4.2.2'de tanıtım ekranında anahtara dokunmadan kamerayı açmak paylaşımı da
+açıyordu ve arayüz metinleri yalnızca geçerli turların hamle, sonuç ve zamanlamalarının gönderildiğini
+söylüyordu. v4.2.3'te rızanın bir sürümü vardır: paylaşım yalnızca anahtar güncel metnin altında açıldıysa
+etkindir; önceki sürümlerden kalan kayıtlı bir "açık" kapalı okunur ve oyuncuya bir kez bildirilir; başka bir
+profile geçildiğinde paylaşım kapanır; metinler gönderilen veriye göre yeniden yazılmıştır.
+
+**Yerel oyun kaydı (yalnızca geliştirme sunucusu).** `serve_web.py` ile açılan sayfa, hükme bağlanan her kamera
+turunu ve iptali oturumun dışa aktarımıyla birlikte sunucunun çalıştığı makineye gönderir; sunucu bunları
+`.local_telemetry/` dizinine yazar (dizin depoya ve Vercel yüklemesine girmez). v4.2.3'te bu kayıt yalnızca sayfa
+o makinenin kendisinde (geri döngü adresinde) açıldığında ya da adrese açıkça `?telemetry=1` eklendiğinde
+tutulur; v4.2.0–v4.2.2 yerel ağdaki her cihazdan, paylaşım anahtarına bakmadan kaydediyordu. Yayındaki sitede
+bu kanal yoktur.
 
 **Veritabanı: tek bir doğrulayan işlev, kilitli tablolar.** Önceki sürümün denetimi satır düzeyi güvenlik
 ilkelerinin `USING (true)` olduğunu saptamıştı (Bölüm 5.1.4); v4'ün ilk hâli bunu dosyanın sonundaki
@@ -471,22 +540,33 @@ olduğunu hem de isteğe bağlı bölümün istemcinin kendi yazma isteğini boz
 - Tablolarda satır düzeyi güvenlik açıktır, **hiçbir ilke yoktur** ve `anon` ile `authenticated` rollerinin
   bütün tablo yetkileri geri alınmıştır: istemciye gömülü (tasarım gereği herkese açık) anahtar hiçbir
   tabloyu okuyamaz, değiştiremez, silemez. Önceki sürümden kalan "ortak beyin" tablosu varsa o da kilitlenir.
-- Anahtarın yapabildiği tek şey, tanımlayıcısının yetkisiyle çalışan (`SECURITY DEFINER`)
-  `beatter_push_round(p_player, p_round)` işlevini çağırmaktır. İşlev her alanı doğrular: kimliğin biçimi ve
-  uzunluğu, belgenin boyutu (en çok 4096 bayt), hamleler, **sonucun hamlelerle tutarlılığı**, özetin ve
-  açıklama kodunun biçimi, sayısal aralıklar, sayaçların tutarlılığı (galibiyet + mağlubiyet + beraberlik =
-  tur sayısı). Ardından tek bir telemetri satırı ekler ve profil sayaçlarını **yalnızca büyüyecek** biçimde
-  (`GREATEST`) günceller: bir çağıran başkasının geçmişini sıfırlayamaz.
+- Anahtarın yapabildiği, tanımlayıcısının yetkisiyle çalışan (`SECURITY DEFINER`) iki yazma işlevini çağırmaktır.
+  `beatter_push_round(p_player, p_round)` her alanı doğrular: kimliğin biçimi ve uzunluğu, belgenin boyutu
+  (en çok 4096 bayt), hamleler, **sonucun hamlelerle tutarlılığı**, özetin ve açıklama kodunun biçimi,
+  sayısal aralıklar, sayaçların tutarlılığı (galibiyet + mağlubiyet + beraberlik = tur sayısı). Ardından tek
+  bir telemetri satırı ekler ve profil sayaçlarını **yalnızca büyüyecek** biçimde (`GREATEST`) günceller:
+  bir çağıran başkasının geçmişini sıfırlayamaz. v4.2.0'ın eklediği `beatter_push_diagnostic` tanılama
+  satırını tür ve boyut denetimiyle (en çok 8 KB) ekler; v4.2.0–v4.2.2 şemasında aynı işlev gönderilen modeli
+  kimliğin profiline de yazıyordu, v4.2.3 şemasında model bağımsız değişkeni kabul edilir (açık kalmış eski
+  sayfalar onu göndermeyi sürdürür) ama yok sayılır. Saklanan modeli döndüren `beatter_pull_state` ile bütün
+  oyuncuların tanılama satırlarını kimlikleriyle döndüren `beatter_pull_recent_diagnostics` v4.2.0 şemasında
+  herkese açık anahtara verilmişti; bu, kimlikleri ve dolayısıyla her oyuncunun modelini herkese okunur
+  kılıyordu. v4.2.3 şemasında ikisi de yalnızca gizli servis anahtarıyla çağrılabilir (yerel çözümleme betiği
+  anahtarı ortam değişkeninden alır); daha önce saklanmış modelleri silen ifade dosyanın sonunda,
+  çalıştırılmayan bir not olarak durur.
 - 180 günden eski telemetrinin temizlenmesi önerilir; otomatik uygulanmaz.
 
 **Açık noktalar.** (i) Dosya, veritabanı sahibi tarafından Supabase SQL düzenleyicisinde **elle ve bütünüyle**
-uygulanmalıdır. Uygulanana kadar istemcinin çağırdığı işlev yoktur ve isteğe bağlı eşitleme güvenli yönde
-başarısız olur (durum "çevrimdışı"); oyunun geri kalanı etkilenmez. Öte yandan eski, izin verici ilkeler
-veritabanında hâlâ duruyorsa, onları kaldıran da bu dosyanın uygulanmasıdır; üretim veritabanının şu anki
-ilke durumu bu çalışmada yoklanmamıştır. (ii) SQL bu çalışmada **hiçbir veritabanında çalıştırılmamıştır**;
-yukarıdaki betimleme dosyanın okunmasına dayanır. (iii) Yalnızca yazılabilen anonim bir uç nokta, sayfanın
-kaynağını okuyan herkes tarafından doldurulabilir; işlev bir satırın boyutunu ve değerlerini sınırlar ama
-hız sınırlaması yapılandırılmamıştır.
+uygulanmalıdır. Hiç uygulanmamışsa istemcinin çağırdığı işlevler yoktur ve isteğe bağlı eşitleme güvenli
+yönde başarısız olur (durum "çevrimdışı"); oyunun geri kalanı etkilenmez. Öte yandan eski, izin verici
+ilkeler veritabanında hâlâ duruyorsa, onları kaldıran da bu dosyanın uygulanmasıdır; v4.2.0 şeması
+uygulanmışsa, `beatter_pull_recent_diagnostics` ile `beatter_pull_state`'in herkese açık anahtara verilen yetkileri de ancak bu dosyanın
+yeniden uygulanmasıyla geri alınır. Üretim veritabanının şu anki ilke ve yetki durumu bu çalışmada
+yoklanmamıştır. (ii) SQL bu çalışmada **hiçbir veritabanında çalıştırılmamıştır**;
+yukarıdaki betimleme dosyanın okunmasına dayanır. (iii) Herkese açık anahtarla çağrılabilen yazma işlevleri
+sayfanın kaynağını okuyan herkes tarafından doldurulabilir; işlevler bir satırın boyutunu ve değerlerini
+sınırlar ama hız sınırlaması yapılandırılmamıştır. v4.2.3'te model yazılmadığından ve hiçbir şey geri okunmadığından, bir kimliği bilmek yalnızca o kimlik adına
+satır yazmaya yarar; kimlikler rastgeledir ve hiçbir yerde listelenmez.
 
 ## 5.9 Başarım
 
@@ -495,11 +575,11 @@ Aşağıdaki sayılar birim testlerinin kendi ölçümleridir (geliştirme makin
 
 | Ölçüm | Değer | Testteki sınır |
 |---|---|---|
-| Açılma dedektörü (gözlem + hakem büyüklüğü + kanıt), kare başına | ≈ 0,06–0,09 ms (önceki üç koşuda 0,063, 0,084 ve 0,070; son denetimdeki koşuda 0,085) | < 0,5 ms |
-| Motor + simülatör, 60 kare/s'de kare başına | ≈ 0,07 ms (önceki iki koşuda 0,066 ve 0,068, olgu denetimindeki koşuda 0,218 — nedeni incelenmedi; son denetimdeki koşuda 0,062; süreler yüke bağlıdır) | < 1,5 ms |
-| İniş saptama hatası (simülasyon), 30 kare/s | ortalama 3,6 ms; en kötü 18,9 ms | $\lvert\cdot\rvert<45$ ms (uçtan uca testte) |
+| Açılma dedektörü (gözlem + hakem büyüklüğü + kanıt), kare başına | ≈ 0,02–0,04 ms (v4.2.3 ile son denetimdeki beş koşuda 0,020–0,040; v4.0'daki koşularda 0,063–0,085 — farkın nedeni incelenmedi) | < 0,5 ms |
+| Motor + simülatör, 60 kare/s'de kare başına | ≈ 0,03–0,05 ms (v4.2.3 ile son denetimdeki beş koşuda 0,025–0,045; v4.0'daki koşularda 0,062–0,218 — nedeni incelenmedi; süreler yüke bağlıdır) | < 1,5 ms |
+| İniş saptama hatası (simülasyon), 30 kare/s | ortalama 4,1 ms; en kötü 19,1 ms (v4.0'da 3,6 ve 18,9 ms) | $\lvert\cdot\rvert<45$ ms (uçtan uca testte) |
 | İniş saptama hatası (simülasyon), 60 kare/s | ortalama −7,1 ms; en kötü 21,5 ms | — |
-| İniş kestirimi ortalama mutlak hatası (simülasyon) | tempo 27,9 ms; iniş 12,8 ms; dönem 8,1 ms | — |
+| İniş kestirimi ortalama mutlak hatası (simülasyon) | tempo 27,7 ms; iniş 12,5 ms; dönem 8,2 ms (v4.0'da 27,9; 12,8; 8,1 ms) | — |
 | 2 mm eklem gürültüsünde açıklık hatası (SS) | 0,061 | — |
 | MindTwin, 120 ms ileri öngörü (simülasyon) | ortalama mutlak hata 0,107; "el yerinde kalır" 0,135; beceri 0,21; durağan elde beceri 0,00 | beceri > 0 (hareketli el) |
 | 320 turdan sonra oyuncu modeli JSON boyutu | < 400 kB | < 400 kB |
@@ -507,7 +587,8 @@ Aşağıdaki sayılar birim testlerinin kendi ölçümleridir (geliştirme makin
 Çekirdeğin kare başına maliyeti 60 kare/s'lik kare bütçesinin (16,7 ms) binde birkaçı dolayındadır; gerçek
 sistemde darboğaz el izleme modelinin çıkarım süresidir (üreticinin bir telefon için bildirdiği ortalama
 17,12 ms [MediaPipeHandDocs]; bu çalışmanın tarayıcıdaki ölçümü aşağıdadır). Kamera turlarında kare → mühür
-gecikmesi tur başına ölçülüp raporlanır (Bölüm 4.10), ancak gerçek bir kamerayla toplanmış değeri yoktur.
+gecikmesi tur başına ölçülüp raporlanır (Bölüm 4.10). Proje sahibinin 12 Kasım 2026'daki gerçek kamera
+kayıtları (Bölüm 5.1.8) bu alanı da taşır, ama değerleri bu metinde çözümlenmemiştir.
 
 **Tarayıcıda el izleme maliyeti.** Projenin sahibinin ilk gerçek kamera denemesinden sonra (Bölüm 5.7), el
 izleyicinin ve yüz dedektörünün kare başına maliyeti denemenin yapıldığı bilgisayarda (20 mantıksal
@@ -540,12 +621,17 @@ düşmez. Ardışık çalışma zamanı hatalarının sayısı 15'i aşarsa izle
 yeniden kurulur; yeniden kurma da başarısız olursa izleme kaybı `TRACKER_FAILED` olarak bildirilir (Bölüm
 5.4.1). Kullanılan temsilci, kare hızı rozetinin üzerine gelindiğinde görünür ("El izleyici: ekran kartı
 (GPU) · kare başına N ms"); her kare izleyicinin o anki temsilcisini taşıdığından, izleyici öteki temsilcide
-yeniden kurulunca ipucu da ona geçer. İzleyici, kamera kaynağının her kareden bir kez aldığı tuval kopyasını
-okur; gizlilik çizeri aynı kopyayı çizer (Bölüm 5.3). Kare başına çalışan tek model el izleyicidir (ilk
-ölçümde GPU'da medyan 16,4 ms); gizlilik çizerinin JavaScript süresi çizim başına 0,15 ms'dir (Bölüm 5.8),
-ekran kartındaki çizim süresi ölçülmemiştir. Kare başına 16,4 ms ile 30 kare/s'lik bir kameranın tam
-hızında işlenmesi beklenir; bu beklenti makinenin o andaki yüküne bağlıdır (aşağıdaki ikinci ölçüm) ve
-sahibinin bilgisayarında, gerçek kamerayla işlenen kare hızı değişiklikten sonra **ölçülmemiştir**. GPU'nun
+yeniden kurulunca ipucu da ona geçer. İzleyici, kamera kaynağının her kareden bir kez aldığı tuval
+kopyasının küçültülmüş bir hâlini (v4.2.0'dan beri uzun kenarı en çok 384 piksel) okur; gizlilik çizeri
+kopyanın kendisini çizer (Bölüm 5.3). v4.2.0'dan beri el, son 110 ms içinde izlenmişken bir karede
+bulunamazsa aynı kare izleyiciye süzgeçten geçirilmiş bir kopyayla bir kez daha verilir (yalnızca tuval
+süzgeci olan tarayıcılarda); o karede çıkarım iki kez çalışır (Ek A.10; bu yolun maliyeti ölçülmemiştir). Kare başına çalışan tek model el izleyicidir (ilk
+ölçümde GPU'da medyan 16,4 ms); gizlilik çizerinin JavaScript süresi çizim başına 0,15 ms'dir (Bölüm 5.8;
+v4.2.0'dan önceki çizerle), ekran kartındaki çizim süresi ölçülmemiştir. Kare başına 16,4 ms ile 30 kare/s'lik
+bir kameranın tam hızında işlenmesi beklenirdi; bu beklenti makinenin o andaki yüküne bağlıdır (aşağıdaki
+ikinci ölçüm) ve gerçekleşmemiştir: proje sahibinin 12 Kasım 2026'daki gerçek kamera oturumlarında, hüküm
+verilen turlarda uçuşta işlenen kare hızının medyanı 17 kare/s'dir (10.–90. yüzdelik 9,9–20,3; Bölüm 5.1.8).
+Bu oturumlarda hangi temsilcinin kullanıldığı ve düşük hızın nedeni bu çalışmada incelenmemiştir. GPU'nun
 kullanılamadığı makinelerde CPU yedeği devreye girer; bu bilgisayarda bunun bedeli kare başına 47,4 ms'dir
 (medyan; ikinci ölçümde 84,5 ms).
 
@@ -554,9 +640,9 @@ CPU) yinelenen ikinci ölçüm sırasında makinedeki başka süreçler — aral
 dakikalık otomatik tarayıcı testi — işlemci yükünü %91'de tutuyordu. Bu koşulda el izleyicinin kare başına
 süresi GPU'da medyan 33,2 ms (90. yüzdelik 36,0 ms), CPU'da medyan 84,5 ms (90. yüzdelik 122,1 ms) olmuştur.
 Tablodaki ilk ölçüm olduğu gibi bırakılmıştır: mutlak süreler makinenin o andaki yüküne bağlıdır; iki ölçümde
-de GPU yolu CPU yolundan 2,5–2,9 kat hızlıdır. Uygulamanın şimdi yaptığı gibi karenin bir tuval kopyasını
-okuyan izleyicinin kare başına süresi GPU'da medyan 14,1 ms'dir (10 ısınma karesinden sonraki 30 kare, el
-yok). Kopyanın kendisi, yani video karesinin tuvale çizilmesi, ayrı bir ölçümde ana iş parçacığında medyan
+de GPU yolu CPU yolundan 2,5–2,9 kat hızlıdır. Uygulamanın v4.2.0'a kadar yaptığı gibi karenin tam boyutlu
+bir tuval kopyasını okuyan izleyicinin kare başına süresi GPU'da medyan 14,1 ms'dir (10 ısınma karesinden
+sonraki 30 kare, el yok); v4.2.0'dan beri izleyiciye verilen küçültülmüş kopyayla süre ölçülmemiştir (Ek A.10). Kopyanın kendisi, yani video karesinin tuvale çizilmesi, ayrı bir ölçümde ana iş parçacığında medyan
 0,1 ms, 90. yüzdelikte 0,4 ms sürmüştür (60 kare; GPU'daki iş ölçülmedi).
 
 **Yeniden üretim.** El izleyicinin GPU ve CPU ölçümleri ile Bölüm 5.8'deki çizer denetimi, yayımlanmayan iki

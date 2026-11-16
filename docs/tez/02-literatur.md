@@ -184,13 +184,15 @@ değişkenlik 250–2000 ms aralığında yaklaşık olarak aralıkla orantılı
 eşzamanlama yaklaşık 460 ms'den kısa aralıklarda başarısız olurken işitsel diziler 100–120 ms'ye kadar
 izlenebilir; kendi hızında vuruşta yeğlenen dönemler 250 ms ve 500–600 ms dolayındadır [Repp2005].
 
-> **Bu çalışma için sonuç.** (a) Açılma modeli en küçük sarsım ailesidir ve süre ızgarası 50–340 ms'yi
-> kapsar. (b) Tanınacak olay tamamlanmış şekil değil açılmanın *başlangıcıdır*; bir web kamerası janken
-> robotunun 2 ms'lik çevrimine yaklaşamayacağı için üstünlük hızdan değil modelden gelmelidir. (c) Makas'ta
-> yüzük/serçe için artık açılma ($\kappa$) modellenir. (d) İniş sonrası yumruk tutma penceresi (250 ms) basit
-> tepki süresinin hemen üzerine konmuştur. (e) Sayım işitseldir; metronom varsayılanı 100 vuruş/dk'dır
-> (600 ms). (f) Kol salınımının tek başına bilgi taşıdığı [Keck2026] gelecekteki bir ipucu kaynağıdır
-> (Bölüm 9).
+> **Bu çalışma için sonuç.** (a) Açılma modeli en küçük sarsım ailesidir ve süre ızgarası 45–340 ms'yi
+> kapsar (v4.2.0'dan beri; önce 50–340 ms). (b) Tanınacak olay tamamlanmış şekil değil açılmanın
+> *başlangıcıdır*; bir web kamerası janken robotunun 2 ms'lik çevrimine yaklaşamayacağı için üstünlük hızdan
+> değil modelden gelmelidir. (c) Makas'ta yüzük/serçe için artık açılma ($\kappa$) modellenir; hakem de net
+> bir Makas'ta arka grubun yönelimini Makas'ın aleyhine saymaz (Bölüm 4.4). (d) İniş sonrası yumruk tutma
+> penceresi 215 ms'dir (v4.2.0'dan beri; önce 250 ms): basit görsel tepki süresi tek başına 213–231 ms'dir ve
+> tepkiyle açılan parmakların eşiği art arda iki karede aşması bunun üstüne eklenir (Bölüm 4.4). (e) Sayım
+> işitseldir; metronom varsayılanı 100 vuruş/dk'dır (600 ms). (f) Kol salınımının tek başına bilgi taşıdığı
+> [Keck2026] gelecekteki bir ipucu kaynağıdır (Bölüm 9).
 
 ## 2.4 Görü ve işaret işleme
 
@@ -313,7 +315,8 @@ edilir; sayfa yüklenirken izin istemek en kötü uygulamadır [PermissionsBP]. 
 > sınırların baştan söylenmesi, karşılaştırmalı ve nedene dayalı tur açıklaması, ölçülmemiş değer yerine
 > "—", simülasyon etiketinin kalıcılığı, Okabe–Ito'dan türetilmiş renk rolleri, klavye ve ekran okuyucu
 > desteği, kamera izninin yalnızca düğmeye basıldıktan sonra istenmesi ve varsayılan olarak kapalı veri
-> paylaşımı.
+> paylaşımı. (v4.2.0–v4.2.2'de tanıtım ekranındaki "Kamerayı aç" düğmesi paylaşımı, anahtara dokunulmadan da
+> açıyordu; bu, [Gray2018]'in "ön seçim"idir ve v4.2.3'te geri alınmıştır, Bölüm 5.1.8.)
 
 ## 2.7 Özet: iddia → kaynak → beaTTer'da kullanımı
 
@@ -330,10 +333,10 @@ edilir; sayfa yüklenirken izin istemek en kötü uygulamadır [PermissionsBP]. 
 | İkinci-tahmin meta-stratejileri | [Egnor2000] (ikincil) | Döndürmeler ve ayna uzmanlar |
 | Kesin uygun skorlar; ECE; Wilson aralığı | [GneitingRaftery2007; Naeini2015; Guo2017; Wilson1927] | `metrics.js`, laboratuvar paneli |
 | Janken robotu 2 ms'de tanır, ≈30 ms sonra tepki verir; kestirmez | [Katsuki2015; Ito2016] | Bölüm 8.4'teki karşılaştırma |
-| Hızlı atışta şekil değişimi ≈60 ms; tepe parmak hızları ≈1100–1400 °/s | [Katsuki2015; Li2023] | Süre ızgarası (50–340 ms), açısal hız göstergesi |
+| Hızlı atışta şekil değişimi ≈60 ms; tepe parmak hızları ≈1100–1400 °/s | [Katsuki2015; Li2023] | Süre ızgarası (45–340 ms; v4.2.0'dan beri, önce 50–340 ms), açısal hız göstergesi |
 | En küçük sarsım parmak eklem yörüngelerini betimler | [FlashHogan1985; FriedmanFlash2009] | Açılma dedektörünün yörünge ailesi; simüle el |
-| Yüzük parmağı en az bağımsız parmaktır | [HagerRoss2000; Zatsiorsky2000] | Makas şablonunda artık açılma |
-| Basit görsel tepki süresi ≈213–231 ms | [Woods2015] | Yumruk tutma penceresi 250 ms |
+| Yüzük parmağı en az bağımsız parmaktır | [HagerRoss2000; Zatsiorsky2000] | Makas şablonunda artık açılma; hakemin "net Makas" kuralı (Bölüm 4.4) |
+| Basit görsel tepki süresi ≈213–231 ms | [Woods2015] | Yumruk tutma penceresi 215 ms (v4.2.0'dan beri; önce 250 ms) |
 | Ritim değişkenliği aralıkla orantılı; işitsel eşzamanlama daha kesin | [WingKristofferson1973; Repp2005] | Tempo tabanlı iniş kestirimi; işitsel metronom |
 | MediaPipe: 21 nokta, sentetikten öğrenilmiş derinlik, hareket bulanıklığında sınanmamış | [Zhang2020; MediaPipeHandCard2021] | Açı tabanlı öznitelikler, tur içi gürültü kestirimi, geçerlilik tehdidi (Bölüm 8.2) |
 | Sayısal türev gürültüyü büyütür; 1-euro gecikme üretir | [vanBreugel2020; Casiez2012] | Ham örnekler + Kalman; 1-euro yalnızca görüntülemede |

@@ -14,8 +14,8 @@ dar ve açıktır:
 2. **Bedeli sonuçsuz denemelerdir.** Kuralın dışında kalan atışlar (açılması havada ölçülemeyecek kadar geç
    başlayanlar, inişten sonra açılan ya da kapananlar) ve hakemin taze kanıt bulamadığı ya da şekli
    tanıyamadığı turlar kaybedilmez ama kazanılmaz da: tekrarlanır. Sistemin ölçüsü budur. Eşleşmiş
-   simülasyonda sonuçsuz deneme payı açılma alışkanlığına göre %0,2 ile %35 arasındadır (Bölüm 6.3); normal
-   açan dürüst bir oyuncu için model uyumsuzluğuna göre %1,7 ile %23 arasında değişir (Bölüm 6.8). Geç açan
+   simülasyonda sonuçsuz deneme payı açılma alışkanlığına göre %0,2 ile %35,5 arasındadır (Bölüm 6.3); normal
+   açan dürüst bir oyuncu için model uyumsuzluğuna göre (30 kare/s'de) %1,9 ile %20,2 arasında değişir (Bölüm 6.8). Geç açan
    bir oyuncu için "yenilmezlik", atışlarının üçte birinin sayılmaması demektir.
 3. **Güvence, gerçekleme kadar sağlamdır.** Teorem kuralı anlatır; kuralın kodda eksiksiz uygulanması ayrı
    bir iştir. İlk v4 gerçeklemesi "geçerli turda kaybetmez" diyordu ve bağımsız inceleme Turnuva'da geçerli
@@ -29,7 +29,8 @@ dar ve açıktır:
    $h_F\neq\tfrac12$ duruyordu. Dördü de giderildi ve regresyon testine bağlandı (Bölüm 4.7). Bugün
    teoremin, turun geçerli olması dışında bir koşulu yoktur ve ispatın her adımı kodda zorlanır; metronom
    kipini de kapsayan 15 000 oturumluk bir saldırı bulanık
-   sınaması 14 579 geçerli turda sıfır kayıp vermiştir (simülasyon; Bölüm 6.9). Yine de bu tarihçe,
+   sınaması v4.2.3 koduyla 17 404 geçerli turda sıfır kayıp vermiştir (simülasyon; Bölüm 6.9; aynı sınama
+   v4.2.2'de 16 911 geçerli turda 7 kayıp bulmuştu, Bölüm 5.1.8). Yine de bu tarihçe,
    "kural gereği" sözünün bir sonraki okumaya kadar geçerli bir sav olduğunu gösterir: üç deliğin hiçbirini
    testler bulmadı; ikisini ispatın kodla karşılaştırılması, üçüncüsünü ispatı kırmaya çalışan saldırı
    denetimi buldu.
@@ -38,12 +39,12 @@ dar ve açıktır:
    Simülasyonda bu, yüksek gürültülü zayıf atışların küçük bir bölümünde olmuştur; gerçek kamerada
    ölçülmemiştir (Bölüm 8.2).
 5. **Daha gevşek ön ayarlarda insan kazanabilir.** Standart ve Serbest ön ayarları belirsiz bir bölge
-   bırakır. Simülasyonda bu pay küçüktür: Serbest'te dürüst oyunculara karşı en çok %0,3 (Bölüm 6.3),
-   model uyumsuzluğunda en çok %0,5 (Bölüm 6.8), incelemenin "önce Makas, sonra yüzük ve serçe"
-   saldırısında %1,2 (Bölüm 6.4). Gerçek oyuncularda ne olacağı bilinmemektedir.
+   bırakır. Simülasyonda bu pay küçüktür: Serbest'te dürüst oyunculara karşı en çok %0,2 (Bölüm 6.3),
+   model uyumsuzluğunda en çok %1,1 (Bölüm 6.8), incelemenin "önce Makas, sonra yüzük ve serçe"
+   saldırısında %1,8 (448 geçerli turda 8 kayıp; Bölüm 6.4). Gerçek oyuncularda ne olacağı bilinmemektedir.
 6. **Fiziğe karşı hiçbir iddia yoktur.** Hareket hakkında hiçbir ipucu ortaya çıkmadan kesin tahmin
    yapılamaz. Kinematik kanalın değeri son karelerdedir: Serbest'te kararın inişten 40 ms önce dondurulması
-   bile simülasyonda %2–4 kayıp getirir; 200 ms'de sistem şans düzeyindedir (Bölüm 6.2). Turnuva'da
+   bile simülasyonda %2,8–3,2 kayıp getirir; 200 ms'de sistem şans düzeyindedir (Bölüm 6.2). Turnuva'da
    dondurmaya izin verilmemesinin nedeni budur. Rastgele oynayan birine karşı davranış kanalı hiçbir şey
    kazanmaz (Bölüm 6.1); kuram bunu zaten gerektirir [GanzfriedSandholm2015].
 
@@ -51,7 +52,7 @@ Bu yüzden arayüzde ve bu metinde "yenilmezlik" bir başarım ölçüsü olarak
 "geçerli turların yüzde kaçını kaybetti?" değil — Turnuva'da yanıt kural gereği
 sıfırdır —, "denemelerin
 yüzde kaçını kazandı ve yüzde kaçı sonuçsuz kaldı?" sorusudur. Eşleşmiş simülasyonda yanıt, normal açan bir
-oyuncu için yaklaşık %94,5 ve %5; geç açan için %65–68 ve %32–35'tir.
+oyuncu için yaklaşık %94,8 ve %5; geç açan için %64,5–70,1 ve %29,8–35,5'tir (Turnuva; Bölüm 6.3).
 
 Kullanıcı gereksinimi "kişi hamle yapmadan karar verilmesi" idi. Dürüst yanıt şudur: karar **inişten önce
 yakalanmış bilgiye dayanır** ve bu kriptografik olarak bağlanır (D1, D2); ancak çoğu turda **hareket
@@ -130,8 +131,9 @@ akışında ölçülür; sabit bir kamera gecikmesi aralarındaki farkı değiş
 damgaları istemcinin kendi beyanıdır ve üçüncü tarafa karşı kanıt değildir [RFC3161]. (ii) Mühürdeki zaman
 karenin yakalanma zamanıdır; özet, kamera ve çıkarım gecikmesi kadar sonra var olur. İnceleme bunun hiçbir
 yerde ölçülmediğini göstermişti; artık her kamera turunda kare → mühür gecikmesi ve duvar saati önceliği
-ölçülüp raporlanır (Bölüm 4.10) ve ikincisi negatif çıkabilir. Ancak bu çalışmada **gerçek kamerayla
-toplanmış tek bir değer yoktur**; telefonlarda yalnızca yakalama–geri çağrı gecikmesi 60–90 ms ölçülmüştür
+ölçülüp raporlanır (Bölüm 4.10) ve ikincisi negatif çıkabilir. Gerçek kamerayla toplanmış **tek değerler**, proje sahibinin 12 Kasım 2026 oturumlarının yerel
+kayıtlarıdır (tek oyuncu, tek bilgisayar; Bölüm 5.1.8): geçerli 26 turda kare → mühür gecikmesinin medyanı 62,5 ms (10.–90. yüzdelik 38,2–107,2), duvar saatine göre önceliğin medyanı 120,6 ms'dir ve 26 turun 2'sinde bu öncelik negatiftir (−47,4 ve −0,2 ms); o iki turda mührün özeti,
+inişin kare zamanından sonra hazır olmuştur. Bunun dışında telefonlarda yalnızca yakalama–geri çağrı gecikmesi 60–90 ms ölçülmüştür
 [Kamarainen2017], yani "inişten 66 ms önce" bir bilgi kümesi önceliği, duvar saatinde inişten sonraya
 düşebilir. Karenin yakalanma zamanının kendisi de tarayıcının bildirdiği bir değerdir. (iii) Kullanıcının
 mührü *ekranda gördüğü* an ayrıca gösterim gecikmesi kadar sonradır ve hiç ölçülmemektedir.
@@ -161,7 +163,10 @@ dışarıda bırakan bir ten rengi kümesi devreye giriyordu; ikisi de ele ya da
 (c) "İskeletin hiç görünmemesi" yeniden üretilmemiştir (ölçüm ortamında gerçek bir el ve kamera yoktu);
 (a) ile tutarlıdır: her vuruşta kaybolan bir el, hareket ederken iskelet göstermez.
 
-**Düzeltilmiş kamera yolu gerçek bir kamerayla denenmemiştir.** Düzeltmede el izleyici önce ekran kartı
+**Düzeltilmiş kamera yolu gerçek bir kamerayla yalnızca ölçüm düzeneği olmadan kullanılmıştır.** Düzeltmeden
+sonraki tek gerçek kayıt, proje sahibinin 12 Kasım 2026 oturumlarıdır (Bölüm 5.1.8): uçuşta işlenen kare
+hızının medyanı 17 kare/s'dir (10.–90. yüzdelik 9,9–20,3) ve 79 kaydın 18'i el kaybıyla iptal olmuştur. Bu,
+beklenen 30 kare/s'ye ulaşıldığını göstermez; kayıtlar kameranın hızı ile izleyicinin hızını da ayıramaz. Düzeltmede el izleyici önce ekran kartı
 (WebGL2) yolunda çalıştırılır, işlemci (XNNPACK) yolu yedektir; model yüklendikten sonra boş bir karede üç
 kez çalıştırılarak ısıtılır, böylece ekran kartı gölgelendiricilerinin derlenmesi ilk kamera karelerine
 düşmez; çalışma sırasında art arda 15'ten fazla hatada izleyici öteki yolda yeniden kurulur ve hangi yolun
@@ -180,8 +185,8 @@ uzak kısmında 0,26); ve değişikliğin ilk hâliyle, yerel sunucuda sentetik 
 açılışı (kamera açık, izleyici ekran kartında hazır, hata yok; tarayıcı penceresi gizli olduğundan kare
 başına geri çağrılar tetiklenmemiştir). Bunlar kodun bozuk olmadığını, izleyicinin yerleşik tarayıcıda ekran
 kartında çalıştığını ve çizerin sentetik bir karede eli net, geri kalanı bulanık bıraktığını gösterir.
-Düzeltilmiş sürüm gerçek bir kamera ve gerçek bir elle henüz denenmemiştir (yerleşik tarayıcının kamerası
-yoktur); proje sahibinin yeniden denemesi beklenmektedir. Sahibinin bilgisayarında gerçek kamerayla işlenen
+Düzeltilmiş sürüm, proje sahibinin 12 Kasım 2026 oturumları dışında (Bölüm 5.1.8) gerçek bir kamera ve gerçek
+bir elle denenmemiştir (yerleşik tarayıcının kamerası yoktur); v4.2.3 ile denetimli bir deneme yapılmamıştır. Sahibinin bilgisayarında gerçek kamerayla işlenen
 kare hızı da ölçülmemiştir: kare başına 16,4 ms ile 30 kare/s'lik bir kameranın her karesinin işlenmesi
 beklenir; bu bir beklentidir, ölçüm değildir ve yüke bağlıdır: işlemci yükü %91 iken yinelenen ölçümde ekran
 kartında medyan 33,2 ms çıkmıştır, bu da 30 kare/s'de iki kare arasındaki sürenin neredeyse tamamıdır. Bu
@@ -207,7 +212,7 @@ Bugünkü test paketi daha büyüktür ve incelemenin her yeniden üretilebilen 
 yalnızca yazarlarının aklına gelen durumları sınar. Nitekim inceleme sonrasında yazılan testlerin hepsi
 geçerken Turnuva güvencesinde üç delik daha vardı (Bölüm 4.7); hiçbirini testler bulmadı: ikisini ispatın
 kodla satır satır karşılaştırılması, üçüncüsünü ispatı kırmaya yönelik bir saldırı denetimi buldu. Üçü de
-giderilmiş ve teste bağlanmıştır (bugün 113 test) ve güvence için ayrıca bir saldırı bulanık sınaması
+giderilmiş ve teste bağlanmıştır (bugün 126 test) ve güvence için ayrıca bir saldırı bulanık sınaması
 vardır (Bölüm 6.9); ama ders aynıdır: geçen bir test paketi boşluk olmadığını göstermez. Testlerin
 başarısızlığı da ciddiye alınmalıdır: yaşam döngüsü testlerinden biri yüklü makinede ara sıra başarısız
 oluyordu ve nedeni test değil, demodaki gerçek bir kilitlenmeydi (Bölüm 5.1.6). Sistemin ikinci bir
@@ -224,16 +229,23 @@ aşırı uyum riski vardır; E8'in bozulmaları da aynı süreçte seçilmiştir
 ## 8.3 Etik ve gizlilik
 
 **Veri en aza indirme.** Kamera kareleri ve eklem noktaları cihazdan çıkmaz ve saklanmaz; saklanan, hamle
-geçmişi ve zamanlama istatistikleridir. Bu, 6698 sayılı Kanun'un amaçla bağlantılı, sınırlı ve ölçülü işleme
-ilkesiyle [KVKK6698] ve GDPR'ın veri en aza indirme ve varsayılan olarak koruma ilkeleriyle [GDPR]
-uyumludur. El geometrisi kimlik saptamak için işlenmediğinden ve saklanmadığından, sistemin biyometrik veri
+geçmişi, zamanlama istatistikleri ve duyarga kalibrasyonudur (bu kameranın bu elin yumruğu ve açık eli için
+bildirdiği ortalama bükülme açıları, sınıf başına ortalama parmak açılmaları). v4.2.0–v4.2.2'de paylaşım açıkken
+bu oyuncu modelinin tamamı rastgele kimlikle buluta da gönderiliyordu; v4.2.3'te model cihazdan çıkmaz (Bölüm 5.8). Bu, 6698 sayılı
+Kanun'un amaçla bağlantılı, sınırlı ve ölçülü işleme ilkesiyle [KVKK6698] ve GDPR'ın veri en aza indirme ve
+varsayılan olarak koruma ilkeleriyle [GDPR] uyumlu olmayı amaçlar; varsayılan olarak koruma, v4.2.0–v4.2.2
+arasında tanıtım ekranının paylaşımı kendiliğinden açmasıyla bozulmuş, v4.2.3'te geri getirilmiştir (önceki sürümlerin kaydettiği rıza da geçersiz sayılır). El
+geometrisi (kemik uzunlukları, oranlar) ne işlenir ne saklanır; ortalama bükülme açıları yalnızca okuma
+eşiklerini ayarlamak için kullanılır, kimlik saptamak için işlenmez. Bu yüzden sistemin biyometrik veri
 işlediğini düşünmüyoruz; ancak bu bir hukuki görüş değildir ve bir hukukçu tarafından değerlendirilmelidir.
 Eski veritabanı şemasında bulunan "el geometrisi oranı" sütunu yeni istemci tarafından doldurulmaz.
 
 **Açık noktalar.** (i) Yazı tipleri ve MediaPipe çalışma zamanı üçüncü taraf sunuculardan yüklenir (İçerik
 Güvenlik İlkesi ikincisini tek bir paket sürümünün dizinine daraltır); bunların siteyle birlikte sunulması
-gerekir. (ii) Bulut eşitleme açıkken gönderilen anonim kimlik kalıcıdır ve tur kayıtlarıyla birleştiğinde
-tekil bir kayıt oluşturur; saklama süresi için öneri vardır (180 gün) ama otomatik uygulanmaz. (iii)
+gerekir. (ii) Bulut eşitleme açıkken gönderilen rastgele kimlik kalıcıdır ve tur kayıtları ve tanılama
+satırlarıyla birleştiğinde tekil bir kayıt oluşturur (takma adlı veri; anonim değil); bu kayıtlar tarayıcıdan
+silinemez (silme, veritabanı sahibine kimlikle başvurmayı gerektirir);
+saklama süresi için öneri vardır (180 gün) ama otomatik uygulanmaz. (iii)
 Veritabanı betiği sahibi tarafından elle ve bütünüyle uygulanmalıdır; uygulanana kadar isteğe bağlı
 eşitleme güvenli yönde başarısız olur, ama veritabanında eski izin verici ilkeler duruyorsa onları kaldıran
 da bu uygulamadır. Betik bu çalışmada çalıştırılmamıştır (Bölüm 5.8). (iv) Gizlilik artık bir yüz bulmaya

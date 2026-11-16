@@ -9,19 +9,25 @@
 
 Deneyler `node experiments/run_all.mjs` ile yinelenebilir; bütün rastgelelik tohumludur, ham sayılar
 `docs/results/*.json`, şekiller `docs/figures/*.svg` dosyalarındadır. Bu bölümdeki her sayı o dosyalardan
-alınmıştır; dosyalar, Bölüm 5.1.6'da anlatılan inceleme sonrası kodla yeniden üretilmiştir. Sentetik
+alınmıştır; dosyalar, Bölüm 5.1.8'deki v4.2 denetiminden sonraki v4.2.3 koduyla yeniden üretilmiştir. Sentetik
 oyuncunun ürettiği kareler gerçek kamera kareleriyle aynı motordan geçer.
 
-**Son kodla yeniden üretim.** Sonuç dosyalarını ilk üreten koşudan sonra motorda birkaç değişiklik daha
-yapılmıştır: tek atış kipinde görülmeyen vuruşun geçersiz sayılması, sayımın başlama kapısı, "inişten önce"nin
-yalnızca kare sırasıyla belirlenmesi, hakem sınamasında sınır değerinin "açık" tarafına alınması,
-atılamayan bir mührün turu iptal etmesi (mühürlenemeyen karelerin yok sayılması dâhil) ve kullanılmayan bir
-alanın kaldırılması (Bölüm 4.4, 4.7, 5.4). Bunların simüle sonuçları değiştirmediği
-varsayılmamış, denetlenmiştir: bütün deneyler bu metnin dayandığı son kodla baştan koşulmuş ve yeniden
-üretilen `docs/results/E*.json` ile `docs/figures/*.svg` dosyaları depodakilerle **bayt bayt aynı**
-çıkmıştır (18 dosyanın 18'i; karşılaştırma, yeniden üretilen her dosyanın git nesne özeti depodaki
-sürümünkiyle eşleştirilerek yapılmıştır). Yani bu bölümdeki her sayı, bugünkü kodun aynı tohumlarla verdiği
-sayıdır.
+**Son kodla yeniden üretim.** Bu bölümün sayıları ilk olarak v4.0'ın koduyla üretilmişti. Sonraki üç sürümden
+(v4.2.0–v4.2.2) ilk ikisi motorun davranışını değiştirdi (v4.2.2 motor koduna dokunmadı): 20 varsayılan değişti,
+bir yenisi ve birkaç kural eklendi, hakem yönelimleri inişten sonra düzelten bir "mandal" kazandı (Ek A, Bölüm
+5.1.8). Bu sürümlerin denetimi Turnuva güvencesinin kırıldığını ve dürüst bir Kâğıt'ın faul sayıldığını
+bulmuş, düzeltmeler v4.2.3 olarak yapılmıştır. v4.2.3'te hakem yönelimleri her havadaki karede hesaplanıp
+kareyle birlikte saklanır: bir grubun yönelimi, son $\max(340\ \text{ms},\ 3{,}5\ \text{kare aralığı})$ içinde o
+grubun ham açıklığının en az 0,42 okunduğu revizyon karelerindekinin altına düşmez ve bu tutma, grubun
+dedektörü yeniden çapalanınca biter. Havadaki kareler birbiriyle çelişirse tur faul sayılmaz, kendi açıklama
+koduyla (`VOID_CONFLICT`) geçersizdir (Bölüm 5.1.8). Ardından bütün deneyler (E1–E8) ve bulanık sınama
+v4.2.3 koduyla, aynı tohumlarla baştan koşulmuş; `docs/results/*.json` ile `docs/figures/*.svg` bu koşudan
+yeniden üretilmiştir. Bu bölümdeki
+her sayı, açıkça başka bir sürüme atfedilmedikçe, bu koşudandır. Yalnızca davranış kanalını kullanan E1'in
+sonuç dosyası v4.0'dakiyle bayt bayt aynıdır; E2–E8'in sayıları v4.0'dakilerden farklıdır. Yorumu değişen
+bulgularda v4.0'daki değer de verilmiştir (aynı dosyaların git geçmişindeki v4.0 sürümlerinden); bu farkların
+hangi değişiklikten geldiği, aksi söylenmedikçe, ayrıştırılmamıştır. Sürümleri aynı tohumlarla karşılaştıran
+ölçümler `experiments/version_compare.mjs` ile yinelenebilir.
 
 **Tabloların okunuşu.** Tam sistem deneylerinde (E2–E5, E8) iki tür oran yan yana verilir ve farklı şeyleri
 ölçer (Bölüm 4.10):
@@ -111,8 +117,9 @@ geçmişinin deterministik bir işlevidir; bu satır güvenlik mekanizmasını z
 
 **Soru.** YZ kararını inişten ne kadar önce dondurmak zorunda kalırsa ne kaybeder?
 **Düzenek.** **Serbest** ön ayarı, normal açanlar, "humanLike" davranış; dondurma ufku
-$\Delta_{\text{don}}\in\{0,40,\dots,250\}$ ms; hücre başına 8 tohum × 120 = 960 deneme. Hiçbir hücrede
-geçersiz ya da iptal edilen deneme yoktur; sonuçsuz denemelerin tamamı fauldür.
+$\Delta_{\text{don}}\in\{0,40,\dots,250\}$ ms; hücre başına 8 tohum × 120 = 960 deneme. İptal edilen
+deneme yoktur; geçersiz deneme yalnızca 60 kare/s'nin iki hücresinde vardır (0 ve 80 ms'de ikişer; dördü de
+havadaki karelerin çeliştiği turlardır, `VOID_CONFLICT`). Geri kalan sonuçsuz denemelerin tamamı fauldür.
 
 **Neden Serbest?** Önceki metinde bu deney Turnuva altında yapılmıştı; o gerçeklemede dondurma ufku
 Turnuva'da da etkiliydi. Bağımsız inceleme bunun bir kusur olduğunu göstermiştir: hakem eli son havadaki
@@ -123,86 +130,99 @@ yüzden eğri ancak risk duyarlı bir ön ayarda ölçülebilir. Sorunun anlamı
 
 | Kare/s | $\Delta_{\text{don}}$ (ms) | Geçerli $n$ | Kazanma % | Berabere % | Kayıp % [%95 GA] | Kazanılan deneme % | Sonuçsuz deneme % | Medyan öncelik (ms) | Oluşum oranı |
 |---|---|---|---|---|---|---|---|---|---|
-| 30 | 0 | 924 | 99,35 | 0,43 | 0,22 [0,06–0,79] | 95,63 | 3,75 | 167 | 0,453 |
-| 30 | 40 | 914 | 97,05 | 0,98 | 1,97 [1,25–3,09] | 92,40 | 4,79 | 167 | 0,405 |
-| 30 | 80 | 900 | 80,44 | 6,44 | 13,11 [11,06–15,47] | 75,42 | 6,25 | 264 | 0,316 |
-| 30 | 120 | 909 | 66,12 | 13,75 | 20,13 [17,65–22,86] | 62,60 | 5,31 | 434 | 0,219 |
-| 30 | 160 | 907 | 47,19 | 22,16 | 30,65 [27,74–33,73] | 44,58 | 5,52 | 465 | 0,099 |
-| 30 | 200 | 907 | 36,05 | 25,36 | 38,59 [35,48–41,80] | 34,06 | 5,52 | 466 | 0,041 |
-| 30 | 250 | 913 | 34,06 | 28,92 | 37,02 [33,95–40,20] | 32,40 | 4,90 | 467 | 0,010 |
-| 60 | 0 | 921 | 99,78 | 0,22 | 0,00 [0,00–0,42] | 95,73 | 4,06 | 151 | 0,345 |
-| 60 | 40 | 914 | 94,42 | 1,86 | 3,72 [2,67–5,15] | 89,90 | 4,79 | 167 | 0,318 |
-| 60 | 80 | 923 | 80,61 | 6,07 | 13,33 [11,28–15,67] | 77,50 | 3,85 | 214 | 0,247 |
-| 60 | 120 | 910 | 62,64 | 14,18 | 23,19 [20,56–26,04] | 59,38 | 5,21 | 482 | 0,159 |
-| 60 | 160 | 920 | 45,33 | 22,72 | 31,96 [29,02–35,04] | 43,44 | 4,17 | 484 | 0,073 |
-| 60 | 200 | 926 | 35,75 | 27,43 | 36,83 [33,78–39,98] | 34,48 | 3,54 | 497 | 0,024 |
-| 60 | 250 | 928 | 33,62 | 29,31 | 37,07 [34,02–40,22] | 32,50 | 3,33 | 499 | 0,012 |
+| 30 | 0 | 925 | 99,57 | 0,32 | 0,11 [0,02–0,61] | 95,94 | 3,65 | 167 | 0,435 |
+| 30 | 40 | 915 | 96,07 | 1,09 | 2,84 [1,95–4,13] | 91,56 | 4,69 | 167 | 0,391 |
+| 30 | 80 | 894 | 83,22 | 5,70 | 11,07 [9,18–13,30] | 77,50 | 6,88 | 201 | 0,314 |
+| 30 | 120 | 911 | 66,74 | 13,39 | 19,87 [17,41–22,58] | 63,33 | 5,10 | 434 | 0,214 |
+| 30 | 160 | 914 | 49,78 | 21,44 | 28,77 [25,93–31,79] | 47,40 | 4,79 | 464 | 0,101 |
+| 30 | 200 | 920 | 46,20 | 21,85 | 31,96 [29,02–35,04] | 44,27 | 4,17 | 465 | 0,099 |
+| 30 | 250 | 907 | 49,72 | 22,60 | 27,67 [24,86–30,67] | 46,98 | 5,52 | 466 | 0,128 |
+| 60 | 0 | 925 | 99,89 | 0,11 | 0,00 [0,00–0,41] | 96,25 | 3,65 | 151 | 0,321 |
+| 60 | 40 | 915 | 94,86 | 1,97 | 3,17 [2,22–4,51] | 90,42 | 4,69 | 166 | 0,299 |
+| 60 | 80 | 923 | 82,34 | 5,42 | 12,24 [10,28–14,52] | 79,17 | 3,85 | 186 | 0,238 |
+| 60 | 120 | 925 | 63,68 | 14,49 | 21,84 [19,29–24,61] | 61,35 | 3,65 | 481 | 0,148 |
+| 60 | 160 | 925 | 51,14 | 21,73 | 27,14 [24,37–30,09] | 49,27 | 3,65 | 483 | 0,086 |
+| 60 | 200 | 926 | 51,62 | 19,33 | 29,05 [26,22–32,06] | 49,79 | 3,54 | 483 | 0,103 |
+| 60 | 250 | 932 | 54,08 | 18,99 | 26,93 [24,18–29,87] | 52,50 | 2,92 | 483 | 0,132 |
 
 ![E2](../figures/E2-earliness-accuracy.svg)
 
 **Yorum.** Bu, tezin en önemli dürüstlük sonuçlarından biridir: **kinematik kanalın değeri son
-karelerdedir.** Dondurma olmadan Serbest'te kayıp %0–0,2'dir. Son 40 ms'de revizyon yasaklandığında kayıp
-oranı %2,0 (30 kare/s) ve %3,7'ye (60 kare/s), 80 ms'de %13'e, 120 ms'de %20–23'e çıkar; 200–250 ms'de
-sistem şans düzeyindedir (kazanma %34–36, kayıp %37–39) ve kayıp oranı kazanma oranını hafifçe aşar: erken,
-zayıf kinematik kanıtla dondurulan karar davranış önselinden iyi değildir. Koşulsuz ölçü aynı şeyi söyler:
-kazanılan deneme payı %96'dan %32'ye düşer. Medyan önceliğin 167/151 ms'den 465–499 ms'ye sıçraması
-"daha erken karar" değildir; mührün hiç revize edilemediği, yani uçuş başındaki davranış mührünün ayakta
-kaldığı anlamına gelir. Simüle oyuncuların açılması ortalama 170 ms önce başladığı için bu beklenen bir
-sonuçtur: hareket başlamadan önce hareketten bilgi alınamaz. 60 kare/s aynı dondurma ufkunda 30 kare/s'den
-daha iyi değildir (80 ms'de %13,3'e karşı %13,1; 40 ms'de %3,7'ye karşı %2,0).
+karelerdedir.** Dondurma olmadan Serbest'te kayıp %0–0,1'dir. Son 40 ms'de revizyon yasaklandığında kayıp
+oranı %2,8 (30 kare/s) ve %3,2'ye (60 kare/s), 80 ms'de %11–12'ye, 120 ms'de %20–22'ye çıkar; 160–250 ms'de
+eğri düzleşir (kazanma %46–54, kayıp %27–32). Koşulsuz ölçü aynı şeyi söyler: kazanılan deneme payı %96'dan
+160–250 ms'de %44,3–52,5'e düşer. Medyan önceliğin 167/151 ms'den 464–483 ms'ye sıçraması "daha erken karar"
+değildir; turların en az yarısında değerlendirilen mührün uçuşun ilk karelerinde atıldığı ve sonra revize
+edilemediği anlamına gelir (160–250 ms'de hareketten önceki davranış mührü geçerli turların yalnızca
+%20–28'inde hiç değişmemiştir; geri kalanında mühür dondurmadan önce el okunarak değiştirilmiştir ve bu
+kararların önceliğinin medyanı da 434–469 ms'dir). Simüle oyuncuların açılması ortalama 170 ms önce
+başladığı için bu beklenen bir sonuçtur: hareket başlamadan önce hareketten bilgi alınamaz. 60 kare/s aynı
+dondurma ufkunda 30 kare/s'den belirgin biçimde iyi değildir: 40–120 ms'de kaybı daha yüksektir (80 ms'de
+%12,2'ye karşı %11,1; 40 ms'de %3,2'ye karşı %2,8), 160–250 ms'de 0,7–2,9 puan düşüktür; aralıklar her ufukta
+örtüşür.
+
+v4.0'da eğri 200–250 ms'de şans düzeyine iniyordu (kazanma %34–36, kayıp %37–39) ve kayıp oranı kazanma
+oranını hafifçe aşıyordu: erken dondurulan karar davranış önselinden iyi değildi. Bugünkü kodda bu sonuç
+yinelenmez; en uzun dondurmada da kazanma kaybın açıkça üzerindedir, ama dondurmasız düzeyin çok altındadır.
+Farkın kaynağı ayrıştırılmamıştır. Gözlenen bir fark tablodaki oluşum oranıdır: değerlendirilen mühür
+anındaki bu oran 200–250 ms'de 0,10–0,13'tür (v4.0'da 0,01–0,04), yani bugünkü kodda mühür anında ölçülen
+açıklık daha büyüktür. Dondurma gerçek inişe değil öngörülen inişe göre uygulandığından, iniş öngörüsündeki
+bir değişikliğin etkili olması mümkündür; bu sınanmamıştır.
 
 ## 6.3 E3 — Tam sistem: ön ayar × açılma tarzı × kare hızı
 
 **Soru.** İki kanal ve hakem birlikte çalıştığında kayıp, sonuçsuz deneme payı ve karar önceliği nedir?
 **Düzenek.** Üç ön ayar × üç tarz × iki kare hızı; hücre başına 8 tohum × 150 = 1200 deneme; "humanLike"
-davranış. Hiçbir hücrede iptal ya da geçersiz tur olmamıştır; sonuçsuz denemelerin tamamı fauldür. Taş
-atışları hiçbir hücrede faul sayılmamıştır.
+davranış. İptal edilen tur yoktur. Geçersiz tur yalnızca Serbest'in üç hücresinde vardır (normal açanlarda
+60 kare/s'de 1, geç açanlarda 30 ve 60 kare/s'de 2 ve 7; hepsi havadaki karelerin çeliştiği turlardır,
+`VOID_CONFLICT`); geri kalan sonuçsuz denemelerin tamamı fauldür. Taş atışları hiçbir hücrede faul
+sayılmamıştır.
 
 *Sonuçlar — koşullu (G / B / M, Kayıp) ve koşulsuz (Kazanılan, Sonuçsuz) oranlar:*
 
 | Ön ayar | Tarz | Kare/s | Geçerli $n$ | G / B / M | Kayıp % [%95 GA] | Kazanılan deneme % [%95 GA] | Sonuçsuz deneme % [%95 GA] |
 |---|---|---|---|---|---|---|---|
 | Turnuva | erken | 30 | 1198 | 1197 / 1 / 0 | 0,00 [0,00–0,32] | 99,75 [99,27–99,91] | 0,17 [0,05–0,61] |
-| Turnuva | erken | 60 | 1195 | 1192 / 3 / 0 | 0,00 [0,00–0,32] | 99,33 [98,69–99,66] | 0,42 [0,18–0,97] |
-| Turnuva | normal | 30 | 1137 | 1134 / 3 / 0 | 0,00 [0,00–0,34] | 94,50 [93,06–95,65] | 5,25 [4,12–6,66] |
-| Turnuva | normal | 60 | 1138 | 1135 / 3 / 0 | 0,00 [0,00–0,34] | 94,58 [93,15–95,73] | 5,17 [4,05–6,57] |
-| Turnuva | geç | 30 | 777 | 777 / 0 / 0 | 0,00 [0,00–0,49] | 64,75 [62,00–67,40] | 35,25 [32,60–38,00] |
-| Turnuva | geç | 60 | 821 | 820 / 1 / 0 | 0,00 [0,00–0,47] | 68,33 [65,65–70,90] | 31,58 [29,02–34,27] |
+| Turnuva | erken | 60 | 1195 | 1191 / 4 / 0 | 0,00 [0,00–0,32] | 99,25 [98,58–99,60] | 0,42 [0,18–0,97] |
+| Turnuva | normal | 30 | 1140 | 1137 / 3 / 0 | 0,00 [0,00–0,34] | 94,75 [93,34–95,88] | 5,00 [3,90–6,38] |
+| Turnuva | normal | 60 | 1141 | 1136 / 5 / 0 | 0,00 [0,00–0,34] | 94,67 [93,25–95,80] | 4,92 [3,83–6,29] |
+| Turnuva | geç | 30 | 774 | 774 / 0 / 0 | 0,00 [0,00–0,49] | 64,50 [61,75–67,16] | 35,50 [32,84–38,25] |
+| Turnuva | geç | 60 | 843 | 841 / 2 / 0 | 0,00 [0,00–0,45] | 70,08 [67,43–72,61] | 29,75 [27,23–32,40] |
 | Standart | erken | 30 | 1198 | 1198 / 0 / 0 | 0,00 [0,00–0,32] | 99,83 [99,39–99,95] | 0,17 [0,05–0,61] |
 | Standart | erken | 60 | 1195 | 1193 / 2 / 0 | 0,00 [0,00–0,32] | 99,42 [98,80–99,72] | 0,42 [0,18–0,97] |
-| Standart | normal | 30 | 1141 | 1138 / 3 / 0 | 0,00 [0,00–0,34] | 94,83 [93,43–95,95] | 4,92 [3,83–6,29] |
-| Standart | normal | 60 | 1142 | 1139 / 3 / 0 | 0,00 [0,00–0,34] | 94,92 [93,52–96,02] | 4,83 [3,76–6,20] |
-| Standart | geç | 30 | 774 | 773 / 1 / 0 | 0,00 [0,00–0,49] | 64,42 [61,67–67,08] | 35,50 [32,84–38,25] |
-| Standart | geç | 60 | 846 | 844 / 2 / 0 | 0,00 [0,00–0,45] | 70,33 [67,69–72,85] | 29,50 [26,99–32,14] |
+| Standart | normal | 30 | 1142 | 1139 / 3 / 0 | 0,00 [0,00–0,34] | 94,92 [93,52–96,02] | 4,83 [3,76–6,20] |
+| Standart | normal | 60 | 1146 | 1144 / 2 / 0 | 0,00 [0,00–0,33] | 95,33 [93,99–96,39] | 4,50 [3,47–5,83] |
+| Standart | geç | 30 | 806 | 805 / 1 / 0 | 0,00 [0,00–0,47] | 67,08 [64,37–69,68] | 32,83 [30,23–35,54] |
+| Standart | geç | 60 | 846 | 842 / 4 / 0 | 0,00 [0,00–0,45] | 70,17 [67,52–72,69] | 29,50 [26,99–32,14] |
 | Serbest | erken | 30 | 1198 | 1198 / 0 / 0 | 0,00 [0,00–0,32] | 99,83 [99,39–99,95] | 0,17 [0,05–0,61] |
-| Serbest | erken | 60 | 1195 | 1193 / 2 / 0 | 0,00 [0,00–0,32] | 99,42 [98,80–99,72] | 0,42 [0,18–0,97] |
-| Serbest | normal | 30 | 1146 | 1137 / 6 / 3 | 0,26 [0,09–0,77] | 94,75 [93,34–95,88] | 4,50 [3,47–5,83] |
-| Serbest | normal | 60 | 1143 | 1136 / 4 / 3 | 0,26 [0,09–0,77] | 94,67 [93,25–95,80] | 4,75 [3,68–6,10] |
-| Serbest | geç | 30 | 835 | 831 / 4 / 0 | 0,00 [0,00–0,46] | 69,25 [66,58–71,80] | 30,42 [27,88–33,08] |
-| Serbest | geç | 60 | 876 | 870 / 6 / 0 | 0,00 [0,00–0,44] | 72,50 [69,90–74,95] | 27,00 [24,56–29,58] |
+| Serbest | erken | 60 | 1196 | 1194 / 2 / 0 | 0,00 [0,00–0,32] | 99,50 [98,91–99,77] | 0,33 [0,13–0,85] |
+| Serbest | normal | 30 | 1150 | 1141 / 8 / 1 | 0,09 [0,02–0,49] | 95,08 [93,71–96,17] | 4,17 [3,17–5,45] |
+| Serbest | normal | 60 | 1143 | 1131 / 10 / 2 | 0,17 [0,05–0,64] | 94,25 [92,79–95,43] | 4,75 [3,68–6,10] |
+| Serbest | geç | 30 | 848 | 842 / 4 / 2 | 0,24 [0,06–0,86] | 70,17 [67,52–72,69] | 29,33 [26,83–31,97] |
+| Serbest | geç | 60 | 881 | 873 / 8 / 0 | 0,00 [0,00–0,43] | 72,75 [70,16–75,19] | 26,58 [24,16–29,15] |
 
 *Zamanlama ve faullerin dökümü:*
 
 | Ön ayar | Tarz | Kare/s | Öncelik medyanı [Ç1–Ç3] (ms) | Kinematik öncelik medyanı (ms) | Tamamlanmaya öncelik (ms) | Oluşum oranı | Revize edilmeyen % | Faul %: Kâğıt / Makas atışları | Açık dürüst atışlarda faul % |
 |---|---|---|---|---|---|---|---|---|---|
-| Turnuva | erken | 30 | 235 [167–435] | 232 | 34 | 0,514 | 11,77 | 0,50 / 0,00 | 0,08 |
-| Turnuva | erken | 60 | 234 [168–482] | 218 | 35 | 0,398 | 11,72 | 1,22 / 0,00 | 0,17 |
-| Turnuva | normal | 30 | 166 [99–465] | 134 | 34 | 0,517 | 12,05 | 10,20 / 5,73 | 0,55 |
-| Turnuva | normal | 60 | 165 [98–483] | 135 | 34 | 0,391 | 13,18 | 10,32 / 5,26 | 0,47 |
-| Turnuva | geç | 30 | 102 [35–469] | 67 | 34 | 0,494 | 23,17 | 57,07 / 46,42 | 2,00 |
-| Turnuva | geç | 60 | 84 [36–499] | 66 | 33 | 0,382 | 17,78 | 53,05 / 38,44 | 0,88 |
-| Standart | erken | 30 | 236 [168–436] | 233 | 34 | 0,478 | 11,85 | 0,50 / 0,00 | 0,08 |
-| Standart | erken | 60 | 234 [169–482] | 218 | 36 | 0,373 | 11,55 | 1,22 / 0,00 | 0,17 |
-| Standart | normal | 30 | 166 [99–464] | 135 | 34 | 0,473 | 12,01 | 10,75 / 4,09 | 0,46 |
-| Standart | normal | 60 | 166 [99–483] | 136 | 35 | 0,366 | 13,31 | 9,56 / 4,99 | 0,37 |
-| Standart | geç | 30 | 100 [35–498] | 66 | 33 | 0,476 | 23,00 | 56,74 / 44,60 | 1,33 |
-| Standart | geç | 60 | 83 [35–499] | 65 | 34 | 0,353 | 16,78 | 48,89 / 37,68 | 0,18 |
-| Serbest | erken | 30 | 236 [168–435] | 233 | 34 | 0,445 | 11,69 | 0,50 / 0,00 | 0,08 |
-| Serbest | erken | 60 | 235 [180–482] | 219 | 47 | 0,353 | 11,55 | 1,22 / 0,00 | 0,17 |
-| Serbest | normal | 30 | 166 [99–465] | 134 | 34 | 0,442 | 12,91 | 9,41 / 4,07 | 0,28 |
-| Serbest | normal | 60 | 165 [92–482] | 135 | 37 | 0,348 | 13,12 | 9,05 / 5,06 | 0,37 |
-| Serbest | geç | 30 | 99 [35–468] | 67 | 34 | 0,414 | 18,80 | 52,34 / 35,43 | 0,74 |
-| Serbest | geç | 60 | 69 [33–485] | 65 | 35 | 0,322 | 11,87 | 45,88 / 31,54 | 0,72 |
+| Turnuva | erken | 30 | 235 [168–436] | 233 | 34 | 0,505 | 11,77 | 0,50 / 0,00 | 0,08 |
+| Turnuva | erken | 60 | 234 [168–482] | 217 | 35 | 0,393 | 12,13 | 1,22 / 0,00 | 0,17 |
+| Turnuva | normal | 30 | 166 [99–465] | 134 | 34 | 0,502 | 12,37 | 10,42 / 4,70 | 0,46 |
+| Turnuva | normal | 60 | 165 [98–483] | 135 | 34 | 0,385 | 14,11 | 9,56 / 5,25 | 0,47 |
+| Turnuva | geç | 30 | 102 [36–498] | 66 | 33 | 0,474 | 23,90 | 57,84 / 45,89 | 1,32 |
+| Turnuva | geç | 60 | 83 [34–499] | 54 | 33 | 0,366 | 17,32 | 50,25 / 37,07 | 0,18 |
+| Standart | erken | 30 | 236 [168–436] | 233 | 34 | 0,467 | 11,85 | 0,50 / 0,00 | 0,08 |
+| Standart | erken | 60 | 235 [169–482] | 218 | 36 | 0,366 | 11,55 | 1,22 / 0,00 | 0,17 |
+| Standart | normal | 30 | 166 [99–464] | 135 | 34 | 0,458 | 12,17 | 10,50 / 4,09 | 0,37 |
+| Standart | normal | 60 | 165 [98–483] | 135 | 35 | 0,352 | 13,70 | 9,38 / 4,08 | 0,37 |
+| Standart | geç | 30 | 99 [35–498] | 66 | 34 | 0,441 | 23,70 | 54,90 / 39,13 | 0,74 |
+| Standart | geç | 60 | 82 [34–497] | 54 | 34 | 0,333 | 15,96 | 50,34 / 34,55 | 0,37 |
+| Serbest | erken | 30 | 236 [169–435] | 233 | 34 | 0,432 | 11,69 | 0,50 / 0,00 | 0,08 |
+| Serbest | erken | 60 | 237 [169–482] | 220 | 47 | 0,347 | 11,62 | 0,99 / 0,00 | 0,08 |
+| Serbest | normal | 30 | 166 [99–464] | 134 | 35 | 0,416 | 13,30 | 8,17 / 4,30 | 0,19 |
+| Serbest | normal | 60 | 165 [97–482] | 135 | 47 | 0,337 | 12,69 | 9,80 / 4,04 | 0,28 |
+| Serbest | geç | 30 | 98 [35–467] | 67 | 34 | 0,378 | 19,22 | 51,08 / 33,66 | 1,47 |
+| Serbest | geç | 60 | 82 [35–486] | 65 | 36 | 0,287 | 15,55 | 47,10 / 27,15 | 0,72 |
 
 "Revize edilmeyen": hareketten önce atılan davranış mührünün hiç değişmediği geçerli turların payı.
 "Kinematik öncelik": yalnızca değerlendirilen mührü el okunarak atılmış geçerli turlardaki öncelik.
@@ -212,41 +232,42 @@ atışları hiçbir hücrede faul sayılmamıştır.
 ![E3 fauller](../figures/E3-fouls.svg)
 ![E3 öncelik](../figures/E3-lead.svg)
 
-**Yorum — kuralın sonucu.** Turnuva ön ayarının altı hücresinde toplam 6266 geçerli turda kayıp yoktur
-(11 beraberlik; hücre başına üst güven sınırı %0,32–%0,49). Bütün mühürler ve oturum zincirleri
+**Yorum — kuralın sonucu.** Turnuva ön ayarının altı hücresinde toplam 6291 geçerli turda kayıp yoktur
+(15 beraberlik; hücre başına üst güven sınırı %0,32–%0,49). Bütün mühürler ve oturum zincirleri
 doğrulanmıştır. Bu satır Teorem 1'in simülasyondaki karşılığıdır; dedektörün ne kadar iyi olduğunu söylemez.
 
 **Yorum — sistemin ölçüsü.**
 
 1. **Bedel sonuçsuz denemelerdir ve geç açanlarda yüksektir.** Turnuva'da YZ, erken açanlara karşı
-   denemelerin %99,3–99,8'ini, normal açanlara karşı %94,5–94,6'sını, geç açanlara karşı yalnızca
-   **%64,8–68,3**'ünü kazanır. Geri kalanın neredeyse tamamı fauldür: açılması inişten ortalama 80 ms önce
-   başlayan bir oyuncunun yaklaşık üç atışından biri (30 kare/s'de %35,25 [32,60–38,00]) tekrarlanır. Böyle
+   denemelerin %99,25–99,75'ini, normal açanlara karşı %94,67–94,75'ini, geç açanlara karşı yalnızca
+   **%64,5–70,1**'ini kazanır. Geri kalanın neredeyse tamamı fauldür: açılması inişten ortalama 80 ms önce
+   başlayan bir oyuncunun yaklaşık üç atışından biri (30 kare/s'de %35,50 [32,84–38,25]) tekrarlanır. Böyle
    bir oyuncu için oyun deneyimi kabul edilemez olabilir.
 2. **Fauller ağırlıkla geç açılmalardır; dedektörün açık atışlardaki hatası küçüktür — eşleşmiş
-   simülatörde.** Normal açanlarda Kâğıt atışlarının yaklaşık %10'u (%9,05–10,75), Makas atışlarının %4–6'sı
-   (%4,07–5,73) faul sayılır (Kâğıt'ta iki grubun da açıldığının görülmesi gerekir). Açılması inişten en az
-   110 ms önce başlamış dürüst atışlarda faul oranı ise normal açanlarda %0,28–0,55, geç açanlarda en çok
-   %2,0'dır. Bu ayrım yalnızca sentetik el dedektörün varsayımlarına uyduğu sürece geçerlidir; uyumsuzlukta
-   açık atışlardaki faulün %17,5'e kadar çıktığı Bölüm 6.8'de gösterilmiştir.
-3. **Ön ayarlar simülasyonda beklenenden az ayrışır.** Serbest ön ayarı normal açanlarda sonuçsuz payı
-   %5,25'ten %4,50'ye indirir (aralıklar örtüşür), geç açanlarda %35'ten %30'a. Karşılığında insana
-   bıraktığı pay çok küçüktür: Serbest'te normal açanlarda 1146 ve 1143 geçerli turda 3'er kayıp (%0,26
-   [0,09–0,77]); Standart'ın altı hücresinde hiç kayıp yoktur. Yani "sıkılık–faul" ödünleşimi vardır ama
+   simülatörde.** Normal açanlarda Kâğıt atışlarının yaklaşık %8–10'u (%8,17–10,50), Makas atışlarının %4–5'i
+   (%4,04–5,25) faul sayılır (Kâğıt'ta iki grubun da açıldığının görülmesi gerekir). Açılması inişten en az
+   110 ms önce başlamış dürüst atışlarda faul oranı ise normal açanlarda %0,19–0,47, geç açanlarda en çok
+   %1,47'dir. Bu ayrım yalnızca sentetik el dedektörün varsayımlarına uyduğu sürece geçerlidir; uyumsuzlukta
+   açık atışlardaki faulün %14,7'ye kadar çıktığı Bölüm 6.8'de gösterilmiştir.
+3. **Ön ayarlar simülasyonda beklenenden az ayrışır.** Serbest ön ayarı 30 kare/s'de normal açanlarda
+   sonuçsuz payı %5'ten %4,17'ye indirir (aralıklar örtüşür), geç açanlarda %35,5'ten %29,3'e. Karşılığında
+   insana bıraktığı pay çok küçüktür: Serbest'te normal açanlarda 1150 ve 1143 geçerli turda 1 ve 2 kayıp
+   (%0,09 [0,02–0,49] ve %0,17 [0,05–0,64]), geç açanlarda 30 kare/s'de 848 turda 2 kayıp (%0,24
+   [0,06–0,86]); Standart'ın altı hücresinde hiç kayıp yoktur. Yani "sıkılık–faul" ödünleşimi vardır ama
    zayıftır: faullerin çoğu, her ön ayarın cezalandırdığı gerçekten geç açılmalardan gelir.
 4. **Karar "hareket başlamadan önce" değil, çoğunlukla "hareket oluşurken" verilir.** Değerlendirilen mühür
-   anında nihai şeklin ortalama yarıya yakını (30 kare/s'de 0,41–0,52; 60 kare/s'de 0,32–0,40) oluşmuştur ve
-   mühür, şeklin tamamlanmasından medyanda yalnızca 33–37 ms (30 kare/s'de bir kare) öncedir (bir hücrede
-   47 ms). Hareketten önceki mührün hiç değişmediği turların payı %12–23'tür; bunlar davranış kanalının
+   anında nihai şeklin ortalama en çok yarısı (30 kare/s'de 0,378–0,505; 60 kare/s'de 0,287–0,393) oluşmuştur
+   ve mühür, şeklin tamamlanmasından medyanda yalnızca 33–36 ms (30 kare/s'de bir kare) öncedir (iki hücrede
+   47 ms). Hareketten önceki mührün hiç değişmediği turların payı %12–24'tür; bunlar davranış kanalının
    haklı çıktığı turlardır.
-5. **Karar önceliğini oyuncu belirler.** Medyan öncelik erken açanlarda 234–236, normalde 165–166, geç
-   açanlarda 69–102 ms'dir; dağılım iki tepelidir (çeyrekler 33–499 ms): revize edilmeyen turlarda öncelik
+5. **Karar önceliğini oyuncu belirler.** Medyan öncelik erken açanlarda 234–237, normalde 165–166, geç
+   açanlarda 82–102 ms'dir; dağılım iki tepelidir (çeyrekler 34–499 ms): revize edilmeyen turlarda öncelik
    bütün uçuş süresidir (≈450–500 ms), revize edilenlerde son revizyonla iniş arasındaki birkaç karedir.
    İkinci tepeyi **kinematik öncelik** gösterir: el okunarak verilen kararların medyan önceliği erken
-   açanlarda 218–233, normalde 134–136, geç açanlarda yalnızca **65–67 ms**'dir (30 kare/s'de iki kare).
-   30 kare/s'de öncelikler 33 ms'nin katlarına kümelenir (kare nicemlemesi).
+   açanlarda 217–233, normalde 134–135, geç açanlarda yalnızca **54–67 ms**'dir (30 kare/s'de 66–67 ms, yani
+   iki kare). 30 kare/s'de öncelikler 33 ms'nin katlarına kümelenir (kare nicemlemesi).
 6. **60 kare/s karar önceliğini artırmaz**; mühür anındaki oluşum oranını düşürür (daha az oluşmuş şekille
-   karar) ve geç açanlarda sonuçsuz payı birkaç puan azaltır (Turnuva: %35,3'ten %31,6'ya).
+   karar) ve geç açanlarda sonuçsuz payı birkaç puan azaltır (Turnuva: %35,5'ten %29,8'e).
 
 Bu deneyde ölçülen öncelikler **bilgi kümesi** öncelikleridir (kare zamanı). Duvar saati önceliği
 simülasyonda tanımsızdır; gerçek bir kamerada kare → mühür gecikmesi kadar daha kısadır (Bölüm 4.10, 8.2).
@@ -263,93 +284,114 @@ tam açılmayan gevşek bir el.
 
 | Senaryo | Geçerli $n$ | G / B / M | Kayıp % [%95 GA] | Kazanılan deneme % | Sonuçsuz deneme % | Faul | Geçersiz | İptal | Öncelik medyanı (ms) | Tamamlanmaya öncelik (ms) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Aldatmaca Kâğıt→Taş, 150 ms önce | 633 | 633 / 0 / 0 | 0,00 [0,00–0,60] | 87,92 | 12,08 | 87 | 0 | 0 | 33 | — |
+| Aldatmaca Kâğıt→Taş, 150 ms önce | 650 | 650 / 0 / 0 | 0,00 [0,00–0,59] | 90,28 | 9,72 | 60 | 10 | 0 | 34 | — |
 | Aldatmaca Makas→Kâğıt, 110 ms önce | 720 | 720 / 0 / 0 | 0,00 [0,00–0,53] | 100,00 | 0,00 | 0 | 0 | 0 | 67 | 33 |
-| Aldatmaca Kâğıt→Makas, 150 ms önce | 510 | 508 / 2 / 0 | 0,00 [0,00–0,75] | 70,56 | 29,17 | 210 | 0 | 0 | 33 | −35 |
-| Aldatmaca Makas→Kâğıt, çok geç (60 ms) | 474 | 474 / 0 / 0 | 0,00 [0,00–0,80] | 65,83 | 34,17 | 246 | 0 | 0 | 33 | 33 |
-| Geç hamle: inişten 100 ms sonra açılma | 4 | 4 / 0 / 0 | 0,00 [0,00–48,99] | 0,56 | 99,44 | 716 | 0 | 0 | 516 | — |
-| İzleme kayıpları (karelerin %15'i) | 254 | 254 / 0 / 0 | 0,00 [0,00–1,49] | 35,28 | 64,72 | 36 | 294 | 136 | 165 | 33 |
+| Aldatmaca Kâğıt→Makas, 150 ms önce | 720 | 665 / 55 / 0 | 0,00 [0,00–0,53] | 92,36 | 0,00 | 0 | 0 | 0 | 34 | −34 |
+| Aldatmaca Makas→Kâğıt, çok geç (60 ms) | 485 | 485 / 0 / 0 | 0,00 [0,00–0,79] | 67,36 | 32,64 | 233 | 2 | 0 | 33 | 33 |
+| Geç hamle: inişten 100 ms sonra açılma | 56 | 56 / 0 / 0 | 0,00 [0,00–6,42] | 7,78 | 92,22 | 664 | 0 | 0 | 502 | — |
+| İzleme kayıpları (karelerin %15'i) | 576 | 575 / 1 / 0 | 0,00 [0,00–0,66] | 79,86 | 20,00 | 31 | 81 | 32 | 168 | 31 |
 | Sol el | 681 | 681 / 0 / 0 | 0,00 [0,00–0,56] | 94,58 | 5,42 | 39 | 0 | 0 | 167 | 34 |
-| Zayıf atış vuruşu (yumuşak iniş) | 675 | 675 / 0 / 0 | 0,00 [0,00–0,57] | 93,75 | 6,25 | 45 | 0 | 0 | 166 | 34 |
-| İki hazırlık vuruşu | 679 | 679 / 0 / 0 | 0,00 [0,00–0,56] | 94,31 | 5,69 | 41 | 0 | 0 | 166 | 34 |
-| Tek atış | 685 | 685 / 0 / 0 | 0,00 [0,00–0,56] | 95,14 | 4,86 | 35 | 0 | 0 | 134 | 34 |
-| Tek atış, atıştan önce 3,5 s bekleme | 681 | 680 / 1 / 0 | 0,00 [0,00–0,56] | 94,44 | 5,42 | 39 | 0 | 0 | 134 | 34 |
-| Tek atış, 60 kare/s | 670 | 670 / 0 / 0 | 0,00 [0,00–0,57] | 93,06 | 6,94 | 50 | 0 | 0 | 133 | 34 |
-| Önce Makas, yüzük + serçe inişten 60 ms önce | 319 | 319 / 0 / 0 | 0,00 [0,00–1,19] | 44,31 | 55,69 | 401 | 0 | 0 | 33 | 34 |
-| Gevşek açık el (parmaklar %75'te) | 661 | 659 / 2 / 0 | 0,00 [0,00–0,58] | 91,53 | 8,19 | 53 | 6 | 0 | 136 | 33 |
+| Zayıf atış vuruşu (yumuşak iniş) | 677 | 676 / 1 / 0 | 0,00 [0,00–0,56] | 93,89 | 5,97 | 43 | 0 | 0 | 166 | 34 |
+| İki hazırlık vuruşu | 681 | 681 / 0 / 0 | 0,00 [0,00–0,56] | 94,58 | 5,42 | 39 | 0 | 0 | 166 | 34 |
+| Tek atış | 686 | 686 / 0 / 0 | 0,00 [0,00–0,56] | 95,28 | 4,72 | 34 | 0 | 0 | 134 | 34 |
+| Tek atış, atıştan önce 3,5 s bekleme | 684 | 683 / 1 / 0 | 0,00 [0,00–0,56] | 94,86 | 5,00 | 36 | 0 | 0 | 134 | 34 |
+| Tek atış, 60 kare/s | 670 | 669 / 1 / 0 | 0,00 [0,00–0,57] | 92,92 | 6,94 | 50 | 0 | 0 | 134 | 34 |
+| Önce Makas, yüzük + serçe inişten 60 ms önce | 337 | 337 / 0 / 0 | 0,00 [0,00–1,13] | 46,81 | 53,19 | 378 | 5 | 0 | 33 | 34 |
+| Gevşek açık el (parmaklar %75'te) | 672 | 671 / 1 / 0 | 0,00 [0,00–0,57] | 93,19 | 6,67 | 43 | 5 | 0 | 164 | 33 |
 
 *Serbest:*
 
 | Senaryo | Geçerli $n$ | G / B / M | Kayıp % [%95 GA] | Kazanılan deneme % | Sonuçsuz deneme % | Faul | Geçersiz | İptal | Öncelik medyanı (ms) | Tamamlanmaya öncelik (ms) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Aldatmaca Kâğıt→Taş, 150 ms önce | 633 | 633 / 0 / 0 | 0,00 [0,00–0,60] | 87,92 | 12,08 | 87 | 0 | 0 | 34 | — |
+| Aldatmaca Kâğıt→Taş, 150 ms önce | 650 | 650 / 0 / 0 | 0,00 [0,00–0,59] | 90,28 | 9,72 | 60 | 10 | 0 | 34 | — |
 | Aldatmaca Makas→Kâğıt, 110 ms önce | 720 | 720 / 0 / 0 | 0,00 [0,00–0,53] | 100,00 | 0,00 | 0 | 0 | 0 | 67 | 33 |
-| Aldatmaca Kâğıt→Makas, 150 ms önce | 511 | 510 / 1 / 0 | 0,00 [0,00–0,75] | 70,83 | 29,03 | 209 | 0 | 0 | 33 | −35 |
-| Aldatmaca Makas→Kâğıt, çok geç (60 ms) | 532 | 532 / 0 / 0 | 0,00 [0,00–0,72] | 73,89 | 26,11 | 188 | 0 | 0 | 33 | 33 |
-| Geç hamle: inişten 100 ms sonra açılma | 4 | 4 / 0 / 0 | 0,00 [0,00–48,99] | 0,56 | 99,44 | 716 | 0 | 0 | 516 | — |
-| İzleme kayıpları (karelerin %15'i) | 262 | 261 / 1 / 0 | 0,00 [0,00–1,45] | 36,25 | 63,61 | 33 | 297 | 128 | 151 | 34 |
-| Sol el | 689 | 688 / 0 / 1 | 0,15 [0,03–0,82] | 95,56 | 4,31 | 31 | 0 | 0 | 168 | 35 |
+| Aldatmaca Kâğıt→Makas, 150 ms önce | 720 | 668 / 52 / 0 | 0,00 [0,00–0,53] | 92,78 | 0,00 | 0 | 0 | 0 | 34 | −34 |
+| Aldatmaca Makas→Kâğıt, çok geç (60 ms) | 563 | 562 / 0 / 1 | 0,18 [0,03–1,00] | 78,06 | 21,81 | 149 | 8 | 0 | 34 | 34 |
+| Geç hamle: inişten 100 ms sonra açılma | 56 | 56 / 0 / 0 | 0,00 [0,00–6,42] | 7,78 | 92,22 | 664 | 0 | 0 | 502 | — |
+| İzleme kayıpları (karelerin %15'i) | 571 | 569 / 1 / 1 | 0,18 [0,03–0,99] | 79,03 | 20,69 | 20 | 90 | 39 | 167 | 33 |
+| Sol el | 691 | 689 / 1 / 1 | 0,14 [0,03–0,82] | 95,69 | 4,03 | 29 | 0 | 0 | 167 | 35 |
 | Zayıf atış vuruşu (yumuşak iniş) | 686 | 684 / 2 / 0 | 0,00 [0,00–0,56] | 95,00 | 4,72 | 34 | 0 | 0 | 167 | 35 |
-| İki hazırlık vuruşu | 685 | 683 / 2 / 0 | 0,00 [0,00–0,56] | 94,86 | 4,86 | 35 | 0 | 0 | 166 | 34 |
-| Tek atış | 692 | 688 / 4 / 0 | 0,00 [0,00–0,55] | 95,56 | 3,89 | 28 | 0 | 0 | 134 | 34 |
-| Tek atış, atıştan önce 3,5 s bekleme | 681 | 680 / 1 / 0 | 0,00 [0,00–0,56] | 94,44 | 5,42 | 39 | 0 | 0 | 134 | 34 |
-| Tek atış, 60 kare/s | 684 | 678 / 3 / 3 | 0,44 [0,15–1,28] | 94,17 | 5,00 | 36 | 0 | 0 | 133 | 36 |
-| Önce Makas, yüzük + serçe inişten 60 ms önce | 413 | 408 / 0 / 5 | 1,21 [0,52–2,80] | 56,67 | 42,64 | 307 | 0 | 0 | 34 | 35 |
-| Gevşek açık el (parmaklar %75'te) | 671 | 663 / 8 / 0 | 0,00 [0,00–0,57] | 92,08 | 6,81 | 43 | 6 | 0 | 137 | 34 |
+| İki hazırlık vuruşu | 696 | 691 / 2 / 3 | 0,43 [0,15–1,26] | 95,97 | 3,33 | 24 | 0 | 0 | 166 | 35 |
+| Tek atış | 691 | 686 / 3 / 2 | 0,29 [0,08–1,05] | 95,28 | 4,03 | 29 | 0 | 0 | 134 | 34 |
+| Tek atış, atıştan önce 3,5 s bekleme | 685 | 682 / 2 / 1 | 0,15 [0,03–0,82] | 94,72 | 4,86 | 35 | 0 | 0 | 134 | 34 |
+| Tek atış, 60 kare/s | 691 | 682 / 4 / 5 | 0,72 [0,31–1,68] | 94,72 | 4,03 | 29 | 0 | 0 | 134 | 47 |
+| Önce Makas, yüzük + serçe inişten 60 ms önce | 448 | 440 / 0 / 8 | 1,79 [0,91–3,48] | 61,11 | 37,78 | 234 | 38 | 0 | 34 | 35 |
+| Gevşek açık el (parmaklar %75'te) | 680 | 670 / 9 / 1 | 0,15 [0,03–0,83] | 93,06 | 5,56 | 35 | 5 | 0 | 164 | 34 |
 
-"Tamamlanmaya öncelik" Taş ile biten senaryolarda tanımsızdır (—).
+"Tamamlanmaya öncelik" Taş ile biten senaryolarda tanımsızdır; inişten sonra açılan geç hamlede de değeri
+yoktur (—).
 
 **Yorum.** (i) Havada tamamlanan aldatmacalar Turnuva'da kayıp üretmez, ancak karar önceliğini **bir iki
 kareye** (33–67 ms) indirir: aldatan bir oyuncuya karşı YZ son ana kadar bekler. Kâğıt→Makas senaryosunda
-mühür, şeklin tamamlandığı andan sonradır (tamamlanmaya göre öncelik −35 ms); bu, D1'i ihlal etmez (mühür
-inişten öncedir) ama "tamamlanmadan önce karar" ölçütünün aldatmaca altında sağlanmadığını gösterir. (ii)
-Geç aldatmacalar yüksek faul üretir (Turnuva'da denemelerin %29–34'ü, Serbest'te %26–29'u): son havadaki
-karede okunan açılma, inen şekille bağdaşmaz. Faullerin türlere göre dökümü sonuç dosyasında yoktur. (iii) İnişten sonra açılan hamlelerin 720'de 716'sı (%99,44) faul sayılmıştır; 4'ünü hakem
-kaçırmıştır (bunlar geçerli sayılmış ve YZ dördünü de kazanmıştır). (iv) **Kare kayıpları kayıp üretmez ama
-tur verimini çökertir:** karelerin taban olarak %15'i düştüğünde 720 denemenin yalnızca 254'ü (%35) geçerli
-bir tura dönüşür; 294'ü EL YOK ile geçersiz, 136'sı iptal, 36'sı fauldür. Tazelik kuralı (Bölüm 4.4)
-tutucudur: kanıt bayatsa hüküm vermez. Bu, gerçek bir izleyicinin hızlı vuruşlarda eli ne sıklıkla
-kaybettiğine bağlı olarak ürünün kullanılabilirliğini belirleyebilecek bir sayıdır ve gerçekte
-ölçülmemiştir. (v) **Tek atış kipi** inceleme sonrasında hazırlık vuruşlu kiplerle aynı düzeydedir: sonuçsuz
-pay %4,9; atıştan önce 3,5 s beklendiğinde %5,4; 60 kare/s'de %6,9; hiçbir deneme iptal edilmemiş ya da
-hükümsüz kalmamıştır. Bu kipte medyan öncelik (134 ms) kinematik önceliğin medyanına (132 ms) yakındır;
-oyuncunun bekleme süresi yalnızca davranış mührünün hiç revize edilmediği turların önceliğine eklenir.
-(vi) **"Önce Makas, sonra yüzük ve serçe" saldırısı** Turnuva'da tek bir kayıp üretmez; bedeli faullerdir: 720 denemenin 401'i (%55,7) geç hamle sayılır, çünkü
-arka grubun açılması havada ölçülebilir hâle gelmemiştir. Serbest'te aynı saldırı insana gerçek bir pay
-bırakır: 413 geçerli turda 5 kayıp (%1,21 [0,52–2,80]). (vii) Parmakları varsayılan açık okumanın %75'inde
-kalan gevşek bir el okunabilir: 720 denemenin 6'sı BELİRSİZ ŞEKİL ile geçersizdir, sonuçsuz pay %8,2'dir.
-Serbest ön ayarında on dört senaryonun toplam 7863 geçerli turunda 9 kayıp vardır (sol el 1, tek atış
-60 kare/s 3, Makas-sonra-yüzük/serçe 5); Turnuva'da 7646 geçerli turda sıfır.
+mühür, medyanda şeklin tamamlanmasından bir kare sonra atılır (tamamlanmaya göre öncelik −34 ms); bu, D1'i
+ihlal etmez (mühür inişten öncedir) ama "tamamlanmadan önce karar" ölçütünün aldatmaca altında sağlanmadığını gösterir. (ii)
+Çok geç aldatmaca (Makas→Kâğıt, inişten 60 ms önce) yüksek faul üretir (Turnuva'da denemelerin %32,4'ü,
+Serbest'te %20,7'si): son havadaki karede okunan açılma, inen şekille bağdaşmaz. Aynı senaryoda Turnuva'da 2,
+Serbest'te 8 tur havadaki kareler çeliştiği için geçersizdir (`VOID_CONFLICT`); Kâğıt→Taş aldatmacasında bu
+sayı iki ön ayarda da 10'dur (faul %8,3). Kâğıt→Makas aldatmacası ise artık hiç faul üretmez (v4.0'da
+Turnuva'da denemelerin %29,2'si): bu senaryoda geçiş inişten yaklaşık 50 ms önce tamamlanır; havada açılıp
+yeniden kapanan arka grup artık faule yol açmaz ve 720 turun hepsi geçerlidir. Ama turların %7,6'sı
+berabere biter (Turnuva'da 665 galibiyet ve 55 beraberlik; Serbest'te 668 ve 52, %7,2): yeniden kapanan
+arka grubun açık yönelimi, dedektörü yeniden çapalanana kadar bir kare daha tutulur; yasal küme o karede hem Kâğıt'ı hem
+Makas'ı içerdiğinden YZ ikisine de kaybetmeyen Makas'ı seçer ve oyuncunun Makas'ına berabere kalır. Faulün
+v4.0'a göre kalkmasının hangi değişiklikten geldiği ayrıştırılmamıştır. Faullerin türlere göre dökümü sonuç
+dosyasında yoktur.
+(iii) İnişten sonra açılan hamlelerin 720'de 664'ü (%92,22) faul sayılmıştır; 56'sını
+hakem kaçırmıştır (bunlar geçerli sayılmış ve YZ 56'sını da kazanmıştır). v4.0'da kaçırılan 4 atıştı
+(%0,56); hakemin v4.2'de değişen kural ve ayarlarından hangisinin buna yol açtığı ayrıştırılmamıştır. (iv) **Kare
+kayıpları kayıp üretmez, tur verimini düşürür:** karelerin taban olarak %15'i düştüğünde 720 denemenin 576'sı
+(%80) geçerli bir tura dönüşür; 81'i EL YOK ile geçersiz, 32'si iptal, 31'i fauldür. v4.0'da yalnızca 254'ü
+(%35) geçerliydi (294 EL YOK, 136 iptal). Fark v4.0 ile v4.2.3 arasındaki değişikliklerden gelir; bunların
+arasında kısa izleme boşluklarını ve son havadaki karenin yaşını daha hoşgörülü değerlendiren v4.2.0 ayar ve
+kuralları vardır (Ek A, Bölüm 5.1.8), ama hangisinin ne kadar katkı yaptığı ayrıştırılmamıştır. Tazelik
+kuralı (Bölüm 4.4) kanıt bayatsa yine hüküm vermez; yalnızca v4.2.0'dan beri bayatlık eşiği daha geniştir
+(Ek A). Bu, gerçek bir izleyicinin hızlı vuruşlarda eli ne sıklıkla kaybettiğine bağlı olarak ürünün
+kullanılabilirliğini belirleyebilecek bir sayıdır ve gerçekte ölçülmemiştir. (v) **Tek atış kipi** inceleme
+sonrasında hazırlık vuruşlu kiplerle aynı düzeydedir: sonuçsuz pay %4,7; atıştan önce 3,5 s beklendiğinde
+%5,0; 60 kare/s'de %6,9; hiçbir deneme iptal edilmemiş ya da hükümsüz kalmamıştır. Bu kipte medyan öncelik
+(134 ms) kinematik önceliğin medyanına (132 ms) yakındır; oyuncunun bekleme süresi yalnızca davranış mührünün
+hiç revize edilmediği turların önceliğine eklenir. (vi) **"Önce Makas, sonra yüzük ve serçe" saldırısı**
+Turnuva'da tek bir kayıp üretmez; bedeli faullerdir: 720 denemenin 378'i (%52,5) geç hamle sayılır, çünkü
+arka grubun açılması havada ölçülebilir hâle gelmemiştir; 5 tur da havadaki kareler çeliştiği için
+geçersizdir. Serbest'te aynı saldırı insana gerçek bir pay bırakır: 448 geçerli turda 8 kayıp (%1,79
+[0,91–3,48]; ayrıca 234 faul ve çelişen kareler yüzünden 38 geçersiz tur). (vii) Parmakları varsayılan
+açık okumanın %75'inde kalan gevşek bir el okunabilir: 720 denemenin 5'i BELİRSİZ ŞEKİL ile geçersizdir, sonuçsuz pay %6,7'dir.
+Serbest ön ayarında on dört senaryonun toplam 8548 geçerli turunda 23 kayıp vardır (Makas-sonra-yüzük/serçe
+8, tek atış 60 kare/s 5, iki hazırlık vuruşu 3, tek atış 2; çok geç aldatmaca, izleme kayıpları, sol el,
+uzun bekleme ve gevşek el 1'er; v4.0'da 7863 turda 9); Turnuva'da 8295 geçerli turda sıfır.
 
 ## 6.5 E5 — Algılayıcı gürültüsü
 
 **Düzenek.** Turnuva, normal açanlar; eklem gürültüsü 1–8 mm (eksen başına SS; yalnızca dünya
-koordinatlarında); hücre başına 720 deneme. Geçersiz turların tamamı BELİRSİZ ŞEKİL'dir; iptal yoktur.
+koordinatlarında); hücre başına 720 deneme. 907 geçersiz turun 895'i BELİRSİZ ŞEKİL ile geçersizdir; geri
+kalan 12'si havadaki karelerin çeliştiği turlardır (`VOID_CONFLICT`). İzleme kaybıyla (EL YOK) geçersiz sayılan
+ya da iptal edilen tur yoktur.
 
 | Gürültü (mm) | Kare/s | Geçerli $n$ | G / B / M | Kayıp % [%95 GA] | Kazanılan deneme % | Sonuçsuz deneme % | Faul (deneme %) | Geçersiz (deneme %) | Öncelik medyanı (ms) | Revize edilmeyen % |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 30 | 678 | 678 / 0 / 0 | 0,00 [0,00–0,56] | 94,17 | 5,83 | 5,83 | 0,00 | 165 | 11,50 |
-| 1 | 60 | 694 | 692 / 2 / 0 | 0,00 [0,00–0,55] | 96,11 | 3,61 | 3,61 | 0,00 | 149 | 11,10 |
-| 2 | 30 | 678 | 678 / 0 / 0 | 0,00 [0,00–0,56] | 94,17 | 5,83 | 5,83 | 0,00 | 164 | 12,24 |
-| 2 | 60 | 693 | 691 / 2 / 0 | 0,00 [0,00–0,55] | 95,97 | 3,75 | 3,75 | 0,00 | 150 | 11,69 |
-| 4 | 30 | 664 | 664 / 0 / 0 | 0,00 [0,00–0,58] | 92,22 | 7,78 | 7,78 | 0,00 | 165 | 12,05 |
-| 4 | 60 | 682 | 680 / 2 / 0 | 0,00 [0,00–0,56] | 94,44 | 5,28 | 5,28 | 0,00 | 150 | 12,32 |
-| 6 | 30 | 521 | 518 / 3 / 0 | 0,00 [0,00–0,73] | 71,94 | 27,64 | 5,69 | 21,94 | 168 | 12,28 |
-| 6 | 60 | 460 | 458 / 2 / 0 | 0,00 [0,00–0,83] | 63,61 | 36,11 | 3,89 | 32,22 | 185 | 8,48 |
-| 8 | 30 | 372 | 369 / 3 / 0 | 0,00 [0,00–1,02] | 51,25 | 48,33 | 6,67 | 41,67 | 399 | 10,75 |
-| 8 | 60 | 281 | 280 / 1 / 0 | 0,00 [0,00–1,35] | 38,89 | 60,97 | 2,08 | 58,89 | 485 | 41,28 |
+| 1 | 30 | 682 | 682 / 0 / 0 | 0,00 [0,00–0,56] | 94,72 | 5,28 | 5,28 | 0,00 | 164 | 10,85 |
+| 1 | 60 | 695 | 693 / 2 / 0 | 0,00 [0,00–0,55] | 96,25 | 3,47 | 3,47 | 0,00 | 150 | 10,79 |
+| 2 | 30 | 678 | 678 / 0 / 0 | 0,00 [0,00–0,56] | 94,17 | 5,83 | 5,83 | 0,00 | 164 | 12,09 |
+| 2 | 60 | 694 | 692 / 2 / 0 | 0,00 [0,00–0,55] | 96,11 | 3,61 | 3,61 | 0,00 | 150 | 10,66 |
+| 4 | 30 | 666 | 665 / 1 / 0 | 0,00 [0,00–0,57] | 92,36 | 7,50 | 7,22 | 0,28 | 166 | 11,41 |
+| 4 | 60 | 684 | 681 / 3 / 0 | 0,00 [0,00–0,56] | 94,58 | 5,00 | 4,72 | 0,28 | 150 | 13,16 |
+| 6 | 30 | 556 | 550 / 6 / 0 | 0,00 [0,00–0,69] | 76,39 | 22,78 | 5,69 | 17,08 | 168 | 10,97 |
+| 6 | 60 | 495 | 494 / 1 / 0 | 0,00 [0,00–0,77] | 68,61 | 31,25 | 4,03 | 27,22 | 169 | 11,11 |
+| 8 | 30 | 404 | 399 / 5 / 0 | 0,00 [0,00–0,94] | 55,42 | 43,89 | 4,31 | 39,58 | 200 | 8,42 |
+| 8 | 60 | 403 | 397 / 6 / 0 | 0,00 [0,00–0,94] | 55,14 | 44,03 | 2,50 | 41,53 | 184 | 9,68 |
 
 ![E5](../figures/E5-sensor-noise.svg)
 
-**Yorum.** 4 mm'ye kadar sistem bozulmadan çalışır (sonuçsuz pay %3,6–7,8, tamamı faul). 6 mm'den itibaren
-**çöker, ama sessizce değil**: hakem denemelerin %22–32'sini (6 mm) ve %42–59'unu (8 mm) "şekil tanınmadı"
-diye geçersiz sayar; YZ'nin kazandığı deneme payı 4 mm'ye kadarki %92–96'dan 8 mm'de %39–51'e düşer.
-Geçerli kalan turlardaki "%99–100 kazanma" ise **yanıltıcıdır** ve sağlamlık kanıtı sayılmamalıdır: bu oran kuralın sonucudur ve
-8 mm'de, 60 kare/s'de mühürlerin %41'i hiç revize edilmemiş, medyan öncelik neredeyse bütün uçuş süresine
-(485 ms) çıkmıştır; yani kinematik kanal turların önemli bir bölümünde fiilen devre dışıdır. Geçerli
-turların yalnızca hakemin tanıyabildiği şekillerden oluşması bir **seçilim yanlılığı**dır; bu, "geçerli
-turlarda kazanma oranı"nın tek başına raporlanmasının neden yetersiz olduğunu gösterir. Koşulsuz sütunlar
-her zaman birlikte verilmelidir.
+**Yorum.** 4 mm'ye kadar sistem bozulmadan çalışır (sonuçsuz pay %3,5–7,5; 4 mm'deki dört geçersiz tur dışında
+tamamı faul). 6 mm'den itibaren **çöker, ama sessizce değil**: hakem denemelerin %17–27'sini (6 mm) ve
+%40–42'sini (8 mm), çoğunu "şekil tanınmadı" diye, geçersiz sayar; YZ'nin kazandığı deneme payı 4 mm'ye kadarki
+%92–96'dan 8 mm'de %55'e düşer. Geçerli kalan turlardaki "%98–100 kazanma" ise **yanıltıcıdır** ve
+sağlamlık kanıtı sayılmamalıdır: bu oran kuralın sonucudur. 8 mm'de de mühürlerin çoğu el okunarak revize
+edilir (hiç revize edilmeyenler %8,42 ve %9,68; medyan öncelik 184–200 ms); v4.0'da 60 kare/s'de mühürlerin
+%41'i hiç revize edilmemiş ve medyan öncelik neredeyse bütün uçuş süresine (485 ms) çıkmıştı, bu bugünkü
+kodda yinelenmez. Ama geçerli turların yalnızca hakemin tanıyabildiği şekillerden oluşması bir **seçilim
+yanlılığı**dır; bu, "geçerli turlarda kazanma oranı"nın tek başına raporlanmasının neden yetersiz olduğunu
+gösterir. Koşulsuz sütunlar her zaman birlikte verilmelidir.
 
 Varsayılan 2 mm değeri bir ölçüm değildir. Üreticinin model kartı iki boyutta avuç boyunun %10'u dolayında
 ortalama mutlak hata bildirir [MediaPipeHandCard2021]; bu, işaretleme farklarını da içeren bir mutlak hata
@@ -359,28 +401,28 @@ Gerçek sistemin E5'in hangi satırında çalıştığı bilinmemektedir (Bölü
 ## 6.6 E6 — Kalibrasyon ve öğrenme eğrileri
 
 **Kalibrasyon.** Turnuva, normal açanlar, 30 kare/s; 8 tohum × 300 deneme; değerlendirilen mühür anındaki
-sonsal gerçek hamleyle karşılaştırılır ($n=2257$).
+sonsal gerçek hamleyle karşılaştırılır ($n=2270$).
 
 | İsabet | Brier | Log-kayıp (bit) | Bilgi kazancı (bit/tur) | ECE |
 |---|---|---|---|---|
-| %78,33 | 0,2821 | 0,6836 | 0,9013 | 0,0649 |
+| %76,83 | 0,2897 | 0,7003 | 0,8846 | 0,0558 |
 
 | Güven kutusu | $n$ | Ortalama güven | Gözlenen isabet |
 |---|---|---|---|
-| 0,3–0,4 | 514 | 0,377 | 0,446 |
-| 0,4–0,5 | 205 | 0,429 | 0,449 |
-| 0,5–0,6 | 167 | 0,543 | 0,665 |
-| 0,6–0,7 | 135 | 0,650 | 0,815 |
-| 0,7–0,8 | 159 | 0,752 | 0,969 |
-| 0,8–0,9 | 155 | 0,850 | 0,981 |
-| 0,9–1,0 | 922 | 0,987 | 0,998 |
+| 0,3–0,4 | 508 | 0,375 | 0,421 |
+| 0,4–0,5 | 228 | 0,431 | 0,443 |
+| 0,5–0,6 | 184 | 0,542 | 0,636 |
+| 0,6–0,7 | 122 | 0,651 | 0,787 |
+| 0,7–0,8 | 168 | 0,746 | 0,958 |
+| 0,8–0,9 | 174 | 0,852 | 0,983 |
+| 0,9–1,0 | 886 | 0,988 | 0,998 |
 
 ![E6 kalibrasyon](../figures/E6-calibration.svg)
 
-**Yorum.** Sonsal bilgilendiricidir (şansa göre 0,90 bit/tur; tavan 1,58) ama **iyi kalibre değildir**:
-her kutuda gözlenen isabet bildirilen güvenin üzerindedir; orta kutularda fark büyüktür (0,752 güvene karşı
-0,969 isabet). Model sistematik olarak **az güvenlidir**; ECE 0,065'tir. Ayrıca mühür anındaki en olası
-sınıf turların yalnızca %78,3'ünde doğrudur, oysa aynı düzenekte geçerli turlarda kazanma oranı %100'e
+**Yorum.** Sonsal bilgilendiricidir (şansa göre 0,88 bit/tur; tavan 1,58) ama **iyi kalibre değildir**:
+her kutuda gözlenen isabet bildirilen güvenin üzerindedir; orta kutularda fark büyüktür (0,746 güvene karşı
+0,958 isabet). Model sistematik olarak **az güvenlidir**; ECE 0,056'dır. Ayrıca mühür anındaki en olası
+sınıf turların yalnızca %76,8'inde doğrudur, oysa aynı düzenekte geçerli turlarda kazanma oranı %100'e
 yakındır. Bunun açıklaması kararın sonsalın tepe sınıfına değil **hakemin yasal kümesine** dayanmasıdır
 (Lemma 1: yasal sınıflardan biri dışlandığında kaybetmeyen bir hamle vardır) ve mühür ayakta kaldığı sürece
 sonsalın sonraki keskinleşmesinin kaydedilmemesidir. Arayüzde gösterilen olasılıklar bu nedenle "kesin
@@ -390,38 +432,39 @@ sayılar" olarak değil, kalibrasyon hatasıyla birlikte sunulmalıdır.
 
 | Tarz | Blok medyanı: karar önceliği (ms), 1.–8. blok | Öğrenilen ön başlangıç önceliği (ms) | Simülasyondaki gerçek ortalama (ms) |
 |---|---|---|---|
-| erken | 233, 234, 265, 236, 232, 267, 264, 266 | 280 | 260 |
-| normal | 135, 136, 198, 166, 167, 164, 168, 166 | 199 | 170 |
-| geç | 400, 101, 101, 117, 117, 431, 117, 100 | 126 | 80 |
+| erken | 233, 234, 265, 236, 233, 267, 264, 266 | 280 | 260 |
+| normal | 135, 135, 182, 164, 135, 164, 167, 164 | 196 | 170 |
+| geç | 116, 118, 416, 98, 102, 102, 268, 99 | 125 | 80 |
 
 ![E6 öğrenme](../figures/E6-learning.svg)
 
-**Yorum.** (i) Oyuncuya özgü önsel öğrenilir (öğrenme öncesi 170 ms'den 280 / 199 / 126 ms'ye), ancak
-öğrenilen değer simülasyondaki gerçek ortalamanın **20–46 ms üzerindedir**. İki olası neden vardır ve
+**Yorum.** (i) Oyuncuya özgü önsel öğrenilir (öğrenme öncesi 170 ms'den 280 / 196 / 125 ms'ye), ancak
+öğrenilen değer simülasyondaki gerçek ortalamanın **20–45 ms üzerindedir**. İki olası neden vardır ve
 ayrıştırılmamıştır: başlangıç ölçümünün yanlılığı ve seçilim (yalnızca geçerli turlardan öğrenilir; en geç
 başlayan açılmalar faul olduğu için öğrenme kümesine girmez — geç açanlarda etki en büyüktür). (ii) **Karar
-önceliği öğrenmeyle az büyür:** normal açanlarda ilk iki bloktaki ≈135 ms'den sonraki bloklarda ≈166 ms'ye
-(yaklaşık bir kare), erken açanlarda ≈233'ten ≈265 ms'ye; geç açanlarda bir eğilim yoktur. Geç açanlardaki
-400 ve 431 ms'lik blok medyanları öğrenme değil, iki tepeli dağılımda medyanın tepe değiştirmesidir (E3'te
-bu tarzda, Turnuva'da, kinematik önceliğin medyanı 66–67 ms, bütün geçerli turların üst çeyreği 469–499 ms'dir).
+önceliği öğrenmeyle az büyür:** normal açanlarda ilk iki bloktaki ≈135 ms'den sonraki bloklarda çoğunlukla
+164–167 ms'ye (yaklaşık bir kare; üçüncü blokta 182, beşinci blokta yine 135 ms), erken açanlarda ≈233'ten
+≈265 ms'ye; geç açanlarda bir eğilim yoktur. Geç açanlardaki 416 ve 268 ms'lik blok medyanları öğrenme değil,
+iki tepeli dağılımda medyanın üst tepeye ya da iki tepenin arasına kaymasıdır (E3'te bu tarzda, Turnuva'da,
+kinematik önceliğin medyanı 54–66 ms, bütün geçerli turların üst çeyreği 498–499 ms'dir).
 Dolayısıyla "tur sayısı arttıkça daha erken tanır" beklentisi simülasyonda yalnızca zayıf biçimde
 doğrulanmıştır; önceliği esas olarak oyuncunun parmaklarını ne zaman açmaya başladığı belirler.
 
 ## 6.7 E7 — İki kanalın ayrıştırılması
 
 **Düzenek.** Turnuva, normal açanlar, 30 kare/s, "humanLike"; 8 tohum × 300 deneme. Aynı geçerli turlarda
-($n=2260$) iki karar karşılaştırılır: hareket başlamadan atılan davranış mührü (karşı-olgusal) ve
+($n=2276$) iki karar karşılaştırılır: hareket başlamadan atılan davranış mührü (karşı-olgusal) ve
 değerlendirilen mühür.
 
 | Karar | Kazanma % [%95 GA] | Berabere % | Kayıp % |
 |---|---|---|---|
-| Yalnızca davranış kanalı (hareketten önceki mühür) | 38,58 [36,60–40,61] | 35,22 | 26,19 |
+| Yalnızca davranış kanalı (hareketten önceki mühür) | 37,79 [35,82–39,80] | 34,71 | 27,50 |
 | Davranış + kinematik (değerlendirilen mühür) | 99,96 [99,75–99,99] | 0,04 | 0,00 |
 
-Davranış mührü geçerli turların %13,05'inde hiç revize edilmemiştir.
+Davranış mührü geçerli turların %13,40'ında hiç revize edilmemiştir.
 
 **Yorum.** Sistemin başarımının neredeyse tamamı **kinematik kanaldan** gelir. Davranış kanalı tek başına
-şansın üzerindedir (aralık %33,3'ü dışlar; net ≈ +0,12/tur), ama "yenilmezlik"le ilgisi yoktur. Bu değer
+şansın üzerindedir (aralık %33,3'ü dışlar; net ≈ +0,10/tur), ama "yenilmezlik"le ilgisi yoktur. Bu değer
 E1'deki "humanLike" satırından (en iyi yanıtla 0,06, davranış mührünün gerçekte izlediği güvenli stratejiyle
 0,02) yüksektir; olası bir neden E5'te görülen seçilimin hafif bir biçimidir: faul sayılan turlar yalnızca
 Kâğıt/Makas atışlarıdır, bu yüzden geçerli turlarda Taş fazla temsil edilir ve davranış kanalı fazladan bir
@@ -468,104 +511,121 @@ yüzdesidir; hiçbir satırda iptal yoktur):
 
 | # | Koşul | Geçerli % | G / B / M (geçerli turların %'si) | Faul (deneme %) | Geçersiz (deneme %) | Açık dürüst atışlarda faul % | Medyan öncelik (ms) |
 |---|---|---|---|---|---|---|---|
-| 1 | Eşleşmiş taban (en küçük sarsım, bağımsız gürültü) | 95,44 | 99,88 / 0,12 / 0,00 | 4,56 | 0,00 | 0,00 | 167 |
-| 2 | Açılma profili: doğrusal | 97,22 | 99,89 / 0,11 / 0,00 | 2,78 | 0,00 | 0,00 | 167 |
-| 3 | Açılma profili: üstel (ani başlangıç) | 98,33 | 99,55 / 0,45 / 0,00 | 1,67 | 0,00 | 0,00 | 199 |
-| 4 | Açılma profili: kübik (yavaş başlangıç) | 84,67 | 99,74 / 0,26 / 0,00 | 15,33 | 0,00 | 7,09 | 135 |
+| 1 | Eşleşmiş taban (en küçük sarsım, bağımsız gürültü) | 95,78 | 99,65 / 0,35 / 0,00 | 4,22 | 0,00 | 0,00 | 167 |
+| 2 | Açılma profili: doğrusal | 97,44 | 99,89 / 0,11 / 0,00 | 2,56 | 0,00 | 0,00 | 167 |
+| 3 | Açılma profili: üstel (ani başlangıç) | 98,11 | 99,43 / 0,57 / 0,00 | 1,89 | 0,00 | 0,00 | 199 |
+| 4 | Açılma profili: kübik (yavaş başlangıç) | 84,00 | 99,87 / 0,13 / 0,00 | 16,00 | 0,00 | 7,72 | 136 |
 | 5 | Parmak eşzamansızlığı, SS 30 ms | 93,89 | 100,00 / 0,00 / 0,00 | 6,11 | 0,00 | 0,98 | 168 |
-| 6 | Parmak eşzamansızlığı, SS 60 ms | 92,44 | 100,00 / 0,00 / 0,00 | 7,56 | 0,00 | 2,89 | 200 |
-| 7 | Açık el genliği $\mathcal N(0{,}80,\,0{,}10)$ | 94,00 | 99,29 / 0,71 / 0,00 | 5,89 | 0,11 | 1,35 | 166 |
-| 8 | Açık el genliği $\mathcal N(0{,}65,\,0{,}10)$ | 92,11 | 99,64 / 0,36 / 0,00 | 5,33 | 2,56 | 1,09 | 166 |
-| 9 | Yavaş açılma (medyan 250 ms) | 82,00 | 99,86 / 0,14 / 0,00 | 18,00 | 0,00 | 8,91 | 134 |
+| 6 | Parmak eşzamansızlığı, SS 60 ms | 93,11 | 100,00 / 0,00 / 0,00 | 6,89 | 0,00 | 2,50 | 199 |
+| 7 | Açık el genliği $\mathcal N(0{,}80,\,0{,}10)$ | 93,78 | 99,41 / 0,59 / 0,00 | 6,11 | 0,11 | 0,87 | 165 |
+| 8 | Açık el genliği $\mathcal N(0{,}65,\,0{,}10)$ | 91,67 | 99,52 / 0,48 / 0,00 | 5,56 | 2,78 | 1,09 | 166 |
+| 9 | Yavaş açılma (medyan 250 ms) | 86,56 | 99,87 / 0,13 / 0,00 | 13,44 | 0,00 | 6,14 | 135 |
 | 10 | Yüzük/serçe gecikmesi $\mathcal N(100,\,50)$ ms | 79,78 | 100,00 / 0,00 / 0,00 | 20,22 | 0,00 | 14,73 | 167 |
-| 11 | İlintili gürültü, AR(1), $\rho=0{,}8$ | 94,67 | 99,88 / 0,12 / 0,00 | 5,33 | 0,00 | 0,37 | 166 |
-| 12 | Hıza bağlı gürültü, $\times(1+2v/8)$ | 92,22 | 100,00 / 0,00 / 0,00 | 7,78 | 0,00 | 1,61 | 136 |
-| 13 | Hıza bağlı gürültü, $\times(1+4v/8)$ | 76,56 | 99,71 / 0,29 / 0,00 | 23,44 | 0,00 | 17,49 | 67 |
-| 14 | Parmak ucu aykırı değerleri, karelerin %5'i (3 cm) | 94,78 | 100,00 / 0,00 / 0,00 | 5,22 | 0,00 | 0,73 | 167 |
-| 15 | Parmak ucu aykırı değerleri, karelerin %15'i (3 cm) | 92,67 | 99,88 / 0,12 / 0,00 | 7,11 | 0,22 | 1,23 | 165 |
-| 16 | Görünen el boyutu titreşimi, %10 | 93,67 | 100,00 / 0,00 / 0,00 | 6,33 | 0,00 | 0,75 | 166 |
-| 17 | Vuruş boyunca 25° bilek eğimi | 94,00 | 99,76 / 0,24 / 0,00 | 6,00 | 0,00 | 0,74 | 166 |
-| 18 | Eylemsizlikle parmak gevşemesi 0,25 | 92,56 | 100,00 / 0,00 / 0,00 | 7,44 | 0,00 | 1,27 | 135 |
-| 19 | Eylemsizlikle gevşeme 0,20, yalnızca atış vuruşunda | 95,44 | 98,37 / 1,63 / 0,00 | 4,56 | 0,00 | 0,99 | 70 |
-| 20 | El: yumruk 180° / açık 45° | 95,00 | 99,88 / 0,12 / 0,00 | 5,00 | 0,00 | 0,37 | 167 |
-| 21 | El: yumruk 160° / açık 60° | 93,67 | 99,88 / 0,12 / 0,00 | 5,67 | 0,67 | 0,73 | 166 |
-| 22 | Birleşik hafif uyumsuzluk | 89,67 | 99,63 / 0,37 / 0,00 | 10,22 | 0,11 | 4,15 | 135 |
+| 11 | İlintili gürültü, AR(1), $\rho=0{,}8$ | 94,78 | 100,00 / 0,00 / 0,00 | 5,22 | 0,00 | 0,62 | 166 |
+| 12 | Hıza bağlı gürültü, $\times(1+2v/8)$ | 93,11 | 99,88 / 0,12 / 0,00 | 6,89 | 0,00 | 1,37 | 165 |
+| 13 | Hıza bağlı gürültü, $\times(1+4v/8)$ | 85,00 | 99,35 / 0,65 / 0,00 | 13,33 | 1,67 | 7,44 | 69 |
+| 14 | Parmak ucu aykırı değerleri, karelerin %5'i (3 cm) | 95,22 | 100,00 / 0,00 / 0,00 | 4,78 | 0,00 | 0,49 | 166 |
+| 15 | Parmak ucu aykırı değerleri, karelerin %15'i (3 cm) | 93,11 | 100,00 / 0,00 / 0,00 | 6,67 | 0,22 | 1,37 | 165 |
+| 16 | Görünen el boyutu titreşimi, %10 | 94,22 | 100,00 / 0,00 / 0,00 | 5,78 | 0,00 | 0,50 | 166 |
+| 17 | Vuruş boyunca 25° bilek eğimi | 94,44 | 99,76 / 0,24 / 0,00 | 5,56 | 0,00 | 0,61 | 167 |
+| 18 | Eylemsizlikle parmak gevşemesi 0,25 | 92,22 | 100,00 / 0,00 / 0,00 | 7,44 | 0,33 | 1,15 | 135 |
+| 19 | Eylemsizlikle gevşeme 0,20, yalnızca atış vuruşunda | 96,00 | 98,50 / 1,50 / 0,00 | 0,89 | 3,11 | 0,00 | 69 |
+| 20 | El: yumruk 180° / açık 45° | 95,11 | 99,88 / 0,12 / 0,00 | 4,89 | 0,00 | 0,25 | 167 |
+| 21 | El: yumruk 160° / açık 60° | 94,00 | 99,76 / 0,24 / 0,00 | 5,22 | 0,78 | 0,85 | 166 |
+| 22 | Birleşik hafif uyumsuzluk | 91,00 | 98,90 / 1,10 / 0,00 | 8,44 | 0,56 | 3,43 | 135 |
 
 ![E8](../figures/E8-robustness.svg)
 
 Şekildeki çubuk numaraları tablonun satır numaralarıdır.
 
-**Turnuva 60 kare/s ve Serbest 30 kare/s** (satır numaraları yukarıdaki tablonun koşullarıdır; Turnuva
-60 kare/s'nin 13. satırında 2 deneme iptal edilmiştir, başka hiçbir satırda iptal yoktur):
+**Turnuva 60 kare/s ve Serbest 30 kare/s** (satır numaraları yukarıdaki tablonun koşullarıdır; hiçbir
+satırda iptal yoktur):
 
 | # | Turnuva 60 kare/s: faul % | geçersiz % | açık dürüst faul % | kayıp (sayı) | öncelik (ms) | Serbest 30 kare/s: faul % | geçersiz % | G / B / M (geçerli turların %'si) | kayıp (sayı / geçerli) | öncelik (ms) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 3,89 | 0,00 | 0,37 | 0 | 150 | 3,89 | 0,00 | 99,42 / 0,58 / 0,00 | 0 / 865 | 168 |
-| 2 | 2,33 | 0,00 | 0,00 | 0 | 166 | 2,00 | 0,00 | 99,66 / 0,23 / 0,11 | 1 / 882 | 169 |
-| 3 | 0,78 | 0,00 | 0,00 | 0 | 183 | 1,33 | 0,00 | 99,10 / 0,79 / 0,11 | 1 / 888 | 200 |
-| 4 | 10,89 | 0,00 | 5,05 | 0 | 133 | 13,22 | 0,00 | 99,87 / 0,13 / 0,00 | 0 / 781 | 135 |
-| 5 | 5,67 | 0,00 | 1,00 | 0 | 167 | 5,11 | 0,00 | 99,88 / 0,12 / 0,00 | 0 / 854 | 169 |
-| 6 | 6,11 | 0,00 | 1,62 | 0 | 183 | 5,78 | 0,00 | 99,53 / 0,35 / 0,12 | 1 / 848 | 200 |
-| 7 | 4,78 | 0,33 | 0,25 | 0 | 152 | 5,22 | 0,11 | 99,65 / 0,35 / 0,00 | 0 / 852 | 165 |
-| 8 | 6,00 | 3,22 | 0,38 | 0 | 164 | 5,44 | 2,56 | 99,52 / 0,36 / 0,12 | 1 / 828 | 167 |
-| 9 | 11,89 | 0,00 | 3,73 | 0 | 133 | 10,89 | 0,00 | 99,13 / 0,62 / 0,25 | 2 / 802 | 136 |
-| 10 | 15,78 | 0,00 | 11,79 | 0 | 152 | 19,00 | 0,00 | 99,86 / 0,00 / 0,14 | 1 / 729 | 167 |
-| 11 | 5,11 | 0,00 | 0,37 | 0 | 150 | 4,11 | 0,00 | 99,65 / 0,23 / 0,12 | 1 / 863 | 168 |
-| 12 | 7,22 | 0,00 | 0,99 | 0 | 131 | 5,44 | 0,00 | 99,18 / 0,82 / 0,00 | 0 / 851 | 165 |
-| 13 | 18,89 | 0,00 | 11,18 | 0 | 35 | 14,00 | 0,00 | 97,16 / 2,33 / 0,52 | 4 / 774 | 67 |
-| 14 | 4,33 | 0,00 | 0,37 | 0 | 151 | 4,89 | 0,00 | 99,77 / 0,23 / 0,00 | 0 / 856 | 167 |
-| 15 | 4,33 | 0,44 | 0,37 | 0 | 166 | 6,22 | 0,11 | 99,53 / 0,12 / 0,36 | 3 / 843 | 166 |
-| 16 | 4,56 | 0,00 | 0,25 | 0 | 150 | 4,78 | 0,00 | 100,00 / 0,00 / 0,00 | 0 / 857 | 167 |
-| 17 | 4,89 | 0,00 | 0,37 | 0 | 151 | 4,00 | 0,00 | 99,54 / 0,46 / 0,00 | 0 / 864 | 167 |
-| 18 | 7,33 | 0,00 | 1,87 | 0 | 126 | 5,22 | 0,00 | 99,88 / 0,00 / 0,12 | 1 / 853 | 100 |
-| 19 | 6,78 | 0,00 | 1,26 | 0 | 50 | 3,00 | 0,00 | 96,91 / 2,63 / 0,46 | 4 / 873 | 67 |
-| 20 | 4,33 | 0,00 | 0,49 | 0 | 150 | 3,67 | 0,00 | 98,96 / 0,92 / 0,12 | 1 / 867 | 167 |
-| 21 | 5,67 | 1,00 | 0,98 | 0 | 150 | 5,56 | 0,67 | 99,05 / 0,83 / 0,12 | 1 / 844 | 165 |
-| 22 | 5,89 | 0,22 | 1,12 | 0 | 101 | 7,78 | 0,11 | 96,26 / 3,26 / 0,48 | 4 / 829 | 163 |
+| 1 | 3,78 | 0,00 | 0,25 | 0 | 151 | 3,11 | 0,00 | 98,74 / 0,69 / 0,57 | 5 / 872 | 168 |
+| 2 | 1,67 | 0,00 | 0,00 | 0 | 166 | 1,89 | 0,00 | 99,21 / 0,68 / 0,11 | 1 / 883 | 170 |
+| 3 | 0,78 | 0,00 | 0,00 | 0 | 183 | 1,33 | 0,00 | 99,21 / 0,79 / 0,00 | 0 / 888 | 200 |
+| 4 | 10,44 | 0,11 | 4,69 | 0 | 135 | 11,56 | 0,22 | 98,87 / 0,88 / 0,25 | 2 / 794 | 135 |
+| 5 | 4,89 | 0,00 | 0,50 | 0 | 167 | 4,67 | 0,00 | 99,65 / 0,23 / 0,12 | 1 / 858 | 169 |
+| 6 | 6,11 | 0,00 | 1,62 | 0 | 183 | 4,56 | 0,11 | 99,30 / 0,58 / 0,12 | 1 / 858 | 200 |
+| 7 | 4,78 | 0,44 | 0,25 | 0 | 152 | 3,78 | 0,33 | 99,30 / 0,58 / 0,12 | 1 / 863 | 165 |
+| 8 | 5,56 | 2,33 | 0,50 | 0 | 150 | 5,22 | 2,78 | 98,79 / 0,85 / 0,36 | 3 / 828 | 167 |
+| 9 | 10,89 | 0,11 | 3,35 | 0 | 136 | 10,67 | 0,11 | 98,88 / 0,75 / 0,37 | 3 / 803 | 135 |
+| 10 | 15,67 | 0,00 | 11,66 | 0 | 152 | 16,11 | 0,22 | 99,34 / 0,13 / 0,53 | 4 / 753 | 167 |
+| 11 | 4,44 | 0,00 | 0,24 | 0 | 151 | 4,00 | 0,00 | 99,65 / 0,23 / 0,12 | 1 / 864 | 168 |
+| 12 | 6,11 | 0,00 | 0,99 | 0 | 134 | 5,56 | 0,11 | 98,70 / 1,06 / 0,24 | 2 / 849 | 136 |
+| 13 | 10,11 | 1,00 | 4,52 | 0 | 52 | 6,22 | 5,22 | 95,11 / 3,76 / 1,13 | 9 / 797 | 70 |
+| 14 | 4,22 | 0,11 | 0,25 | 0 | 151 | 4,67 | 0,11 | 99,88 / 0,12 / 0,00 | 0 / 857 | 167 |
+| 15 | 4,33 | 1,00 | 0,49 | 0 | 166 | 5,56 | 0,44 | 99,29 / 0,35 / 0,35 | 3 / 846 | 166 |
+| 16 | 4,44 | 0,00 | 0,13 | 0 | 150 | 4,89 | 0,00 | 99,42 / 0,35 / 0,23 | 2 / 856 | 167 |
+| 17 | 4,78 | 0,00 | 0,25 | 0 | 151 | 3,44 | 0,00 | 99,42 / 0,35 / 0,23 | 2 / 869 | 167 |
+| 18 | 4,00 | 2,11 | 0,75 | 0 | 116 | 1,56 | 3,78 | 99,18 / 0,12 / 0,70 | 6 / 852 | 97 |
+| 19 | 0,11 | 5,11 | 0,00 | 0 | 51 | 0,00 | 2,89 | 96,68 / 2,97 / 0,34 | 3 / 874 | 66 |
+| 20 | 3,89 | 0,00 | 0,12 | 0 | 150 | 3,33 | 0,00 | 98,39 / 1,15 / 0,46 | 4 / 870 | 167 |
+| 21 | 6,11 | 0,56 | 0,38 | 0 | 150 | 4,56 | 0,78 | 98,83 / 0,94 / 0,23 | 2 / 852 | 165 |
+| 22 | 5,67 | 0,56 | 1,14 | 0 | 132 | 4,44 | 1,11 | 94,35 / 4,82 / 0,82 | 7 / 850 | 166 |
 
 **Yorum.**
 
 1. **Turnuva'da kayıp her koşulda sıfırdır — ve bu hiçbir şey kanıtlamaz.** İki Turnuva bloğunun 44
-   satırında toplam 36 557 geçerli turda tek bir kayıp yoktur. Bu, kuralın yapısından gelir (Teorem 1):
+   satırında toplam 36 865 geçerli turda tek bir kayıp yoktur. Bu, kuralın yapısından gelir (Teorem 1):
    model ne kadar yanlış olursa olsun, teoremin koşulları altında (Bölüm 4.7) geçerli bir turda kayıp olamaz. Uyumsuzluğun etkisi G / B / M
    sütununda **görünmez**; yalnızca koşullu oranlara bakan biri sistemi her koşulda kusursuz sanırdı.
 2. **Bedel faul ve geçersiz turlara taşınır.** Dürüst bir oyuncunun sonuçsuz kalan deneme payı 30 kare/s'de
-   eşleşmiş tabandaki %4,6'dan, koşula göre %1,7 ile **%23,4** arasına gider: en kötü durumda tabanın beş
-   katı.
-3. **En çok zarar veren uyumsuzluklar**, açılmanın inişten önce *ölçülebilir hâle gelmesini* geciktirenlerdir:
-   avuç hızıyla büyüyen güçlü gürültü ($g=4$: vuruşun en hızlı anında SS yedi katına çıkar; faul %23,4;
-   açık dürüst atışlarda %17,5; medyan öncelik 167 ms'den 67 ms'ye düşer), Kâğıt'ta yüzük ve serçenin geç
-   başlaması (faul %20,2; Kâğıt atışlarının %48'i faul), yavaş açılma (%18,0) ve yavaş başlayan profil
-   (%15,3). İlki özellikle önemlidir: gerçek bir
-   izleyicinin hatası tam da elin en hızlı hareket ettiği, yani parmakların açılmaya başladığı anda büyür
-   (hareket bulanıklığı); bu, burada sınanan en zararlı bozulmadır ve gerçekteki büyüklüğü ölçülmemiştir.
-   Birkaç hafif uyumsuzluğun birleşimi faulü %10,2'ye, açık dürüst atışlardaki faulü %4,2'ye çıkarır.
+   eşleşmiş tabandaki %4,2'den, koşula göre %1,9 ile **%20,2** arasına gider: en kötü durumda tabanın
+   yaklaşık beş katı.
+3. **En çok faul üreten uyumsuzluklar**, açılmanın inişten önce *ölçülebilir hâle gelmesini* geciktirenlerdir:
+   Kâğıt'ta yüzük ve serçenin geç başlaması (faul %20,2; Kâğıt atışlarının %48'i faul; açık dürüst atışlarda
+   %14,7), yavaş başlayan profil (%16,0), yavaş açılma (%13,4) ve avuç hızıyla büyüyen güçlü gürültü ($g=4$:
+   vuruşun en hızlı anında SS yedi katına çıkar; faul %13,3; açık dürüst atışlarda %7,4; medyan öncelik
+   167 ms'den 69 ms'ye düşer). Hıza bağlı gürültü özellikle önemlidir: gerçek bir izleyicinin hatası tam da
+   elin en hızlı hareket ettiği, yani parmakların açılmaya başladığı anda büyür (hareket bulanıklığı).
+   v4.0'da burada sınanan en zararlı bozulmaydı (faul %23,4, açık dürüst atışlarda %17,5); bugünkü kodda
+   açık dürüst atışlardaki faulde yüzük/serçe gecikmesinden (%14,7) ve yavaş başlayan profilden (%7,7) sonra
+   üçüncüdür. Gerçekteki büyüklüğü ölçülmemiştir. Güçlü hıza bağlı gürültüde denemelerin %1,7'si ayrıca
+   havadaki kareler çeliştiği için geçersizdir (`VOID_CONFLICT`); sonuçsuz payı (%15,0) bu yüzden yavaş
+   açılmanınkini (%13,4) aşar. Birkaç hafif uyumsuzluğun birleşimi faulü %8,4'e, açık dürüst atışlardaki faulü %3,4'e çıkarır.
+   Kapalı parmakların yalnızca atış vuruşunda aralanması ise sonuçsuz payı tabanın üzerine çıkarmaz (%4,0;
+   madde 6).
 4. **Az etkileyenler:** kareler arası ilintili gürültü, seyrek parmak ucu sıçramaları, el boyutu titreşimi,
    bilek eğimi ve ılımlı bir kalibrasyon farkı sonuçsuz payı tabanın en çok üç puan üzerine çıkarır
-   (%5,0–7,3). Ani başlayan profiller (doğrusal, üstel) tabandan *daha az* faul üretir (%2,8 ve %1,7):
+   (%4,8–6,9). Ani başlayan profiller (doğrusal, üstel) tabandan *daha az* faul üretir (%2,6 ve %1,9):
    keskin bir başlangıç, yumuşak bir başlangıçtan daha kolay saptanır.
-5. **Okunamayan el.** Parmakları ortalama %65'e kadar açılan bir elde denemelerin %2,6'sı (30 kare/s) ve
-   %3,2'si (60 kare/s), yumruk 160° / açık 60° kurulu bir elde %0,7'si ve %1,0'ı BELİRSİZ ŞEKİL ile
+5. **Okunamayan el.** Parmakları ortalama %65'e kadar açılan bir elde denemelerin %2,8'i (30 kare/s) ve
+   %2,3'ü (60 kare/s), yumruk 160° / açık 60° kurulu bir elde %0,8'i ve %0,6'sı BELİRSİZ ŞEKİL ile
    geçersizdir. Bu oranların düşük olması, incelemeden sonra eklenen sınıfa özgü şablon sapmalarıyla ve
    geçersiz turlardan kalibrasyonla (Bölüm 4.9) tutarlıdır; E8 bu düzeltmelerin öncesini ölçmediği için
    katkıları burada ayrıştırılmamıştır. İnceleme, düzeltmeden önce gevşek açılan bir elde Kâğıt'ın yaklaşık
    100 deneme boyunca oynanamadığını ölçmüştü.
 6. **Öncelik de uyumsuzluktan etkilenir.** Kapalı parmaklar yalnızca atış vuruşunda aralandığında medyan
-   öncelik 70 ms'ye (60 kare/s'de 50 ms) düşer ve beraberlikler artar (%1,6): sahte bir "açılma başlıyor"
-   görüntüsü YZ'yi kararını geciktirmeye zorlar. Hıza bağlı güçlü gürültüde öncelik 67 ms (60 kare/s'de
-   35 ms) olur.
+   öncelik 69 ms'ye (60 kare/s'de 51 ms) düşer ve beraberlikler artar (30 kare/s'de %1,5; eşleşmiş tabanda
+   %0,35): sahte bir "açılma başlıyor" görüntüsü YZ'yi kararını geciktirmeye zorlar. Bu koşulda faul neredeyse
+   kalkar (30 kare/s'de 8, 60 kare/s'de 1, Serbest'te 0 deneme); buna karşılık Turnuva'da 30 kare/s'de
+   denemelerin %3,1'i (900'de 28), 60 kare/s'de %5,1'i (46) ve Serbest'te %2,9'u (26) geçersizdir; v4.0'da
+   bu satırda geçersiz tur yoktu. Bu geçersizlerin hepsi havadaki karelerin birbiriyle çeliştiği turlardır
+   (açıklama kodu `VOID_CONFLICT`, arayüzde "Kareler çelişti"; Bölüm 5.1.8): saklanan hakem yönelimleri atışı
+   reddeder, ama son havadaki kare tek başına ya da pencerenin en geniş okuması onu kabul eder. Sonuç
+   dosyasında bu turlar EL YOK hüküm grubunda (`VOID_NO_HAND`) durur; çelişki sayısı ayrıca verilir
+   (`voidsByKind.conflict`). Hıza bağlı güçlü gürültüde öncelik 69 ms (60 kare/s'de 52 ms) olur.
 7. **60 kare/s** aynı örüntüyü verir; en zor koşullarda faul birkaç puan düşüktür (yavaş başlayan profil
-   %10,9, yavaş açılma %11,9, yüzük/serçe gecikmesi %15,8, güçlü hıza bağlı gürültü %18,9).
+   %10,4, yavaş açılma %10,9, yüzük/serçe gecikmesi %15,7, güçlü hıza bağlı gürültü %10,1). Farklı olan,
+   eylemsizlikle gevşemenin iki satırıdır: çelişen kareler yüzünden geçersiz pay 60 kare/s'de daha yüksektir
+   (bütün vuruşlarda 0,25: %2,1'e karşı %0,3; yalnızca atış vuruşunda 0,20: %5,1'e karşı %3,1; madde 6).
 8. **Serbest'te bedelin bir bölümü kayba dönüşür.** Faul oranları en zor koşullarda Turnuva'dan düşüktür
-   (güçlü hıza bağlı gürültü %14,0; yavaş açılma %10,9), ama 22 koşulun toplam 18 503 geçerli turunda 26
-   kayıp vardır (%0,14); en çok güçlü hıza bağlı gürültüde, yalnızca atış vuruşundaki gevşemede ve birleşik
-   uyumsuzlukta (4'er kayıp, %0,46–0,52) ve bu satırlarda beraberlikler %2,3–3,3'e çıkar.
+   (güçlü hıza bağlı gürültü %6,2, buna ek olarak %5,2 geçersiz; yavaş açılma %10,7), ama 22 koşulun toplam
+   18 636 geçerli turunda 62 kayıp vardır (%0,33; v4.0'da 18 503 turda 26). Eşleşmiş taban da kayıpsız
+   değildir: 872 geçerli turda 5 kayıp (%0,57 [0,25–1,34]; v4.0'da 0; E3'teki aynı ayarlı hücre, başka
+   tohumlarla, 1150 turda 1 kayıp vermiştir). En çok güçlü hıza bağlı gürültüde (9 kayıp, %1,13), birleşik
+   uyumsuzlukta (7 kayıp, %0,82) ve bütün vuruşlardaki eylemsizlikle gevşemede (6 kayıp, %0,70) kaybedilir;
+   ilk iki satırda beraberlikler de %3,8–4,8'e çıkar. Kayıpların v4.0'a göre artmasının nedeni
+   ayrıştırılmamıştır.
 
 **Gerçek kameralar için anlamı.** Bölüm 6.3'ün "normal açanlarda denemelerin yaklaşık %5'i sonuçsuz kalır"
 sonucu yalnızca eşleşmiş model için geçerlidir ve gerçek oyuncular için bir alt sınır olarak okunmalıdır.
 Gerçek bir elin açılması en küçük sarsım profilinden sapar, parmaklar aynı anda başlamaz, izleyicinin hatası
 hareketle büyür ve bunların hepsi aynı anda geçerlidir; burada sınanan tek tek bozulmalar altında dürüst bir
-oyuncunun sonuçsuz denemeleri %2 ile %23 arasında değişmiştir. Turnuva'nın "geçerli turda kaybetmez"
+oyuncunun sonuçsuz denemeleri %2 ile %20 arasında değişmiştir. Turnuva'nın "geçerli turda kaybetmez"
 özelliği gerçek kamerada da kuraldan gelir; değişecek olan, oyunun ne kadarının geçerli tura dönüştüğü ve
 dürüst bir atışın ne sıklıkla haksız yere faul sayıldığıdır. E8 bunu **ölçmez**: belirtilen bozulmalara
 duyarlılığı gösterir, gerçek dünyadaki oranları değil. Sınanmayanlar: avuç vuruşunun en küçük sarsımdan
@@ -576,21 +636,22 @@ tarzların uyumsuzluk altındaki davranışı ve burada birleştirilenlerden dah
 
 | Bulgu | Dayanak | Niteliği |
 |---|---|---|
-| Turnuva ön ayarında E3, E4, E5, E7 ve E8'de toplam 58 452 geçerli turda kayıp yok | E3–E5, E7, E8 | Kuralın sonucu (Teorem 1); tahmin kalitesi hakkında bilgi taşımaz |
-| Eşleşmiş simülatörde YZ, normal açan dürüst bir oyuncuya karşı denemelerin ≈ %94,5'ini kazanır; ≈ %5'i sonuçsuzdur | E3 | Sistemin ölçüsü; yalnızca eşleşmiş model için |
-| Sonuçsuz deneme payı açılma zamanına bağlıdır: %0,2 (erken) – %35 (geç) | E3 | Olumsuz |
-| Model uyumsuzluğunda kayıp sıfırda kalır, sonuçsuz pay %1,7–23,4 arasında değişir; en zararlısı hıza bağlı gürültü ve geç başlayan arka gruptur | E8 | Sınırlayıcı; iyimserliğin nicelenmesi |
-| Kinematik kanalın değeri son karelerdedir: Serbest'te 40 ms dondurma %2–4, 120 ms dondurma %20–23 kayıp getirir | E2 | Sınırlayıcı |
+| Turnuva ön ayarında E3, E4, E5, E7 ve E8'de toplam 59 684 geçerli turda kayıp yok | E3–E5, E7, E8 | Kuralın sonucu (Teorem 1); tahmin kalitesi hakkında bilgi taşımaz |
+| Eşleşmiş simülatörde YZ, normal açan dürüst bir oyuncuya karşı denemelerin ≈ %94,7'sini kazanır; ≈ %5'i sonuçsuzdur | E3 | Sistemin ölçüsü; yalnızca eşleşmiş model için |
+| Sonuçsuz deneme payı açılma zamanına bağlıdır: %0,2 (erken) – %35,5 (geç) | E3 | Olumsuz |
+| Turnuva'da model uyumsuzluğunda kayıp sıfırda kalır, sonuçsuz pay (30 kare/s) %1,9–20,2 arasında değişir; en zararlıları geç başlayan arka grup, yavaş başlayan profil, hıza bağlı güçlü gürültü ve yavaş açılmadır; Serbest'te geçerli turların %0,33'ü kaybedilir | E8 | Sınırlayıcı; iyimserliğin nicelenmesi |
+| Kinematik kanalın değeri son karelerdedir: Serbest'te 40 ms dondurma ≈ %3, 120 ms dondurma %20–22 kayıp getirir | E2 | Sınırlayıcı |
 | Ön ayarlar sonuçsuz payı az değiştirir | E3 | Beklenenden zayıf |
-| Mühür anında şeklin yaklaşık yarısı oluşmuştur; tamamlanmaya öncelik medyanı ≈ bir kare; el okunarak verilen kararın önceliği geç açanlarda ≈ 66 ms | E3 | Sınırlayıcı |
-| Karar önceliği öğrenmeyle en çok bir kare kadar artar | E6 | Beklenenden zayıf |
-| Sonsal az güvenlidir (ECE 0,065) | E6 | Olumsuz |
-| 6 mm ve üzeri gürültüde denemelerin %22–59'u geçersizdir; kazanılan deneme payı %39–72'ye düşer | E5 | Olumsuz |
-| %15 kare kaybında denemelerin yalnızca %35'i geçerli tura dönüşür | E4 | Olumsuz |
-| Tek atış kipi, uzun bekleme ve 60 kare/s dâhil, hazırlık vuruşlu kiplerle aynı düzeydedir (sonuçsuz %4,9–6,9) | E4 | Olumlu; inceleme sonrası |
+| Mühür anında şeklin en çok yaklaşık yarısı oluşmuştur; tamamlanmaya öncelik medyanı ≈ bir kare; el okunarak verilen kararın önceliği geç açanlarda 54–67 ms | E3 | Sınırlayıcı |
+| Karar önceliği öğrenmeyle yaklaşık bir kare kadar artar | E6 | Beklenenden zayıf |
+| Sonsal az güvenlidir (ECE 0,056) | E6 | Olumsuz |
+| 6 mm ve üzeri gürültüde denemelerin %17–42'si geçersizdir; kazanılan deneme payı %55–76'ya düşer | E5 | Olumsuz |
+| %15 kare kaybında denemelerin %80'i geçerli tura dönüşür (v4.0'da %35) | E4 | Sınırlayıcı |
+| İnişten 100 ms sonra açılan atışların %7,8'i geçerli sayılır (v4.0'da %0,6); YZ bunları da kazanır | E4 | Olumsuz; hakem geç atışın bir bölümünü kaçırır |
+| Tek atış kipi, uzun bekleme ve 60 kare/s dâhil, hazırlık vuruşlu kiplerle aynı düzeydedir (sonuçsuz %4,7–6,9) | E4 | Olumlu; inceleme sonrası |
 | Davranış kanalı rastgele oyuncuya karşı hiçbir şey kazanmaz; insan benzeri oyuncuya karşı güvenli stratejiyle net ≈ 0,02–0,04/tur, en iyi yanıtla ≈ 0,06–0,07/tur | E1 | Kuramla uyumlu |
 
-Havuzlanmış 58 452 turda sıfır kayıp için %95 Wilson üst sınırı %0,007'dir (kendi hesabımız). Bu turların
+Havuzlanmış 59 684 turda sıfır kayıp için %95 Wilson üst sınırı %0,006'dır (kendi hesabımız). Bu turların
 tamamı oyuncunun kendi ritmiyle oynadığı kiplerdendir (üç ya da iki hazırlık vuruşu, tek atış); metronom
 kipi E1–E8'de yoktur.
 
@@ -602,22 +663,28 @@ boşlukları, model uyumsuzluğu, dondurma ufku (Turnuva'da yok sayılır) ve da
 kareler ilan edilmiş vuruş anlarının ve gerçek inişin tam üstüne ya da 0,005–0,04 ms öncesine veya
 sonrasına yerleştirilmiştir — inceleme
 sonrasında bulunan ilk iki delik tam bu türdendi (Bölüm 4.7; üçüncüsü, taahhüt kaydının bir mührü
-reddetmesi, bu sınamanın kapsamı dışındadır ve kendi regresyon testleriyle sınanır). 15 000 oturumda 26 598 hüküm
-verilmiş ve 14 579 tur geçerli sayılmıştır (metronom kiplerinde 6696); **oyuncu
-galibiyeti 0**, motor hatası 0, kare sırası ya da mühür doğrulaması ihlali 0. Kalan hükümlerden 8183
-faul, 3836 geçersiz turdur; 3454 deneme hükme bağlanmamıştır (iptal ya da hiç başlamayan tur).
-Sınamanın koşulları bilerek uç değerlere itilmiştir; bu oranlar bir başarım ölçüsü değildir.
+reddetmesi, bu sınamanın kapsamı dışındadır ve kendi regresyon testleriyle sınanır). v4.2.3 koduyla 15 000
+oturumda 27 829 hüküm verilmiş ve 17 404 tur geçerli sayılmıştır (metronom kiplerinde 7962); **oyuncu
+galibiyeti 0**, motor hatası 0, kare sırası ya da mühür doğrulaması ihlali 0. Kalan hükümlerden 7765
+faul, 2660 geçersiz turdur (2093'ü EL YOK hüküm grubunda, `VOID_NO_HAND`; havadaki karelerin çeliştiği
+turlar da bu gruptadır ve sonuç dosyası onları ayrıca saymaz; 566'sı tanınmayan şekil, 1'i yumruk yok); 2223
+deneme hükme bağlanmamıştır (iptal ya da hiç başlamayan tur).
+Sınamanın koşulları bilerek uç değerlere itilmiştir; bu oranlar bir başarım ölçüsü değildir. Aynı sınama
+v4.2.2'de 15 000 oturumda, 16 911 geçerli turda 7 oyuncu galibiyeti bulmuştur; v4.2.1 bu sınama koşulmadan
+yayımlanmıştı (Bölüm 5.1.8).
 
 Bu sayılar bilerek öne çıkarılmamıştır: Turnuva'da sıfır kayıp kuralın sonucudur, örneklem büyüdükçe "daha
 çok kanıtlanmaz"; sınır ve bulanık sınama yalnızca gerçeklemenin teoremle uyumlu davrandığına ilişkin
 regresyon göstergeleridir ve yalnızca simülasyon dağılımları için geçerlidir.
 
-**Ölçülmeyenler.** Bu bölüm şunların hiçbirini ölçmez: (i) gerçek insanlara karşı herhangi bir oran; (ii)
-gerçek bir kamerada el izleyicinin gürültüsü, hareket bulanıklığı, kare düşme örüntüsü ve bunların sonuçsuz
+**Ölçülmeyenler.** Bu bölüm şunların hiçbirini ölçmez: (i) gerçek insanlara karşı herhangi bir oran (Bölüm
+5.1.8'deki gerçek kamera kayıtları tek bir oyuncunun, sürümü bilinmeyen oyunlarıdır ve bir deney yerine
+geçmez); (ii) gerçek bir kamerada el izleyicinin gürültüsü, hareket bulanıklığı, kare düşme örüntüsü ve bunların sonuçsuz
 deneme payına etkisi; (iii) kare → mühür gecikmesi ve duvar saati önceliği (simülasyonda tanımsızdır) ile
 gösterim gecikmesi; (iv) motorun saptadığı inişin fiziksel inişe göre hatası (yalnızca simülasyondaki
 "gerçek"e göre bilinir); (v) sömürüldüğünde uyum sağlayan ya da sistemi yenmeye çalışan gerçek oyuncular;
 (vi) E8'de sayılanların dışındaki model uyumsuzlukları; (vii) arayüzün kullanıcılar tarafından nasıl
 anlaşıldığı; (viii) metronom kipinde başarım — E1–E8'in hiçbiri bu kipi kullanmaz; metronom kipi yalnızca
 güvence için, yukarıdaki saldırı bulanık sınamasında denenmiştir (o kipte sonuçsuz pay ve öncelik
-ölçülmemiştir).
+ölçülmemiştir); (ix) v4.2.0 ile v4.2.1'in değiştirdiği varsayılanların ve eklediği kuralların tek tek etkisi: E2–E8'in
+v4.0'a göre değişen sayıları bunların ve v4.2.3 düzeltmelerinin toplam etkisidir (Bölüm 5.1.8).

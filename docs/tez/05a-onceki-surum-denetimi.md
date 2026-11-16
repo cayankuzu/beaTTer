@@ -11,7 +11,10 @@ kullanıcıya gösterilen ya da saklanan bir değerin ölçülmek yerine üretil
 Bölüm 5.1.1–5.1.5 önceki sürümün denetimidir. Bölüm 5.1.6, aynı türden bir denetimin yeniden tasarımın
 kendisine (v4'e) uygulanmasını, bulduğu kusurları ve bunların nasıl giderildiğini anlatır. Bölüm 5.1.7,
 v4'ün gerçek bir kamerayla ilk kullanımında bildirilen sorunları, ardından yapılan değişiklikleri ve bu
-değişikliklerin yayından önceki incelemesini anlatır.
+değişikliklerin yayından önceki incelemesini anlatır. Bölüm 5.1.8, bu çalışmanın dışında yayımlanan
+v4.2 sürümlerinin aynı yöntemle denetimini ve düzeltmelerini (v4.2.3) anlatır. 5.1.1–5.1.7 yazıldıkları
+sürümü anlatır; v4.2'nin değiştirdiği yerlerde metin "v4.2'de değişti" notuyla 5.1.8'e ya da eklere (Ek A, Ek B)
+gönderir.
 
 ## 5.1.1 "Yenilmezlik" bir totolojiydi
 
@@ -105,14 +108,14 @@ sayılar, başarısız olması olanaksız testler. Ve bunların hepsi, bütün t
 
 | Grup | Bulgular | Ne yanlıştı | Ne değişti | Regresyon testi |
 |---|---|---|---|---|
-| **Güvence delikleri** | R20, R21, R36 (ve R28) | Turnuva'da **geçerli bir tur kaybedilebiliyordu.** Kaybetmeme kuralı, hakemin hâlâ yasal saydığı ama YZ'nin kendi inancında kütlesi küçük olan bir sınıfı "olanaksız" sayıyordu; inanç yasal sınıflara hiç kütle vermediğinde ise hakemin çoktan dışladığı hamlelere göre oynuyordu. İnceleme iki saldırı kurmuştur: Makas gibi açıp yüzük ve serçeyi son anda açmak (6720 hükümde 192 oyuncu galibiyeti) ve YZ'yi erken açılmalarla eğitip sonra geç açmak (geçerli turların %44'üne varan kayıp). Ayrıca kullanıcıya açık "karar ufku" ayarı Turnuva'da da etkiliydi. Arayüz ve kod yorumları "geçerli turda kaybetmez" diyor, çekinceler yalnızca tez metninde duruyordu | Güvenlik artık inanca değil **hakemin yasal kümesine** göre belirlenir; yasal destek üzerinde düzgün geri düşüş; dondurma ufku kaybetmeme öncelikli ön ayarda yok sayılır; Teorem 1 yeniden yazılmıştır (Bölüm 4.7) | `turnuva cannot be beaten by opening ring and pinky at the last moment` (384 hüküm, 202 geçerli, 0 kayıp); `… by training the AI on early openings and then opening late` (160 / 81 / 0); `decision: safety follows the legal set of the referee, not the size of the belief`; `the decision freeze cannot void the turnuva guarantee …` |
+| **Güvence delikleri** | R20, R21, R36 (ve R28) | Turnuva'da **geçerli bir tur kaybedilebiliyordu.** Kaybetmeme kuralı, hakemin hâlâ yasal saydığı ama YZ'nin kendi inancında kütlesi küçük olan bir sınıfı "olanaksız" sayıyordu; inanç yasal sınıflara hiç kütle vermediğinde ise hakemin çoktan dışladığı hamlelere göre oynuyordu. İnceleme iki saldırı kurmuştur: Makas gibi açıp yüzük ve serçeyi son anda açmak (6720 hükümde 192 oyuncu galibiyeti) ve YZ'yi erken açılmalarla eğitip sonra geç açmak (geçerli turların %44'üne varan kayıp). Ayrıca kullanıcıya açık "karar ufku" ayarı Turnuva'da da etkiliydi. Arayüz ve kod yorumları "geçerli turda kaybetmez" diyor, çekinceler yalnızca tez metninde duruyordu | Güvenlik artık inanca değil **hakemin yasal kümesine** göre belirlenir; yasal destek üzerinde düzgün geri düşüş; dondurma ufku kaybetmeme öncelikli ön ayarda yok sayılır; Teorem 1 yeniden yazılmıştır (Bölüm 4.7) | `turnuva cannot be beaten by opening ring and pinky at the last moment` (v4.0'da 384 hüküm, 202 geçerli, 0 kayıp); `… by training the AI on early openings and then opening late` (160 / 81 / 0; v4.2.3'teki sayılar Ek B'de); `decision: safety follows the legal set of the referee, not the size of the belief`; `the decision freeze cannot void the turnuva guarantee …` |
 | **Yaşam döngüsü** | R1–R7, R19 (ve R10, R14, R17) | **Kritik:** herhangi bir ayar, kip ya da profil değişikliğinden ya da demodan kameraya geçişten sonra oyun ölüyordu: yeniden kurulan motor tur numarasını 1'den başlatıyor, oturumun mühür kaydı o turu kapalı bulup hata fırlatıyor ve sayfa yenilenene kadar hiçbir tur hükme bağlanmıyordu. Ayrıca: kameradan demoya geçişte kamera açık kalıyordu; kamera başlatılırken açılan demonun sentetik turları **gerçek oyuncunun profiline yazılıyor ve buluta gönderiliyordu**; izleyici yüklenemediğinde kamera hata iletisinin arkasında açık kalıyordu; biten bir seri tur kabul etmeye devam ediyordu; kamerada ölçülen gecikme demoda gösteriliyordu; kamera kaybı hiç fark edilmiyordu | Tek mühür kaydı ve süren tur numaraları; kare kaynakları için kuşak sayacı; biten seri; ölçümlerin kaynağıyla düşmesi; kamera kaybı; motor hatasından kurtulma (Bölüm 5.4.1) | `a rebuilt engine on the same commit log continues the round numbering …`; `the game goes on after every kind of engine rebuild …`; `camera -> demo releases the device …`; `a demo started while the camera is still starting stays a demo …`; `a denied or failed camera start never leaves the device on …`; `losing the camera mid-session is reported …`; `a finished series accepts no further round …`; `metronome demo: a settings change during the count-in …` |
 | **Tek atış kipi ve titreşim** | R22–R25, R34, R35 | Vuruş izleyicinin hız kestirimi neredeyse bir kare farkıydı; hareketsiz bir elin titreşimi bütün eşikleri aşabiliyordu. Tek atış kipinde bu **hayalet turlar** üretiyordu: oyuncu hiçbir şey yapmadan geçerli bir "Taş" turu hükme bağlanıyor, YZ'ye yazılıyor ve öğreniliyordu (60 kare/s'de 20 s'de 6 tur); denemelerin %36–85'i ise hiç hükme bağlanmıyordu. Taban çizgisine önceki turun açık eli sızıyordu; yumruk 1,2 s'den uzun bekletilince dedektör ızgarası tükeniyor ve faul %8,5'ten %21–24'e çıkıyordu; erken açanların %27'si iptal ediliyordu | İki hız kestirimi ve doğrulanan başlangıçlar; inişin üç sonu; yeniden tanımlanan yumuşak iniş (Bölüm 4.2); ızgara kaydırma (Bölüm 4.3); tek atış kuralları (Bölüm 4.4) | `a hand that only jitters starts neither strokes nor rounds, at any frame rate`; `stroke tracker: every descent ends as exactly one of bottom / weakBottom / falseStart`; `single-stroke mode: the fist baseline comes from the hold that armed the round …`; `single-stroke mode: waiting long before the throw does not blunt the referee; early openers are not aborted` |
 | **D1'in kenar durumları** | R26, R27 (ve R15, R30) | Yaklaşık 92 kare/s'nin üzerinde, metronom kipinde, iniş karesi 24 karelik bir halkada arandığından inişten sonra atılmış bir mühür değerlendirilebiliyordu. Vuruşun hızlı bölümünü örten bir izleme boşluğundan sonra, el durmuşken gelen ilk kare "havada" sayılıyor ve mühür fiziksel inişten sonra atılabiliyordu. Sayım sırasında duraksayan kare akışı negatif öncelikli bir tur üretiyordu | "İniş sonrası" işareti turun eksiksiz kare listesinde, kare sırasına göre (ilk düzeltme buna bir zaman koşulu da eklemişti; o koşul kendi deliğini açtı ve kaldırıldı, aşağıda); boşluk sonrası iniş kuralı; kanıtın tazeliği (bayat kanıt → EL YOK, asla faul); metronom duraksaması (Bölüm 4.4) | `metronome mode at 120 and 144 fps: a late stroke never gets a post-landing commitment judged`; `a tracking gap over the fast part of the stroke voids the round …`; `metronome mode: a stall past the scheduled throw aborts the count-in …`; `single-stroke mode: a stroke hidden by a dropped frame is void, not a judged behavioural guess` |
 | **Ölçüm dürüstlüğü** | R8, R11, R31, R37 (ve R32) | Mührün tek zaman damgası karenin yakalanma zamanıydı; özetin gerçekte ne zaman var olduğu hiçbir yerde ölçülmüyordu, dolayısıyla yayımlanan her "öncelik" kare → mühür gecikmesini yok sayıyordu. Buluta bilinmeyen ölçümler 0 olarak, düzgün bir inanç "Taş" kestirimi olarak gidiyordu. Sonuçtaki birkaç "ölçüm" sistematik olarak kayıktı ya da sabitti (izleme oranı hiçbir zaman 1 olamıyor; geriye dönük inişlerde kare hızı şişiyor; Taş için anlamsız bir "tamamlanmaya öncelik"; tutulan davranış mührünün oluşum oranı sabit 0). "Yenilmezlik" oranı, aralığı ve $p$ değeri YZ'nin kendi dedektörünün seçtiği örneklem üzerindeydi ve beceri ölçüsü gibi sunuluyordu. İptal edilen turların mühürleri açılıyor ama doğrulanmıyor ve oyuncuya gösterilmiyordu | Duvar saati damgası, kare → mühür gecikmesi ve duvar saati önceliği; `null` gönderimi; uçuş istatistiklerinin düzeltilmesi; koşulsuz oranlar ve arayüzdeki açıklama (Bölüm 4.10, 7.5); iptalde doğrulama | `I4: flight statistics count what was measured; undefined quantities are null`; `cloud payload: unknown values are null, a prediction is reported only when one was made`; `metrics: unconditional rates count every judged attempt; inconsistent documents are rejected`; `I3: an aborted round opens and verifies the seals it had shown`; duvar saati alanları `camera -> demo releases the device …` testinde sınanır |
 | **Eşleşmiş simülatör ve zayıf testler** | R38 (ve R29, R45) | Simülatör dedektörün kendi üretici modelinden çekiliyordu; yayımlanan faul ve geçersiz oranları modeli kendisine karşı ölçüyordu ve bu iyimserlik nicelenmemişti. D5 testi gerçekte özdeş üç koşuyu karşılaştırıyordu: YZ'nin taahhüdünü okuyan bir hakemde de geçerdi. E1'in "en iyi yanıt" sütunu politika-dışı bir karşı-olgusaldı | Simülatöre `perturb` seçeneği ve E8 (Bölüm 6.8); taahhütleri gerçekten farklılaştıran D5 testi; E1'de iki kapalı döngü | `I5: with commitments that really differ, the referee decides the same` (60 senaryo; davranış mühürleri 58'inde, değerlendirilen hamleler 29'unda farklı). E8 bir test değil, deneydir |
 | **Soğuk başlangıç** | R33, R40 | Gevşek açılan ya da varsayılan kalibrasyonun yanlış okuduğu bir elde Kâğıt hep BELİRSİZ ŞEKİL oluyor; geçersiz turlar hiçbir şey öğretmediğinden kalibrasyon düzelmiyordu (Kâğıt yaklaşık 100 deneme oynanamıyordu) | Sınıfa özgü şablon sapmaları; geçersiz turlardan algılayıcı kalibrasyonu (D6'nın inceltilmesi, Bölüm 4.9); sayımın, el açıkça açık olmadıkça başlaması (Bölüm 5.4) | `a relaxed open hand is readable, and the sensor calibration adapts even when the first rounds are void`; `a fist that the default calibration reads as half-open is not locked out: void first, then learned` |
-| **Güvenlik ve gizlilik** | R4, R9, R12, R16 (ve R13, R18) | Veritabanının varsayılan ilkeleri bütün tabloları herkese açık anahtarla okunur, yazılır ve silinir bırakıyordu; "isteğe bağlı sıkılaştırma" bölümü ise istemcinin kendi yazma isteğini bozuyordu. Yüz gizliliği açık yönde hata veriyordu: görüntü dedektör yüklenmeden gösteriliyor, rozet dedektör olmasa da "açık" diyor, tek bir çizer hatası bulanıklığı donduruyordu; yüz dedektörü her mührü geciktiriyordu. Bulut kararı iki yere bölünmüştü. Uydurma sayılar içeren tasarım taslakları yayımlanıyor, İçerik Güvenlik İlkesi bütün bir CDN'e ve bütün Supabase projelerine izin veriyordu | Tek doğrulayan işlev ve kilitli tablolar; yüz gizliliğinin üç durumu ve "önce motor, sonra bulanıklaştırma" sırası (ikisi de yüz dedektörü sonradan kaldırılınca konusuz kalmıştır; güvenli yönde hata korunmuştur, Bölüm 5.1.7); bulut kararının tek yerde verilmesi; daraltılmış ilke; depo aynası (Bölüm 5.8, 5.5) | `the optional sync is decided in one place: consent, a real player and an allowed host`; `storage: one failed write does not turn the current settings and profile into defaults`. SQL bir veritabanında çalıştırılmamış, yüz gizliliği ve ilke yalnızca elle (sentetik video akışıyla) denenmiştir: bunların otomatik testi **yoktur** |
+| **Güvenlik ve gizlilik** | R4, R9, R12, R16 (ve R13, R18) | Veritabanının varsayılan ilkeleri bütün tabloları herkese açık anahtarla okunur, yazılır ve silinir bırakıyordu; "isteğe bağlı sıkılaştırma" bölümü ise istemcinin kendi yazma isteğini bozuyordu. Yüz gizliliği açık yönde hata veriyordu: görüntü dedektör yüklenmeden gösteriliyor, rozet dedektör olmasa da "açık" diyor, tek bir çizer hatası bulanıklığı donduruyordu; yüz dedektörü her mührü geciktiriyordu. Bulut kararı iki yere bölünmüştü. Uydurma sayılar içeren tasarım taslakları yayımlanıyor, İçerik Güvenlik İlkesi bütün bir CDN'e ve bütün Supabase projelerine izin veriyordu | Tek doğrulayan işlev (v4.2'de değişti; Bölüm 5.1.8) ve kilitli tablolar; yüz gizliliğinin üç durumu ve "önce motor, sonra bulanıklaştırma" sırası (ikisi de yüz dedektörü sonradan kaldırılınca konusuz kalmıştır; güvenli yönde hata korunmuştur, Bölüm 5.1.7); bulut kararının tek yerde verilmesi; daraltılmış ilke; depo aynası (Bölüm 5.8, 5.5) | `the optional sync is decided in one place: consent, a real player and an allowed host`; `storage: one failed write does not turn the current settings and profile into defaults`. SQL bir veritabanında çalıştırılmamış, yüz gizliliği ve ilke yalnızca elle (sentetik video akışıyla) denenmiştir: bunların otomatik testi **yoktur** (v4.2.3'ten beri şemanın verdiği yetkiler dosyanın metninden sınanır; Bölüm 5.1.8) |
 | **Diğer** | R39, R41–R44 | Depo ön sayfası hâlâ önceki sürümü ve uydurma sayılarını anlatıyordu. Füzyon ağırlıkları tek bir ıskayla kalıcı olarak düşüyordu. Düğüm sınırlı CTW bir olasılık modeli değildi ve testi bunu saptayamıyordu. Saklama–yükleme, geçmiş sınırı aşıldığında kesin değildi. Tutarsız bir ölçüt belgesi kabul ediliyordu | README yeniden yazıldı; gradyan kırpma; düğüm sınırının kaldırılması (ağaç yapı gereği sınırlıdır: derinlik 6 için en çok 1093 düğüm) ve normalize edilmemiş kütlenin sınanması; sınırın belgelenmesi; belgenin tutarlılık denetimi | `fusion weights: one confident miss cannot outweigh many confident hits`; `CTW: predictions are exact probabilities (sum to 1) …`; `metrics: … inconsistent documents are rejected` |
 
 **İncelemenin sağlam bulduğu parçalar** da kayda geçmiştir: taahhüt kaydının bağlayıcılığı, gizleyiciliği ve
@@ -122,10 +125,10 @@ CTW'nin (sınırsız hâliyle) kaba kuvvet karışımıyla eşleşmesi, güvenli
 altında sayfanın ilke ihlali olmadan açılması.
 
 **Düzeltmelerden sonra.** Test paketi sekiz dosyada 105 teste çıkmıştır (Bölüm 5.1.7'deki değişiklikten
-sonra bugün dokuz dosyada 113 test vardır); iki yeni dosya, yeniden üretilebilen her bulgu için bir
+sonra dokuz dosyada 113 test vardı; v4.2'de değişti, Bölüm 5.1.8); iki yeni dosya, yeniden üretilebilen her bulgu için bir
 regresyon testi içerir (Bölüm 5.7). İncelemenin kendi betikleri düzeltilmiş kod üzerinde yeniden
 koşulmuştur (simülasyon): elle kurulmuş 6000 kare dizisinden oluşan bulanık
-sınama, aşağıdaki üç deliğin düzeltmelerinden sonra bugünkü kodla yinelenmiştir: 5904 hüküm, 1420
+sınama, aşağıdaki üç deliğin düzeltmelerinden sonra bugünkü kodla yinelenmiştir (v4.0; kod v4.2'de değişti, Bölüm 5.1.8): 5904 hüküm, 1420
 geçerli tur, sıfır oyuncu galibiyeti; istisna, sonlu olmayan sayı, pozitif olmayan öncelik ya da
 doğrulanamayan mühür yok. Bütün deneyler yeniden üretilmiş,
 Bölüm 6 baştan yazılmıştır.
@@ -171,12 +174,14 @@ deterministik sahnelemede yeniden üretilememiş, düzeltmeden sonraki koşulard
 
 - Zayıf atışlarda (yumuşak iniş) varsayılanın 2–3 katı görüntü gürültüsünde, yaklaşık 370 geçerli turun
   1–2'sinde değerlendirilen mühür simülasyondaki gerçek inişten sonra atılmıştır (varsayılan gürültüde 0).
+  (Yumuşak iniş kuralı v4.2'de genişletildi; yeni yolların tarihlemesi Bölüm 5.1.8'dedir.)
 - Tek atış kipinde kurulma için sıkı eşik ($0{,}4$) korunmuştur (daha gevşeği, kadrajda dinlenen gevşek bir
   elde kur–iptal döngüsüne girerdi); bu kip, yumruğu çok yanlış okunan bir eli hâlâ dışarıda bırakabilir.
+  (v4.2'de değişti: eşik $0{,}45$; Bölüm 5.1.8, Ek A.6.)
 - Kare düşmesinin bedeli EL YOK hükümleridir (hızlı bir denetimde %8 taban düşme oranında denemelerin
-  yaklaşık %13'ü; %15'te Bölüm 6.4).
+  yaklaşık %13'ü; %15'te Bölüm 6.4). (EL YOK ölçütleri v4.2'de değişti; Bölüm 5.1.8, Ek A.6.)
 - Teorem 1'in bilinen bir koşulu ya da açık bir kusuru kalmamıştır; ama bu, yazarlarının kendi okumasının
-  sonucudur. İspatın 4. adımının (hakemin, YZ'nin kullandığı sayıların aynısını okuması) kendine ait bir
+  sonucudur (v4.2.1'de gerçeklemede açılan bir delik v4.2.3'te kapatılmıştır; Bölüm 5.1.8). İspatın 4. adımının (hakemin, YZ'nin kullandığı sayıların aynısını okuması) kendine ait bir
   testi yoktur ve ispat adımlarını rastgele kare dizileri üzerinde doğrudan savlayan bir sınama
   yazılmamıştır (Bölüm 5.7, 9.2).
 - Raporlanan öncelik $0{,}1$ ms'ye yuvarlanmış mühür zamanından hesaplanır; metronom kipinde, son havadaki
@@ -185,10 +190,11 @@ deterministik sahnelemede yeniden üretilememiş, düzeltmeden sonraki koşulard
   motordaki düzeltmeler; incelemeden sonra bulunan üç deliğin düzeltmeleri dâhil) yalnızca yazarlarının
   testlerinden ve Teorem 1'in ispatını hedef alan son saldırı denetiminden geçmiştir. Sonradan yapılan
   kamera değişikliği ise yayından önce ayrıca incelenmiştir; o inceleme yalnızca bu değişikliği kapsar
-  (Bölüm 5.1.7).
+  (Bölüm 5.1.7). (v4.2'nin değişiklikleri ayrıca denetlenmiştir; Bölüm 5.1.8.)
 - Gerçek veritabanı sınanmamıştır. Gerçek kamera ve gerçek elle ilk deneme sonradan proje sahibi
   tarafından yapılmış ve başarısız olmuştur: bildirilen sorunların en olası nedenleri giderilmiş,
-  değişiklikten sonraki yeniden deneme ise henüz yapılmamıştır (Bölüm 5.1.7, 8.2).
+  değişiklikten sonraki yeniden deneme ise henüz yapılmamıştır (Bölüm 5.1.7, 8.2). (Proje sahibi 12 Kasım
+  2026'da yerel geliştirme sunucusunda gerçek kamerayla oynamıştır; Bölüm 5.1.8.)
 
 Bu alt bölüm tezin savının parçasıdır: "dürüstlük değişmezleri kodda zorlanmış ve testlerle doğrulanmıştır"
 cümlesi ilk v4 için de yazılmıştı ve yanlıştı. Doğrulama, onu yazanların testleriyle değil, onu kırmaya
@@ -257,7 +263,7 @@ ve düzeltmeleri listenin ardından ayrıca verilmiştir.
   varsayılan olarak açık; Bölüm 5.8). Görüntünün tamamı odak dışı çizilir, yalnızca izlenen el net kalır;
   izlenen el yokken her şey bulanıktır. Arka plan için kare, yüksek nitelikli yumuşatmayla iki adımda
   küçültülür (önce 128, sonra 32 sütuna; satır sayısı en-boy oranından), böylece tek tek noktalar
-  örneklenmez, ortalanır. Küçük kare, kenarları kararmasın diye 4 hücrelik bir dolguyla çevrilir (dolgunun
+  örneklenmez, ortalanır (v4.2.0'da değişti: yüksek nitelik ayarı kaldırıldı; Ek A.10). Küçük kare, kenarları kararmasın diye 4 hücrelik bir dolguyla çevrilir (dolgunun
   altında karenin gerilmiş bir kopyası vardır), bu boyutta bir kez daha 1,6 hücre bulanıklaştırılır ve
   yumuşatılarak yeniden büyütülür. Bu son bulanıklaştırmayı `ctx.filter` bulunan tarayıcılarda tuvalin
   süzgeci, bulunmayanlarda 40 sütunluk dolgulu ara bellek üzerinde JavaScript'te küçük, ayrılabilir bir
@@ -275,7 +281,8 @@ ve düzeltmeleri listenin ardından ayrıca verilmiştir.
   izleyici bu kopya üzerinde çalışır, çizer de bu kopyayı çizer. Net bölge böylece tam olarak çizildiği
   karenin noktalarından hesaplanır ve hızlı vuruşlarda elin gerisinde kalmaz; bedeli, gösterilen görüntünün
   canlı kameranın bir izleyici çıkarımı kadar gerisinde kalmasıdır. İlk izlenen kare gelene kadar çizer
-  canlı video öğesini kullanır.
+  canlı video öğesini kullanır. (v4.2.0'da değişti: izleyici kopyanın küçültülmüş bir hâlinde çalışır ve
+  izleme koptuktan sonra son net bölge en çok 160 ms korunur; Ek A.10.)
 - *Derinlemesine savunma.* Gizlilik açık olduğu her an video öğesinin kendisi de CSS ile bulanıklaştırılır
   (28 piksel): kamera açılırken ve el izleyici yüklenirken, sahneyi örten %90 opak yükleme kapısının
   arkasında da. Kare kopyası `drawImage` ile alınır ve CSS süzgeçleri `drawImage`'ı etkilemez; izleyici de
@@ -299,8 +306,8 @@ karışmaması için burada K1–K6 olarak anılır); altısı da yayından önc
 |---|---|---|---|
 | K1 | El izlenmiyorken gizlilik kapatılırsa son gizli görüntü canlı videonun üzerinde donup kalıyordu | Tuval, gizliliğin kapandığı karede temizlenir | Yok (görünüm katmanı) |
 | K2 | CSS koruması ancak izleme başladığında uygulanıyordu: kamera açılırken ve el izleyici yüklenirken bulanıklaştırılmamış video, %90 opak yükleme kapısının arkasından parlaklığının yaklaşık %10'uyla görünüyordu | Koruma, gizlilik açık olduğu her an uygulanır | Yok (görünüm katmanı) |
-| K3 | Net bölge izlenen karenin noktalarından hesaplanıyor, ama çizim anında video öğesinin gösterdiği kareye çiziliyordu; hızlı vuruşlarda net bölge elin gerisinde kalıyordu | Kamera kaynağı izlediği her kareyi bir kez bir tuvale kopyalar; izleyici de çizer de bu kopyayı okur (görüntü, canlı kameranın bir izleyici çıkarımı gerisindedir) | Yalnızca çizerin kare boyutunu bir tuval kopyasından da okuması: `frame size: a video counts only once it has a frame; a canvas copy by its size`; kopyalama ve çizim tarayıcı gerektirir |
-| K4 | Tuval süzgeci olmayan tarayıcılarda arka plan amaçlanandan yaklaşık beş kat az bulanıklaşıyordu | Oralarda aynı 1,6 hücrelik sigmayı, 40 sütunluk dolgulu ara bellekte, JavaScript'teki küçük ve ayrılabilir bir Gauss süzgeci uygular; küçültme de iki adımlıdır (128, sonra 32 sütun) ve yüksek nitelikli yumuşatmayla noktaları örneklemek yerine ortalar. Maskenin kenarı oralarda sert kalır (görünüşe ilişkin; bölge aynıdır) | `fallback blur (browsers without canvas filters): Gaussian of the requested width, energy kept, edges clamped` |
+| K3 | Net bölge izlenen karenin noktalarından hesaplanıyor, ama çizim anında video öğesinin gösterdiği kareye çiziliyordu; hızlı vuruşlarda net bölge elin gerisinde kalıyordu | Kamera kaynağı izlediği her kareyi bir kez bir tuvale kopyalar; izleyici de çizer de bu kopyayı okur (görüntü, canlı kameranın bir izleyici çıkarımı gerisindedir) (v4.2.0'da değişti; Ek A.10) | Yalnızca çizerin kare boyutunu bir tuval kopyasından da okuması: `frame size: a video counts only once it has a frame; a canvas copy by its size`; kopyalama ve çizim tarayıcı gerektirir |
+| K4 | Tuval süzgeci olmayan tarayıcılarda arka plan amaçlanandan yaklaşık beş kat az bulanıklaşıyordu | Oralarda aynı 1,6 hücrelik sigmayı, 40 sütunluk dolgulu ara bellekte, JavaScript'teki küçük ve ayrılabilir bir Gauss süzgeci uygular; küçültme de iki adımlıdır (128, sonra 32 sütun) ve yüksek nitelikli yumuşatmayla noktaları örneklemek yerine ortalar (nitelik ayarı v4.2.0'da kaldırıldı; Ek A.10). Maskenin kenarı oralarda sert kalır (görünüşe ilişkin; bölge aynıdır) | `fallback blur (browsers without canvas filters): Gaussian of the requested width, energy kept, edges clamped` |
 | K5 | Sahnenin kenarından taşan bir elin net görüntüsü o kenarda yaklaşık yarıya kadar soluyordu | Maske, tuvalin dışına kenar yumuşatmasının üç katı (en az 3 piksel) uzatılmış bir bölgede hesaplanır | Yok (tuvale çizim tarayıcı gerektirir) |
 | K6 | İzleyici öteki temsilcide yeniden kurulduktan sonra durum göstergesi eski temsilciyi adlandırmayı sürdürüyordu | Her kare temsilciyi taşır, gösterge onu izler | `the controller follows a tracker that moved to the other processor (status chip)`; kamera kaynağı testi de akış ortasında temsilci değiştiren bir izleyiciyle genişletilmiştir |
 
@@ -312,21 +319,22 @@ kadar geniş bir kapsül alır; bozuk eklem noktaları net bölge vermez; kamera
 olmadan açılır, her karede kullanılan temsilciyi bildirir (izleyici akış ortasında öteki temsilciye
 geçtiğinde de), çizere ham, iskelete süzülmüş noktaları verir. Kalan üçü yukarıdaki tablodadır (K3, K4,
 K6). Test paketi dokuz dosyada 113 teste çıkmıştır ve 113'ü de geçmiştir (bu metnin son denetimindeki
-koşularda toplam süre 15,2 s ve 16,2 s).
+koşularda toplam süre 15,2 s ve 16,2 s). (v4.2'de değişti: v4.2.3'te 126 test; Bölüm 5.1.8.)
 
 Çizer, son hâliyle, yerleşik tarayıcıda sentetik girdiyle denetlenmiştir: her yerinde sert 2 piksellik
 çizgiler, yazı ve yüze benzer bir disk bulunan $640\times480$ bir kare, sentetik eklem noktaları ve
 $800\times600$ bir tuval. Yatay parlaklık gradyanının ortalama mutlak değeri (büyüdükçe görüntü keskindir)
 kaynak karede 125,0, el bölgesinin içinde 72,0, elden uzakta 0,09, elden uzaktaki yüze benzer diskin
 üzerinde 0,26, el yokken bütün görüntüde 0,09'dur; çizim başına JavaScript süresi 0,15 ms'dir (GPU'daki
-çizim süresi ölçülmemiştir). El izleyicinin kare başına maliyeti aynı yöntemle (el içermeyen
+çizim süresi ölçülmemiştir). Çizer v4.2.0'da değişmiştir; bu sayılar ondan öncesine aittir (Ek A.10). El izleyicinin kare başına maliyeti aynı yöntemle (el içermeyen
 $640\times480$ sentetik kareler, 10 ısınma ve 80 ölçüm karesi; önce GPU, sonra CPU) yeniden ölçülmüştür;
 bu sırada makinedeki başka süreçler (aralarında başka bir uygulamanın on dakikalık otomatik tarayıcı
 testi) işlemci yükünü %91'de tutuyordu. GPU'da medyan 33,2 ms (90. yüzdelik 36,0 ms), CPU'da 84,5 ms
 (122,1 ms) çıkmıştır. Mutlak süreler yüke bağlıdır; iki koşuda da GPU yolu CPU yolundan 2,5–2,9 kat
 hızlıdır. Yukarıdaki tablo ilk koşudur ve olduğu gibi bırakılmıştır. Ayrı bir ölçümde, izleyiciye
 uygulamanın artık yaptığı gibi karenin tuval kopyası verildiğinde, GPU'da kare başına medyan 14,1 ms
-ölçülmüştür (10 ısınma karesinden sonra 30 kare, el yok); kopyanın kendisi (video karesinin tuvale
+ölçülmüştür (10 ısınma karesinden sonra 30 kare, el yok; v4.2.0'dan beri izleyiciye bu kopyanın küçültülmüş
+bir hâli verilir, Ek A.10); kopyanın kendisi (video karesinin tuvale
 çizilmesi) ana iş parçacığında medyan 0,1 ms, 90. yüzdelikte 0,4 ms sürer (60 kare; GPU'daki iş ölçülmedi).
 
 Çizer denetimi ile el izleyicinin GPU ve CPU ölçümleri iki yerel sayfayla yinelenebilir. Sayfalar
@@ -346,11 +354,12 @@ görülmemiştir (model tarayıcının önbelleğindeydi). Tarayıcı bölmesi g
 bilgisayarında gerçek kamerayla işlenen kare hızı da ölçülmemiştir: GPU'da kare başına 16,4 ms ile 30
 kare/s'lik bir kameranın bütün karelerinin işlenmesi beklenir; bu bir beklentidir, ölçüm değildir ve
 makinenin yüküne bağlıdır. Yük altında ölçülen 33,2 ms, 30 kare/s'de iki kare arasındaki sürenin neredeyse
-tamamıdır.
+tamamıdır. (Sonradan ölçülmüştür: proje sahibinin 12 Kasım 2026'daki gerçek kamera oturumlarında, hüküm
+verilen turlarda uçuşta işlenen kare hızının medyanı 17 kare/s'dir, 10.–90. yüzdelik 9,9–20,3; Bölüm 5.1.8.)
 
 **Sınırlar.** Net bölge elin çevresinde dar bir pay (yaklaşık bir parmak genişliği) içerir; yüzün önünde
 tutulan bir el, yüzün hemen yanındaki bölümünü açar. İzleme yitirildiğinde el de yeniden bulunana kadar
-bulanıktır. Net bölgenin ele oturmasının bedeli olarak, gösterilen görüntü canlı kameranın bir izleyici
+bulanıktır (v4.2.0'da değişti: son net bölge en çok 160 ms eski yerinde kalır; Ek A.10). Net bölgenin ele oturmasının bedeli olarak, gösterilen görüntü canlı kameranın bir izleyici
 çıkarımı kadar gerisindedir. Kameranın pozlamasından gelen hareket bulanıklığı sürer: daha yüksek işleme
 hızı, loş ışıkta çok hızlı vuruşlardaki el kayıplarını azaltabilir ama ortadan kaldıramaz. GPU temsilcisi
 çalışmayan bilgisayarlarda CPU yedeği geçerlidir (bu bilgisayarda kare başına medyan 47,4 ms, makine
@@ -362,3 +371,202 @@ sorununu ortaya çıkarmıştır. Sentetik akış zincirin çalıştığını g�
 izlenmediğini ve bulanıklığın nereye düştüğünü göstermiyordu. Değişikliğin yayından önceki incelemesi aynı
 dersi yinelemiştir: bulduğu altı kusurun hiçbiri test paketinde görünmüyordu; o sıradaki 110 testin hepsi
 geçiyordu.
+
+## 5.1.8 v4.2'nin denetimi: kırılan güvence, haksız faul ve rıza
+
+İlk gerçek kamera oturumlarının ardından 12 Kasım 2026'da üç sürüm yayımlandı (v4.2.0–v4.2.2). Bu
+sürümler bu metnin yürüttüğü çalışmanın dışında yapıldı ve şunları getirdi: Makas'ta yüzük ve serçe parmağın
+öbür ikisiyle birlikte kalkmasını (ekstansör bağlantısı [HagerRoss2000]) telafi eden bir düzeltme,
+hakemin yönelimleri inişten sonra düzelten bir "mandal", 20 varsayılanın değişmesi ve bir yenisinin
+eklenmesi, düz dille bir tur raporu, sürüm bildirimi ve iki yönlü bir bulut tanılaması. Bu bölüm v4.2'yi Bölüm 5.1.6'daki yöntemle
+denetler: her iddia ölçülür, bulunan her kusur için bir regresyon testi yazılır. Düzeltmeler v4.2.3'tür.
+Sayılar, aksi söylenmedikçe simülasyondandır. Sürümler arası karşılaştırmalar aynı tohumlarla yapılmıştır
+ve `experiments/version_compare.mjs` ile yinelenebilir (betiğin başında, eski bir sürümün git arşivinden nasıl
+çıkarılacağı yazılıdır). Gerçek bir kamerayla doğrulama yapılmamıştır.
+
+**Gerçek kamera kayıtları.** v4.2'nin gerekçesi, proje sahibinin 12 Kasım 2026'da 18.58–21.31 arasında yerel
+geliştirme sunucusunda oynadığı turlardır. Uygulama bu kayıtları yalnızca geliştirme barındırıcısında,
+`.local_telemetry/` dizinine yazar; dizin depoya alınmaz. Hepsi Turnuva ön ayarında olmak üzere 79 kayıt
+vardır. Bunların 33'ü iptaldir (18'i el kaybı, 15'i kopan ritim). Hüküm verilen 46 turun 26'sı geçerlidir;
+hepsini YZ kazanmıştır (oyuncunun atışları: 4 Taş, 12 Kâğıt, 10 Makas). 11 tur faul, 9 tur geçersizdir
+(5'i EL YOK, 2'si tanınmayan şekil, 2'si yumruk yok). Hüküm verilen turlarda uçuşta işlenen kare hızının
+medyanı 17 kare/s'dir (10.–90. yüzdelik: 9,9–20,3), son havadaki karenin yaşının medyanı 96 ms'dir. Geçerli
+turlarda karar önceliğinin medyanı 192 ms'dir. Aynı 26 turda kare → mühür gecikmesinin medyanı 62,5 ms'dir (10.–90. yüzdelik
+38,2–107,2); duvar saatine göre önceliğin medyanı 120,6 ms'dir ve iki turda bu öncelik negatiftir (−47,4 ve −0,2 ms): o
+turlarda mührün özeti, inişin kare zamanından sonra hazır olmuştur (Bölüm 8.2). Faullerin 7'si Makas'tır: 4'ünde son havadaki karede arka grup da açık okunmuştur, 3'ünde
+ön grup inişte hâlâ kapalıdır. Kayıtlar sürüm bilgisi taşımaz. v4.2.0 ile v4.2.1 bu zaman aralığında
+işlendiğinden turların hangi ara sürümle oynandığı bilinmez. Bunlar tek bir oyuncunun verisidir, ama
+bu çalışmanın gerçek bir kullanıcıdan elde ettiği tek veridir.
+
+**Bulgu 1 — Turnuva güvencesi kırılmıştı.** v4.2.1 hakeme, inişten sonra ve oturan şekle bakarak
+yönelimleri değiştiren iki kural eklemişti: (a) son $\max(340\ \text{ms},\,3{,}5\,\bar\Delta)$ içindeki
+revizyon karelerinde açık okunan bir grup, oturan şekil yeniden kapanmamışsa açık sayılıyordu (bulanık bir
+son havadaki karenin zamanında açılmış bir atışı geç atış faulüne çevirmemesi için); (b) net bir Makas'a oturan
+elde arka grubun yönelimi 0,05'e indiriliyordu. YZ ise her karede o karenin kendi yönelimlerine göre karar
+veriyordu. Böylece hakem, YZ'nin son kararında yasal olmadığı varsayılan bir atışı kabul edebiliyordu. Bölüm
+5.7'deki bulanık sınama bunu bulmuştur: 15 000 oturumda, 16 911 geçerli turda 7 kayıp (oturumlar 151, 3629,
+4391, 5774, 6735, 7979 ve 9438). v4.2.1 bu sınama koşulmadan yayımlanmıştı. Elle sahnelenen durumda
+(20 kare/s, zamanında açılan bir Makas, son havadaki kare bulanık ve işaret ile orta parmak neredeyse kapalı
+okunuyor) v4.2.2 60 turun 24'ünü kaybeder.
+
+*Düzeltme.* Hakem yönelimleri her havadaki karede, yalnızca o kareye kadarki havadaki karelerden hesaplanır
+ve kareyle birlikte saklanır (`refereeHeadings`). Kural şudur: bir parmak grubunun yönelimi, son
+$\max(340\ \text{ms},\,3{,}5\,\bar\Delta)$ içindeki bir revizyon karesinde grup ölçülebilir biçimde açılmış
+okunduysa (ham açılma en az 0,42) o karedeki değerin altına düşemez; grubun dedektörü o kareden sonra yeniden
+çapalanmışsa (grup art arda iki karede kapalı okunmuş, yani gerçekten geri kapanmışsa) bu koruma kalkar. YZ
+o karede tam bu yönelimlere göre karar verir ve "net Makas" kuralının kabul edebileceği her atışı yasal sayar
+(`foulNow`, `coupledScissors`: ön grup açıksa Makas, arka grup ne derse desin). Hakem son havadaki karenin
+saklanan değerlerini okur; (b) kuralı kalmıştır ve YZ'nin yasal kümesi onu kapsar. İnişten sonra öğrenilen
+hiçbir şey bir atışı geçerli kılamaz, yalnızca geçersiz kılabilir: saklanan yönelimler atışı reddederken son
+havadaki kare tek başına kabul ediyorsa ya da penceredeki bir revizyon karesi atışın gerektirdiği grubu açık
+göstermişse, havadaki kareler birbiriyle çelişmektedir ve tur faul değil, kendi açıklama koduyla
+(`VOID_CONFLICT`, arayüzde "Kareler çelişti") geçersizdir. Bir atış ancak havadaki hiçbir bakış onu
+desteklemiyorsa fauldür.
+
+*Doğrulama.* Son kodla 15 000 oturumda 27 829 hüküm ve 17 404 geçerli tur vardır; kayıp yoktur. Sahnelenen
+durumda v4.2.3 60 turun 56'sını geçerli sayar (hepsini YZ kazanır), 4'ünü çelişki nedeniyle geçersiz sayar;
+aynı turlarda v4.0 29, v4.2.0 24 faul vermiş, v4.2.2 ise 24 turu kaybetmiştir. Yedi oturum ve ilk 150 oturum
+her test koşusunda yeniden oynatılır; bulanık sınama artık yayından önceki denetimin parçasıdır
+(`npm run fuzz`).
+
+**Bulgu 2 — dürüst Kâğıt faule dönüyordu.** v4.2.0, Makas'a benzeyen pozlarda (ön grup açık ve arka grubun
+belirgin biçimde önünde; eşikler v4.2.1'de gevşetildi) arka grubun açılmasından varsayılan bir bağlantı
+payını çıkarıyordu. v4.2.1'de bu pay, oyuncu ne gösterirse göstersin, $u_B$'yi aşmamak üzere en az
+$0{,}38\,u_F+0{,}08$'di. Çıkarılmış sinyal hem YZ'nin
+inancına hem de hakemin arka grup yönelimine gidiyordu. Yüzük ve serçe parmağı öbür ikisinden geride
+kalan dürüst bir Kâğıt bu yüzden "arka grup hâlâ kapalı" okunuyor ve faul sayılıyordu. Gerçek oyuncunun oturmuş
+Makaslarında ölçülen bağlantı oranı ise 0,105'tir (v4.2.x profili bu oranı 0,15'in altında göstermiyordu;
+v4.2.3'te kırpılmadan gösterilir). Aynı tohumlarla:
+
+| Ölçü (simülasyon) | v4.0 | v4.2.0 | v4.2.2 | v4.2.3 |
+|---|---|---|---|---|
+| E3 Turnuva, normal, 30 kare/s: faul (deneme %) | 5,25 | 5,92 | 7,92 | 5,00 |
+| … açık dürüst atışlarda faul % | 0,55 | 1,76 | 2,71 | 0,46 |
+| … Kâğıt atışlarında faul % | 10,20 | 14,01 | 18,89 | 10,42 |
+| … Makas atışlarında faul % | 5,73 | 3,44 | 5,13 | 4,70 |
+| E3 Turnuva, geç açanlar, 30 kare/s: açık dürüst atışlarda faul % | 2,00 | 3,19 | 5,72 | 1,32 |
+| E3 Serbest, normal, 30 kare/s: açık dürüst atışlarda faul % | 0,28 | 0,46 | 2,42 | 0,19 |
+| Sahnelenmiş geride kalan Kâğıt, Turnuva 30 kare/s (60 tur): faul | 0 | 1 | 58 | 0 |
+| … Turnuva 20 kare/s: faul | 0 | 16 | 26 | 0 |
+| … Serbest 30 kare/s: faul / YZ kaybı | 0 / 0 | 0 / 4 | 57 / 1 | 0 / 0 |
+| Sahnelenmiş bulanık son kareli Makas, Turnuva 20 kare/s (60 tur): faul / YZ kaybı / çelişkiyle geçersiz | 29 / 0 / 0 | 24 / 0 / 0 | 0 / 24 / 0 | 0 / 0 / 4 |
+| Sahnelenmiş bulanık son kareli Kâğıt, Turnuva 30 kare/s (60 tur): faul / YZ kaybı / çelişkiyle geçersiz | 0 / 0 / 0 | 60 / 0 / 0 | 60 / 0 / 0 | 0 / 0 / 0 |
+| … Turnuva 20 kare/s | 30 / 0 / 0 | 60 / 0 / 0 | 59 / 1 / 0 | 0 / 0 / 26 |
+| Son iki havadaki karesi bulanık Makas, Turnuva 30 kare/s (60 tur): faul / YZ kaybı / çelişkiyle geçersiz | 60 / 0 / 0 | 60 / 0 / 0 | 54 / 6 / 0 | 0 / 0 / 56 |
+| Tek gürültülü kareli yumruk, Turnuva 20 kare/s (60 tur): faul / YZ kaybı / çelişkiyle geçersiz | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 37 |
+
+(Sahnelenmiş geride kalan Kâğıt: işaret ve orta parmak inişten 260 ms önce açılmaya başlar ve 60 ms önce
+tamamlanır; yüzük ve serçe 170 ms önce başlar.)
+
+Önce çıkarma yalnızca inanca bırakıldı ve oyuncunun ölçülen oranına (en az 0,18) indirildi. Hakem ölçülen
+sinyali okurken YZ geride kalan Kâğıt'ı Makas sandı ve Serbest'te kaybetmeye başladı. Bir taramada (30 kare/s,
+üç açılma tarzı, tarz başına 24 tohum × 150 tur; ayrı sonuç dosyası yoktur) geç açanlarda 2 527 geçerli
+turda 39 kayıp çıktı. Tabanı kaldırılan, yalnızca ölçülen oranı çıkaran sürüm 16, çıkarmasız sürüm 8 kayıp
+verdi. Turnuva'da üçü de aynıdır,
+çünkü orada YZ'nin hamlesi yasal kümeyle belirlenir. v4.2.3 çıkarmayı kaldırır: gruplar YZ için de hakem için
+de ölçüldüğü gibi okunur. Makas'taki bağlantı, hakemin "net Makas" kuralının konusudur. Bedeli şudur:
+bağlantısı güçlü gerçek bir elin Makas'ı Turnuva'da YZ'nin galibiyeti yerine beraberliğe dönebilir
+(yasal küme {Kâğıt, Makas} olur ve YZ Makas oynar); Serbest ve Standart'ta inanç Kâğıt'a kayabilir. Bu,
+gerçek kamerayla ölçülmemiştir.
+
+**Bulgu 3 — rıza ve bulut.** (i) Tanıtım ekranında anahtara dokunmadan "Kamerayı aç"a basmak paylaşımı
+açıyordu. Varsayılan olarak kapalı olan bir ayar böylece fiilen varsayılan olarak açılıyordu; bu, karanlık
+örüntü sınıflamasındaki "ön seçim"dir [Gray2018]. (ii) Arayüz metinleri yalnızca geçerli turların hamle,
+sonuç ve zamanlamalarının gönderildiğini söylüyordu. Oysa v4.2.0'dan beri her turun (faul ve geçersiz turlar
+dahil) tanılama satırı, açılma izinin son on değeri ve öğrenilen oyuncu modelinin tamamı (hamle geçmişi, el
+kalibrasyonu) gönderiliyor; model aynı kimlikle geri de okunuyordu. (iii) Bütün oyuncuların tanılama
+satırlarını oyuncu kimlikleriyle döndüren `beatter_pull_recent_diagnostics` işlevi herkese açık anahtara
+açılmıştı; kimliği öğrenen herkes `beatter_pull_state` ile o oyuncunun modelini de okuyabiliyordu. (iv) Modeli
+yazan işlev çağıranın kimliğin sahibi olduğunu denetlemiyordu ve istemci, yerelden daha çok tur içeren bir
+modeli sunucudan yükleyip hakemin şekil sınıflandırıcısını ve kalibrasyonunu ondan kuruyordu: kimliği bilen
+biri, o oyuncunun atışlarının nasıl hükme bağlanacağını değiştirebiliyordu. Aynı geri yükleme "Hafızayı
+sıfırla"yı da bir sonraki sayfa açılışında geri alıyordu.
+
+v4.2.3'te: paylaşım yalnızca anahtar açılınca başlar ve rızanın bir sürümü vardır; v4.0–v4.2.2'den kalan
+kayıtlı bir "açık" artık kapalı okunur ve oyuncuya bir kez bildirilir (proje sahibinin kendi tarayıcısında
+da kayıtlı ayar açıktı; yayındaki v4.2.3 onu kapatıp bildirimi göstermiştir). Başka bir profile geçildiğinde
+paylaşım kapanır. Oyuncu modeli artık gönderilmez ve sunucudan hiçbir şey geri okunmaz. Şema herkese açık
+anahtara yalnızca iki yazma işlevini bırakır; listeleme ve model okuma işlevleri yalnızca gizli servis
+anahtarıyla çağrılabilir, model yazılmaz. Çözümleme betiği o anahtarı ortam değişkeninden alır. Yerel
+geliştirme sunucusunun oyun kaydı yalnızca sunucunun çalıştığı makinede (geri döngü adresinde) ya da adrese
+açıkça `?telemetry=1` eklendiğinde tutulur; `.local_telemetry/` dizini Vercel yüklemesinin dışındadır. Şemanın
+ve rızanın regresyon testleri vardır. Şemanın yeniden uygulanması veritabanı sahibine kalmıştır (Bölüm 5.8);
+sunucuya daha önce gönderilmiş kayıtlar tarayıcıdan silinemez.
+
+**Bulgu 4 — belgelenmemiş ayarlar ve kurallar.** v4.2.0'ın değiştirdiği 20 varsayılan ve eklediği bir
+varsayılan, Ek A'da önceki değerleriyle birlikte işaretlenmiştir. Kural eklemeleri şunlardır:
+- avuç boyu artık bilek–orta parmak MCP uzaklığı ile işaret–serçe MCP uzaklığının 1,45 katının büyüğüdür;
+- ritim kipinde 1–3 karelik kısa izleme boşlukları boşluk sayılmaz;
+- bir tepe görülmeden, uçuşun başından $\min(200\ \text{ms},\,0{,}4\cdot$dönem$)$ içinde gelen bir dip iniş
+  sayılmaz;
+- yumuşak iniş kuralı genişletilmiştir: çok hafif bir vuruşun sonu da aday olur, ayrıca dördüncü vuruşu
+  hiçbir vuruş olayı üretmeyen atışlar için iki yeni yol vardır (Bölüm 4.2);
+- jest etiketinin ağırlığı, etiketin güveniyle artar.
+
+Bunların hiçbirinin ayrı bir ölçüm kaydı yoktur. Bu metin onları belgeler, değerlerini değiştirmez. Yumruk
+tutma penceresi 250 ms'den 215 ms'ye inmiştir. Gerekçe daha kısa pencerede de geçerlidir: basit görsel tepki
+süresi tek başına 213–231 ms'dir [Woods2015] ve tepkiyle açılan parmakların eşiği art arda iki karede aşması
+bunun üstüne eklenir (Bölüm 4.4).
+
+**Açık nokta: yumuşak inişin tarihlenmesi.** Yeni yumuşak iniş yollarının biri şöyle işler: dördüncü vuruş
+hiçbir vuruş olayı üretmeyecek kadar hafifse ve avuç 85 ms durmuşsa, iniş koşulların sağlandığı ana
+tarihlenir. Simülasyonda (20 kare/s, atış vuruşu genliğinin %6'sına ya da %10'una ölçeklenmiş, 480'er tur;
+`experiments/version_compare.mjs`) bu tarihin gerçek inişe göre 90. yüzdeliği +104 ve +100 ms'dir: turların
+onda birinde iniş, avuç durduktan yaklaşık 100 ms ya da daha sonra tarihlenir. Aradaki karelerde atılan
+mühürler inişten önce atılmış sayılır. İnişi duruşun başladığı ana tarihleyen bir sürüm denendi (depoda
+yoktur). Bu kez avucu tepede kalıp parmaklarını havada açan el de faul sayıldı: %3'lük ölçekte faul payı
+%19'dan %61'e çıktı. Yalnızca avucun hareketi bu iki
+durumu ayıramaz. Kural bu yüzden değiştirilmemiştir. Turnuva güvencesini etkilemez, çünkü YZ ile hakem yine
+aynı kareleri okur. Ama bu turlarda "inişten önce" iddiasını zayıflatır. Gerçek kayıtlarda 46 hükmün 11'i
+yumuşak inişti; hangi yoldan geldikleri kaydedilmemiştir.
+
+**Bulgu 5 — v4.2.3 taslağının incelemesi.** Düzeltmelerin ilk hâli yayımlanmadan önce üç açıdan (motor ve
+güvence; gizlilik ve bulut; testler ve betikler) incelenmiş, her bulgu ayrı bir çürütme girişimiyle
+sınanmıştır. Yirmi bulgu doğrulanmış ve yayından önce giderilmiştir; başlıcaları:
+- *Koruma arka grubu hiç tutmuyordu.* Taslak, dedektörlerden biri yeniden çapalanınca korumayı turun geri
+  kalanı için kapatıyordu ve v4.2.0 arka grup dedektörünü tek kapalı karede yeniden çapalanır yapmıştı:
+  bulanık kare, kendisine karşı kurulan korumayı o karede kapatıyordu. Zamanında açılan, son havadaki karesi
+  bulanık bir Kâğıt 60 turun 60'ında faul sayılıyordu (yukarıdaki tablo; v4.0'da 30 kare/s'de 0, 20 kare/s'de
+  30). Son hâlde koruma grup başınadır, arka dedektör yeniden iki kapalı kare ister ve aynı atış 30 kare/s'de
+  60 turun 60'ında geçerlidir; 20 kare/s'de 34'ü geçerli, 26'sı çelişki nedeniyle geçersizdir, faul yoktur.
+- *Koruma her açık yönelimi tutuyordu.* Kapalı parmakları vuruşta biraz aralanan dürüst bir Taş böylece
+  geçersiz sayılıyordu (E8'in ilgili satırında, Turnuva'da 30 kare/s'de denemelerin %13,7'si). Son hâlde
+  yalnızca ham açılması en az 0,42 olan kareler korur ve bu pay %3,1'dir (Bölüm 6.8). Eşik simülasyon
+  taramasıyla seçilmiştir (0,25 / 0,32 / 0,42; ayrı sonuç dosyası yoktur): 0,25'te aynı satırda denemelerin
+  %13,3'ü geçersizdir, 0,32 ile 0,42 arasında ölçülebilir fark yoktur; 0,42, iniş sonrası "açıldı" eşiğiyle
+  aynı değerdir.
+- *Rapor ölçülmemiş bir sayı gösteriyordu.* Net Makas'ta arka yönelim 0,05 olarak bildiriliyordu; son hâlde
+  saklanan yönelim olduğu gibi gösterilir ve kuralın uygulandığı ayrı bir işaretle bildirilir (D4).
+- *Çelişen kareler "el izlenemedi" diye bildiriliyordu.* El izlenmişti; son hâlde ayrı bir açıklama kodu ve
+  metni vardır.
+- *Rıza taşınıyordu.* Taslak yalnızca yeni kurulumların varsayılanını düzeltiyordu; önceki sürümün açtığı
+  paylaşım güncellemeden sonra da sürüyordu (Bulgu 3'teki rıza sürümü bunun düzeltmesidir). Model yazma ve
+  geri okuma, yerel kaydın ağdaki cihazlardan da tutulması ve yükleme dışında bırakılmayan kayıt dizini de
+  bu incelemede bulunmuştur.
+- *Testler ve betikler.* Rıza testi, kusurlu v4.2.x koduyla da geçiyordu; bulanık sınamanın komut satırı
+  okunamayan bir tohum listesinde hiçbir oturum koşmadan 0 koduyla bitiyor, bağlantılı bir dizinden
+  çağrıldığında hiç çalışmıyordu. Üçü de düzeltilmiş ve teste bağlanmıştır.
+
+Korumanın bir bedeli vardır ve tabloda görülür: inişten iki kare önce işaret ve orta parmağı tek bir karede
+0,45 okunan dürüst bir yumruk v4.2.3'te 60 turun 37'sinde çelişki nedeniyle geçersizdir (önceki sürümlerde
+60'ı da geçerliydi). Tek karelik kanıt iki yönde de belirsizdir: koruma açık elin bulanık karesini kurtarır,
+yumruğun gürültülü karesini ise geçersize çevirir. İki durumda da tur faul ya da kayıp değildir, tekrar
+oynanır. Hangisinin gerçek kamerada daha sık olduğu ölçülmemiştir.
+
+**Test paketi.** v4.2.2'nin 114 testine on iki test eklenmiştir. `engine_regressions.test.js`'te sekizi
+(25 → 33): Makas kuralıyla YZ'nin, hakemin hâlâ kabul edebileceği her atışa karşı karar vermesi; bulanık son
+kareli Makas'ın ne faul ne kayıp olması; çelişen karelerin kendi koduyla geçersiz sayılması (iki sahneleme);
+bulanık son kareli Kâğıt'ın faul sayılmaması; raporun ölçülen yönelimi göstermesi; geride kalan Kâğıt'ın üç
+ayarda faul sayılmaması; bulanık sınamanın kırılan yedi oturumu ile ilk 150 oturumu; sınamanın komut
+satırının okunamayan bağımsız değişkenleri reddetmesi. `controller_lifecycle.test.js`'te dördü (12 → 16):
+rızanın yalnızca anahtarla ve güncel metnin sürümüyle geçerli olması; önceki sürümün açtığı paylaşımın
+güncellemeden sonra sürmemesi; başka profilin rızayı devralmaması; veritabanı şemasının herkese açık
+anahtara yalnızca iki yazma işlevini açması ve istemcinin başka çağrı yapmaması. Rıza ve şema testleri,
+eski kusurlu kod geçici bir kopyaya geri konarak sınanmış, beş değişikliğin beşinde de kırılmıştır. Paket 126
+testtir ve 126'sı da geçmektedir. Bütün deneyler (Bölüm 6) v4.2.3'ün son koduyla yeniden koşulmuştur.
+
+**Yöntemsel ders.** v4.2.1'in sürüm notu "yanlış faulleri ortadan kaldırır" diyordu. Bu iddia ölçülmemişti.
+Eşleşmiş simülasyon Kâğıt için tersini göstermiştir ve yayından önceki denetimin en ucuz adımı olan bulanık
+sınama, güvencenin kırıldığını yayından önce bulurdu. Gerçek kamera verisi bir değişikliğin gerekçesi
+olabilir. Ama değişikliğin bir şeyi düzelttiğini ancak ölçüm gösterebilir, başka bir şeyi bozmadığını da
+yalnızca bütün paket ve sınamalar gösterebilir.
